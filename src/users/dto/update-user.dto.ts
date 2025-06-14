@@ -4,4 +4,5 @@ export class UpdateUserDto {
   username?: string | null;
   currency?: string;
   timezone?: string;
+  isActive?: boolean;
 }
