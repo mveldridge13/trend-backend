@@ -7,5 +7,6 @@ export declare class UsersService {
     findById(id: string): Promise<UserDto | null>;
     findByEmail(email: string): Promise<UserDto | null>;
     updateProfile(id: string, updateData: UpdateUserDto): Promise<UserDto>;
+    deactivate(id: string): Promise<void>;
     private toUserDto;
 }

@@ -44,6 +44,13 @@ let UsersService = class UsersService {
         const updatedUser = await this.usersRepository.update(id, updateData);
         return this.toUserDto(updatedUser);
     }
+    async deactivate(id) {
+        const existingUser = await this.usersRepository.findById(id);
+        if (!existingUser) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        await this.usersRepository.update(id, { isActive: false });
+    }
     toUserDto(user) {
         const { passwordHash, ...userWithoutPassword } = user;
         return userWithoutPassword;

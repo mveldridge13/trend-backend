@@ -43,6 +43,15 @@ export class UsersService {
     return this.toUserDto(updatedUser);
   }
 
+  async deactivate(id: string): Promise<void> {
+    const existingUser = await this.usersRepository.findById(id);
+    if (!existingUser) {
+      throw new NotFoundException("User not found");
+    }
+
+    await this.usersRepository.update(id, { isActive: false });
+  }
+
   private toUserDto(user: any): UserDto {
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword;
