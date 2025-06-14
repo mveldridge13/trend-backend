@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  username     String?       @unique
+  firstName    String
+  lastName     String
+  passwordHash String?
+  currency     String        @default("USD")
+  timezone     String        @default("UTC")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isActive     Boolean       @default(true)
+  budgets      Budget[]
+  categories   Category[]
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Budget {
+  id           String        @id @default(cuid())
+  userId       String
+  name         String
+  description  String?
+  totalAmount  Decimal       @db.Decimal(12, 2)
+  currency     String        @default("USD")
+  startDate    DateTime
+  endDate      DateTime?
+  isRecurring  Boolean       @default(true)
+  status       BudgetStatus  @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("budgets")
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  userId       String?
+  name         String
+  description  String?
+  icon         String?
+  color        String?
+  type         CategoryType  @default(EXPENSE)
+  isSystem     Boolean       @default(false)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("categories")
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  userId          String
+  budgetId        String?
+  categoryId      String?
+  description     String
+  amount          Decimal         @db.Decimal(12, 2)
+  currency        String          @default("USD")
+  date            DateTime
+  type            TransactionType
+  isAICategorized Boolean         @default(false)
+  aiConfidence    Float?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  budget          Budget?         @relation(fields: [budgetId], references: [id])
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([categoryId])
+  @@map("transactions")
+}
+
+enum BudgetStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  INVESTMENT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  REFUND
+}
