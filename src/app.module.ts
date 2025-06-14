@@ -8,6 +8,7 @@ import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
+import { BudgetsModule } from "./budgets/budgets.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UsersModule } from "./users/users.module";
     HealthModule,
     AuthModule, // This exports AuthService
     UsersModule,
+    BudgetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
