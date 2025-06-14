@@ -13,16 +13,11 @@ export class UsersRepository extends BaseRepository<User> {
 
   async findByEmail(email: string): Promise<User | null> {
     try {
-      console.log("Attempting to find user by email:", email);
       const result = await this.prisma.user.findUnique({
         where: { email },
       });
-      console.log("Query successful, result:", result);
       return result;
     } catch (error) {
-      console.error("Raw database error:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
       this.handleDatabaseError(error);
       return null;
     }
@@ -35,7 +30,7 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      return null; // Add this return statement
+      return null;
     }
   }
 
@@ -46,7 +41,7 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      return null; // Add this return statement
+      return null;
     }
   }
 
@@ -58,7 +53,7 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      throw error; // Re-throw for create operations
+      throw error;
     }
   }
 
@@ -70,7 +65,7 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      throw error; // Re-throw for update operations
+      throw error;
     }
   }
 
@@ -82,7 +77,6 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      // For void methods, we can just let the error be handled
     }
   }
 }

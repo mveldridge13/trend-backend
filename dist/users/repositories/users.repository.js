@@ -19,17 +19,12 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
     }
     async findByEmail(email) {
         try {
-            console.log("Attempting to find user by email:", email);
             const result = await this.prisma.user.findUnique({
                 where: { email },
             });
-            console.log("Query successful, result:", result);
             return result;
         }
         catch (error) {
-            console.error("Raw database error:", error);
-            console.error("Error code:", error.code);
-            console.error("Error message:", error.message);
             this.handleDatabaseError(error);
             return null;
         }
