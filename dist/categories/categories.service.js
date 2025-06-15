@@ -91,7 +91,7 @@ let CategoriesService = class CategoriesService {
         const updatedCategory = await this.categoriesRepository.update(id, userId, updateCategoryDto);
         return this.mapToDto(updatedCategory);
     }
-    async remove(userId, id) {
+    async remove(userId, id, options = {}) {
         const category = await this.categoriesRepository.findById(id, userId);
         if (!category) {
             throw new common_1.NotFoundException("Category not found");
@@ -99,7 +99,55 @@ let CategoriesService = class CategoriesService {
         if (category.isSystem) {
             throw new common_1.BadRequestException("Cannot delete system categories");
         }
-        await this.categoriesRepository.delete(id, userId);
+        const subcategoriesCount = await this.categoriesRepository.countActiveSubcategories(id, userId);
+        const totalAffected = 1 + subcategoriesCount;
+        if (subcategoriesCount > 0 && !options.force) {
+            const action = options.permanent ? "permanent_delete" : "archive";
+            const actionText = options.permanent ? "permanently delete" : "archive";
+            const willText = options.permanent
+                ? "will permanently delete"
+                : "will archive";
+            const subcategoryNames = category.subcategories?.map((sub) => sub.name) || [];
+            const warning = {
+                message: `This category has ${subcategoriesCount} subcategory(ies). ${actionText === "archive" ? "Archiving" : "Deleting"} this category ${willText} all subcategories as well.`,
+                subcategoriesCount,
+                subcategoryNames,
+                action,
+                suggestion: `Add '?force=true' to confirm ${actionText} of parent and all ${subcategoriesCount} subcategory(ies).`,
+                statusCode: 400,
+                error: "Bad Request",
+            };
+            throw new common_1.BadRequestException(warning);
+        }
+        if (options.permanent) {
+            await this.categoriesRepository.permanentDelete(id, userId);
+        }
+        else {
+            await this.categoriesRepository.archiveWithChildren(id, userId);
+        }
+        const subcategoryNames = category.subcategories?.map((sub) => sub.name) || [];
+        return {
+            message: options.permanent
+                ? `Category and ${subcategoriesCount} subcategory(ies) permanently deleted`
+                : `Category and ${subcategoriesCount} subcategory(ies) archived`,
+            affectedCategories: totalAffected,
+            subcategoryNames,
+        };
+    }
+    async restore(userId, id) {
+        const category = await this.categoriesRepository.findArchivedById(id, userId);
+        if (!category) {
+            throw new common_1.NotFoundException("Archived category not found");
+        }
+        const restoredCount = await this.categoriesRepository.restoreWithChildren(id, userId);
+        return {
+            message: `Category and subcategories restored successfully`,
+            restoredCategories: restoredCount,
+        };
+    }
+    async findArchived(userId) {
+        const categories = await this.categoriesRepository.findArchivedByUser(userId);
+        return categories.map((cat) => this.mapToDto(cat));
     }
     async getSystemCategories() {
         const categories = await this.categoriesRepository.getSystemCategories();

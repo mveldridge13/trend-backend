@@ -11,18 +11,18 @@ export declare class BudgetsRepository extends BaseRepository<any> {
             transactions: number;
         };
     } & {
-        id: string;
-        userId: string;
+        currency: string;
         name: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.BudgetStatus;
         description: string | null;
         totalAmount: Prisma.Decimal;
-        currency: string;
         startDate: Date;
         endDate: Date | null;
         isRecurring: boolean;
-        status: import(".prisma/client").$Enums.BudgetStatus;
-        createdAt: Date;
-        updatedAt: Date;
+        userId: string;
     }>;
     findByUserId(userId: string, page?: number, limit?: number): Promise<{
         data: ({
@@ -34,18 +34,18 @@ export declare class BudgetsRepository extends BaseRepository<any> {
                 transactions: number;
             };
         } & {
-            id: string;
-            userId: string;
+            currency: string;
             name: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.BudgetStatus;
             description: string | null;
             totalAmount: Prisma.Decimal;
-            currency: string;
             startDate: Date;
             endDate: Date | null;
             isRecurring: boolean;
-            status: import(".prisma/client").$Enums.BudgetStatus;
-            createdAt: Date;
-            updatedAt: Date;
+            userId: string;
         })[];
         total: number;
         page: number;
@@ -56,88 +56,88 @@ export declare class BudgetsRepository extends BaseRepository<any> {
     }>;
     findByIdAndUserId(id: string, userId: string): Promise<{
         transactions: {
+            category: {
+                name: string;
+                id: string;
+            };
             amount: Prisma.Decimal;
             date: Date;
             type: import(".prisma/client").$Enums.TransactionType;
-            category: {
-                id: string;
-                name: string;
-            };
         }[];
         _count: {
             transactions: number;
         };
     } & {
-        id: string;
-        userId: string;
+        currency: string;
         name: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.BudgetStatus;
         description: string | null;
         totalAmount: Prisma.Decimal;
-        currency: string;
         startDate: Date;
         endDate: Date | null;
         isRecurring: boolean;
-        status: import(".prisma/client").$Enums.BudgetStatus;
-        createdAt: Date;
-        updatedAt: Date;
+        userId: string;
     }>;
     update(id: string, userId: string, data: UpdateBudgetDto): Promise<{
         _count: {
             transactions: number;
         };
     } & {
-        id: string;
-        userId: string;
+        currency: string;
         name: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.BudgetStatus;
         description: string | null;
         totalAmount: Prisma.Decimal;
-        currency: string;
         startDate: Date;
         endDate: Date | null;
         isRecurring: boolean;
-        status: import(".prisma/client").$Enums.BudgetStatus;
-        createdAt: Date;
-        updatedAt: Date;
+        userId: string;
     }>;
     delete(id: string, userId: string): Promise<{
-        id: string;
-        userId: string;
+        currency: string;
         name: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.BudgetStatus;
         description: string | null;
         totalAmount: Prisma.Decimal;
-        currency: string;
         startDate: Date;
         endDate: Date | null;
         isRecurring: boolean;
-        status: import(".prisma/client").$Enums.BudgetStatus;
-        createdAt: Date;
-        updatedAt: Date;
+        userId: string;
     }>;
     getBudgetAnalytics(id: string, userId: string): Promise<{
         budget: {
             transactions: {
+                category: {
+                    name: string;
+                    id: string;
+                };
                 categoryId: string;
                 amount: Prisma.Decimal;
                 date: Date;
                 type: import(".prisma/client").$Enums.TransactionType;
-                category: {
-                    id: string;
-                    name: string;
-                };
             }[];
         } & {
-            id: string;
-            userId: string;
+            currency: string;
             name: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.BudgetStatus;
             description: string | null;
             totalAmount: Prisma.Decimal;
-            currency: string;
             startDate: Date;
             endDate: Date | null;
             isRecurring: boolean;
-            status: import(".prisma/client").$Enums.BudgetStatus;
-            createdAt: Date;
-            updatedAt: Date;
+            userId: string;
         };
         spentAmount: number;
         categoryBreakdown: any[];

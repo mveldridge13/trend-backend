@@ -11,6 +11,32 @@ import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { CategoryDto } from "./dto/category.dto";
 import { CategoryAnalyticsDto } from "./dto/category-analytics.dto";
 
+export interface DeleteOptions {
+  permanent?: boolean;
+  force?: boolean;
+}
+
+export interface DeleteResult {
+  message: string;
+  affectedCategories: number;
+  subcategoryNames?: string[];
+}
+
+export interface RestoreResult {
+  message: string;
+  restoredCategories: number;
+}
+
+export interface DeleteWarning {
+  message: string;
+  subcategoriesCount: number;
+  subcategoryNames: string[];
+  action: "archive" | "permanent_delete";
+  suggestion: string;
+  statusCode: 400;
+  error: "Bad Request";
+}
+
 @Injectable()
 export class CategoriesService {
   constructor(private readonly categoriesRepository: CategoriesRepository) {}
@@ -19,7 +45,6 @@ export class CategoriesService {
     userId: string,
     createCategoryDto: CreateCategoryDto
   ): Promise<CategoryDto> {
-
     // Check if category name already exists for this user
     const existingCategories = await this.categoriesRepository.findManyByUser(
       userId,
@@ -45,7 +70,6 @@ export class CategoriesService {
       }
     }
 
-    // 🔧 FIX: Direct assignment instead of nested connect object
     const categoryData = {
       name: createCategoryDto.name,
       description: createCategoryDto.description,
@@ -55,7 +79,7 @@ export class CategoriesService {
       parentId: createCategoryDto.parentId,
       isActive: createCategoryDto.isActive ?? true,
       isSystem: false,
-      userId: userId, // 👈 Direct assignment - this fixes the undefined error
+      userId: userId,
     };
 
     const category = await this.categoriesRepository.create(categoryData);
@@ -69,6 +93,7 @@ export class CategoriesService {
       isSystem?: boolean;
       parentId?: string;
       search?: string;
+      includeArchived?: boolean;
     } = {},
     page: number = 1,
     limit: number = 50
@@ -160,7 +185,11 @@ export class CategoriesService {
     return this.mapToDto(updatedCategory);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
+  async remove(
+    userId: string,
+    id: string,
+    options: DeleteOptions = {}
+  ): Promise<DeleteResult> {
     const category = await this.categoriesRepository.findById(id, userId);
     if (!category) {
       throw new NotFoundException("Category not found");
@@ -170,7 +199,79 @@ export class CategoriesService {
       throw new BadRequestException("Cannot delete system categories");
     }
 
-    await this.categoriesRepository.delete(id, userId);
+    // Count affected subcategories
+    const subcategoriesCount =
+      await this.categoriesRepository.countActiveSubcategories(id, userId);
+    const totalAffected = 1 + subcategoriesCount;
+
+    // If has subcategories and not forced, return warning
+    if (subcategoriesCount > 0 && !options.force) {
+      const action = options.permanent ? "permanent_delete" : "archive";
+      const actionText = options.permanent ? "permanently delete" : "archive";
+      const willText = options.permanent
+        ? "will permanently delete"
+        : "will archive";
+
+      // Get subcategory names safely
+      const subcategoryNames =
+        (category as any).subcategories?.map((sub: any) => sub.name) || [];
+
+      const warning: DeleteWarning = {
+        message: `This category has ${subcategoriesCount} subcategory(ies). ${actionText === "archive" ? "Archiving" : "Deleting"} this category ${willText} all subcategories as well.`,
+        subcategoriesCount,
+        subcategoryNames,
+        action,
+        suggestion: `Add '?force=true' to confirm ${actionText} of parent and all ${subcategoriesCount} subcategory(ies).`,
+        statusCode: 400,
+        error: "Bad Request",
+      };
+
+      throw new BadRequestException(warning);
+    }
+
+    if (options.permanent) {
+      await this.categoriesRepository.permanentDelete(id, userId);
+    } else {
+      await this.categoriesRepository.archiveWithChildren(id, userId);
+    }
+
+    // Get subcategory names safely for response
+    const subcategoryNames =
+      (category as any).subcategories?.map((sub: any) => sub.name) || [];
+
+    return {
+      message: options.permanent
+        ? `Category and ${subcategoriesCount} subcategory(ies) permanently deleted`
+        : `Category and ${subcategoriesCount} subcategory(ies) archived`,
+      affectedCategories: totalAffected,
+      subcategoryNames,
+    };
+  }
+
+  async restore(userId: string, id: string): Promise<RestoreResult> {
+    const category = await this.categoriesRepository.findArchivedById(
+      id,
+      userId
+    );
+    if (!category) {
+      throw new NotFoundException("Archived category not found");
+    }
+
+    const restoredCount = await this.categoriesRepository.restoreWithChildren(
+      id,
+      userId
+    );
+
+    return {
+      message: `Category and subcategories restored successfully`,
+      restoredCategories: restoredCount,
+    };
+  }
+
+  async findArchived(userId: string): Promise<CategoryDto[]> {
+    const categories =
+      await this.categoriesRepository.findArchivedByUser(userId);
+    return categories.map((cat) => this.mapToDto(cat));
   }
 
   async getSystemCategories(): Promise<CategoryDto[]> {
@@ -253,7 +354,9 @@ export class CategoriesService {
       isActive: category.isActive,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
-      subcategories: category.subcategories?.map((sub) => this.mapToDto(sub)),
+      subcategories: (category as any).subcategories?.map((sub: any) =>
+        this.mapToDto(sub)
+      ),
       parent: category.parent ? this.mapToDto(category.parent) : undefined,
       transactionCount: category._count?.transactions || 0,
     };

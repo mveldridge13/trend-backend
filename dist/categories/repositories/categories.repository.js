@@ -19,28 +19,38 @@ let CategoriesRepository = class CategoriesRepository {
     async create(data) {
         return this.prisma.category.create({
             data,
+            include: {
+                parent: true,
+                subcategories: {
+                    where: { isActive: true },
+                    orderBy: { name: "asc" },
+                },
+            },
         });
     }
     async findById(id, userId) {
         return this.prisma.category.findFirst({
             where: {
                 id,
-                OR: [
-                    { userId },
-                    { isSystem: true },
-                ],
+                isActive: true,
+                OR: [{ userId: userId }, { isSystem: true }],
+            },
+            include: {
+                parent: true,
+                subcategories: {
+                    where: { isActive: true },
+                    orderBy: { name: "asc" },
+                },
             },
         });
     }
     async findManyByUser(userId, filters = {}, pagination = { skip: 0, take: 50 }) {
         const where = {
-            OR: [
-                { userId },
-                { isSystem: true },
-            ],
-            isActive: filters.isActive ?? true,
+            OR: [{ userId: userId }, { isSystem: true }],
+            isActive: filters.includeArchived ? undefined : true,
             ...(filters.type && { type: filters.type }),
             ...(filters.isSystem !== undefined && { isSystem: filters.isSystem }),
+            ...(filters.parentId && { parentId: filters.parentId }),
             ...(filters.search && {
                 OR: [
                     { name: { contains: filters.search, mode: "insensitive" } },
@@ -52,16 +62,18 @@ let CategoriesRepository = class CategoriesRepository {
             this.prisma.category.findMany({
                 where,
                 include: {
+                    parent: true,
+                    subcategories: {
+                        where: { isActive: true },
+                        orderBy: { name: "asc" },
+                    },
                     _count: {
                         select: {
                             transactions: true,
                         },
                     },
                 },
-                orderBy: [
-                    { isSystem: "desc" },
-                    { name: "asc" },
-                ],
+                orderBy: [{ isSystem: "desc" }, { name: "asc" }],
                 skip: pagination.skip,
                 take: pagination.take,
             }),
@@ -73,17 +85,24 @@ let CategoriesRepository = class CategoriesRepository {
         return this.prisma.category.update({
             where: {
                 id,
-                userId,
+                userId: userId,
                 isSystem: false,
             },
             data,
+            include: {
+                parent: true,
+                subcategories: {
+                    where: { isActive: true },
+                    orderBy: { name: "asc" },
+                },
+            },
         });
     }
     async delete(id, userId) {
         return this.prisma.category.update({
             where: {
                 id,
-                userId,
+                userId: userId,
                 isSystem: false,
             },
             data: {
@@ -91,11 +110,124 @@ let CategoriesRepository = class CategoriesRepository {
             },
         });
     }
+    async countActiveSubcategories(parentId, userId) {
+        return this.prisma.category.count({
+            where: {
+                parentId: parentId,
+                isActive: true,
+                OR: [{ userId: userId }, { isSystem: true }],
+            },
+        });
+    }
+    async archiveWithChildren(parentId, userId) {
+        await this.prisma.$transaction(async (tx) => {
+            await tx.category.updateMany({
+                where: {
+                    parentId: parentId,
+                    userId: userId,
+                    isSystem: false,
+                },
+                data: {
+                    isActive: false,
+                },
+            });
+            await tx.category.update({
+                where: {
+                    id: parentId,
+                    userId: userId,
+                    isSystem: false,
+                },
+                data: {
+                    isActive: false,
+                },
+            });
+        });
+    }
+    async permanentDelete(parentId, userId) {
+        await this.prisma.$transaction(async (tx) => {
+            await tx.category.deleteMany({
+                where: {
+                    parentId: parentId,
+                    userId: userId,
+                    isSystem: false,
+                },
+            });
+            await tx.category.delete({
+                where: {
+                    id: parentId,
+                    userId: userId,
+                },
+            });
+        });
+    }
+    async restoreWithChildren(parentId, userId) {
+        const result = await this.prisma.$transaction(async (tx) => {
+            await tx.category.update({
+                where: {
+                    id: parentId,
+                    userId: userId,
+                },
+                data: {
+                    isActive: true,
+                },
+            });
+            const restoredChildren = await tx.category.updateMany({
+                where: {
+                    parentId: parentId,
+                    userId: userId,
+                },
+                data: {
+                    isActive: true,
+                },
+            });
+            return 1 + restoredChildren.count;
+        });
+        return result;
+    }
+    async findArchivedById(id, userId) {
+        return this.prisma.category.findFirst({
+            where: {
+                id,
+                userId: userId,
+                isActive: false,
+            },
+            include: {
+                parent: true,
+                subcategories: {
+                    where: { isActive: false },
+                    orderBy: { name: "asc" },
+                },
+            },
+        });
+    }
+    async findArchivedByUser(userId) {
+        return this.prisma.category.findMany({
+            where: {
+                userId: userId,
+                isActive: false,
+                isSystem: false,
+            },
+            include: {
+                parent: true,
+                subcategories: {
+                    where: { isActive: false },
+                    orderBy: { name: "asc" },
+                },
+            },
+            orderBy: { name: "asc" },
+        });
+    }
     async getSystemCategories() {
         return this.prisma.category.findMany({
             where: {
                 isSystem: true,
                 isActive: true,
+            },
+            include: {
+                subcategories: {
+                    where: { isActive: true },
+                    orderBy: { name: "asc" },
+                },
             },
             orderBy: { name: "asc" },
         });
@@ -105,7 +237,7 @@ let CategoriesRepository = class CategoriesRepository {
         const categoryWithStats = await this.prisma.category.findFirst({
             where: {
                 id: categoryId,
-                OR: [{ userId }, { isSystem: true }],
+                OR: [{ userId: userId }, { isSystem: true }],
             },
             include: {
                 transactions: {
@@ -169,7 +301,7 @@ let CategoriesRepository = class CategoriesRepository {
     async getMostUsedCategories(userId, limit = 10) {
         return this.prisma.category.findMany({
             where: {
-                OR: [{ userId }, { isSystem: true }],
+                OR: [{ userId: userId }, { isSystem: true }],
                 isActive: true,
             },
             include: {

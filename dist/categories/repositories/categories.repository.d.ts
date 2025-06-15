@@ -11,6 +11,7 @@ export declare class CategoriesRepository {
         isActive?: boolean;
         parentId?: string;
         search?: string;
+        includeArchived?: boolean;
     }, pagination?: {
         skip: number;
         take: number;
@@ -20,6 +21,12 @@ export declare class CategoriesRepository {
     }>;
     update(id: string, userId: string, data: Prisma.CategoryUpdateInput): Promise<Category>;
     delete(id: string, userId: string): Promise<Category>;
+    countActiveSubcategories(parentId: string, userId: string): Promise<number>;
+    archiveWithChildren(parentId: string, userId: string): Promise<void>;
+    permanentDelete(parentId: string, userId: string): Promise<void>;
+    restoreWithChildren(parentId: string, userId: string): Promise<number>;
+    findArchivedById(id: string, userId: string): Promise<Category | null>;
+    findArchivedByUser(userId: string): Promise<Category[]>;
     getSystemCategories(): Promise<Category[]>;
     getCategoryAnalytics(categoryId: string, userId: string, dateRange: {
         startDate: Date;
