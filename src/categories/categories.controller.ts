@@ -25,7 +25,6 @@ export class CategoriesController {
 
   @Post()
   async create(@Request() req, @Body() createCategoryDto: CreateCategoryDto) {
-
     return this.categoriesService.create(req.user.userId, createCategoryDto);
   }
 
@@ -36,6 +35,7 @@ export class CategoriesController {
     @Query("isSystem") isSystem?: string,
     @Query("parentId") parentId?: string,
     @Query("search") search?: string,
+    @Query("includeArchived") includeArchived?: string,
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
     @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number = 50
   ) {
@@ -44,6 +44,9 @@ export class CategoriesController {
       ...(isSystem !== undefined && { isSystem: isSystem === "true" }),
       ...(parentId && { parentId }),
       ...(search && { search }),
+      ...(includeArchived !== undefined && {
+        includeArchived: includeArchived === "true",
+      }),
     };
 
     return this.categoriesService.findAll(
@@ -65,6 +68,11 @@ export class CategoriesController {
     @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number = 10
   ) {
     return this.categoriesService.getMostUsedCategories(req.user.userId, limit);
+  }
+
+  @Get("archived")
+  async getArchivedCategories(@Request() req) {
+    return this.categoriesService.findArchived(req.user.userId);
   }
 
   @Get(":id")
@@ -104,8 +112,22 @@ export class CategoriesController {
   }
 
   @Delete(":id")
-  async remove(@Request() req, @Param("id") id: string) {
-    await this.categoriesService.remove(req.user.userId, id);
-    return { message: "Category deleted successfully" };
+  async remove(
+    @Request() req,
+    @Param("id") id: string,
+    @Query("permanent") permanent?: string,
+    @Query("force") force?: string
+  ) {
+    const options = {
+      permanent: permanent === "true",
+      force: force === "true",
+    };
+
+    return this.categoriesService.remove(req.user.userId, id, options);
+  }
+
+  @Post(":id/restore")
+  async restore(@Request() req, @Param("id") id: string) {
+    return this.categoriesService.restore(req.user.userId, id);
   }
 }

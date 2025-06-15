@@ -26,12 +26,15 @@ let CategoriesController = class CategoriesController {
     async create(req, createCategoryDto) {
         return this.categoriesService.create(req.user.userId, createCategoryDto);
     }
-    async findAll(req, type, isSystem, parentId, search, page = 1, limit = 50) {
+    async findAll(req, type, isSystem, parentId, search, includeArchived, page = 1, limit = 50) {
         const filters = {
             ...(type && { type }),
             ...(isSystem !== undefined && { isSystem: isSystem === "true" }),
             ...(parentId && { parentId }),
             ...(search && { search }),
+            ...(includeArchived !== undefined && {
+                includeArchived: includeArchived === "true",
+            }),
         };
         return this.categoriesService.findAll(req.user.userId, filters, page, limit);
     }
@@ -40,6 +43,9 @@ let CategoriesController = class CategoriesController {
     }
     async getMostUsedCategories(req, limit = 10) {
         return this.categoriesService.getMostUsedCategories(req.user.userId, limit);
+    }
+    async getArchivedCategories(req) {
+        return this.categoriesService.findArchived(req.user.userId);
     }
     async findOne(req, id) {
         return this.categoriesService.findOne(req.user.userId, id);
@@ -52,9 +58,15 @@ let CategoriesController = class CategoriesController {
     async update(req, id, updateCategoryDto) {
         return this.categoriesService.update(req.user.userId, id, updateCategoryDto);
     }
-    async remove(req, id) {
-        await this.categoriesService.remove(req.user.userId, id);
-        return { message: "Category deleted successfully" };
+    async remove(req, id, permanent, force) {
+        const options = {
+            permanent: permanent === "true",
+            force: force === "true",
+        };
+        return this.categoriesService.remove(req.user.userId, id, options);
+    }
+    async restore(req, id) {
+        return this.categoriesService.restore(req.user.userId, id);
     }
 };
 exports.CategoriesController = CategoriesController;
@@ -73,10 +85,11 @@ __decorate([
     __param(2, (0, common_1.Query)("isSystem")),
     __param(3, (0, common_1.Query)("parentId")),
     __param(4, (0, common_1.Query)("search")),
-    __param(5, (0, common_1.Query)("page", new common_1.DefaultValuePipe(1), common_1.ParseIntPipe)),
-    __param(6, (0, common_1.Query)("limit", new common_1.DefaultValuePipe(50), common_1.ParseIntPipe)),
+    __param(5, (0, common_1.Query)("includeArchived")),
+    __param(6, (0, common_1.Query)("page", new common_1.DefaultValuePipe(1), common_1.ParseIntPipe)),
+    __param(7, (0, common_1.Query)("limit", new common_1.DefaultValuePipe(50), common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, Number, Number]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, Number, Number]),
     __metadata("design:returntype", Promise)
 ], CategoriesController.prototype, "findAll", null);
 __decorate([
@@ -93,6 +106,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
 ], CategoriesController.prototype, "getMostUsedCategories", null);
+__decorate([
+    (0, common_1.Get)("archived"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CategoriesController.prototype, "getArchivedCategories", null);
 __decorate([
     (0, common_1.Get)(":id"),
     __param(0, (0, common_1.Request)()),
@@ -124,10 +144,20 @@ __decorate([
     (0, common_1.Delete)(":id"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Query)("permanent")),
+    __param(3, (0, common_1.Query)("force")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:returntype", Promise)
+], CategoriesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(":id/restore"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
-], CategoriesController.prototype, "remove", null);
+], CategoriesController.prototype, "restore", null);
 exports.CategoriesController = CategoriesController = __decorate([
     (0, common_1.Controller)("categories"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
