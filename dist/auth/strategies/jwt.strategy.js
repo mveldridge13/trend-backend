@@ -29,6 +29,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             throw new common_1.UnauthorizedException("User not found or inactive");
         }
         return {
+            userId: user.id,
             id: user.id,
             email: user.email,
             firstName: user.firstName,

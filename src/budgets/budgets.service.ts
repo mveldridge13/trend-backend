@@ -19,13 +19,6 @@ export class BudgetsService {
     userId: string,
     createBudgetDto: CreateBudgetDto
   ): Promise<BudgetDto> {
-    // DEBUG: Log the received data
-    console.log("=== BUDGET CREATION DEBUG ===");
-    console.log("userId:", userId);
-    console.log("createBudgetDto:", createBudgetDto);
-    console.log("totalAmount type:", typeof createBudgetDto.totalAmount);
-    console.log("totalAmount value:", createBudgetDto.totalAmount);
-    console.log("============================");
 
     // Validate date range
     const startDate = new Date(createBudgetDto.startDate);

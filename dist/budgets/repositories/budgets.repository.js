@@ -23,9 +23,6 @@ let BudgetsRepository = class BudgetsRepository extends base_repository_1.BaseRe
         if (!data.totalAmount || isNaN(data.totalAmount)) {
             throw new Error(`Invalid totalAmount: ${data.totalAmount}`);
         }
-        console.log("REPOSITORY DEBUG:");
-        console.log("data.totalAmount:", data.totalAmount);
-        console.log("data.totalAmount type:", typeof data.totalAmount);
         return this.prisma.budget.create({
             data: {
                 name: data.name,

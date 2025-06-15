@@ -28,9 +28,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException("User not found or inactive");
     }
 
-    // Return user object that will be attached to request.user
+    // 🔧 FIX: Return userId instead of id to match controller expectation
     return {
-      id: user.id,
+      userId: user.id, // 👈 Changed from 'id' to 'userId'
+      id: user.id, // 👈 Keep both for compatibility
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,

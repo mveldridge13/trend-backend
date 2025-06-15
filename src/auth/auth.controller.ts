@@ -7,13 +7,11 @@ export class AuthController {
 
   @Post("register")
   async register(@Body() registerDto: any) {
-    console.log("Register called with:", registerDto);
     return this.authService.register(registerDto);
   }
 
   @Post("login")
   async login(@Body() loginDto: any) {
-    console.log("Login called with:", loginDto);
     return this.authService.login(loginDto);
   }
 }
