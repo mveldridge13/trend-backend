@@ -20,10 +20,6 @@ export class BudgetsRepository extends BaseRepository<any> {
       throw new Error(`Invalid totalAmount: ${data.totalAmount}`);
     }
 
-    // DEBUG: Log in repository
-    console.log("REPOSITORY DEBUG:");
-    console.log("data.totalAmount:", data.totalAmount);
-    console.log("data.totalAmount type:", typeof data.totalAmount);
 
     return this.prisma.budget.create({
       data: {

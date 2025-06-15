@@ -20,11 +20,9 @@ let AuthController = class AuthController {
         this.authService = authService;
     }
     async register(registerDto) {
-        console.log("Register called with:", registerDto);
         return this.authService.register(registerDto);
     }
     async login(loginDto) {
-        console.log("Login called with:", loginDto);
         return this.authService.login(loginDto);
     }
 };
