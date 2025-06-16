@@ -9,7 +9,8 @@ import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./auth/auth.module";
 import { UsersModule } from "./users/users.module";
 import { BudgetsModule } from "./budgets/budgets.module";
-import { CategoriesModule } from "./categories/categories.module"; // ADD THIS
+import { CategoriesModule } from "./categories/categories.module";
+import { TransactionsModule } from "./transactions/transactions.module";
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { CategoriesModule } from "./categories/categories.module"; // ADD THIS
     AuthModule,
     UsersModule,
     BudgetsModule,
-    CategoriesModule, // ADD THIS
+    CategoriesModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

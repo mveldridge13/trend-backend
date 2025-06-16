@@ -46,26 +46,23 @@ model Budget {
 }
 
 model Category {
-  id           String        @id @default(cuid())
-  userId       String?
-  name         String
-  description  String?
-  icon         String?
-  color        String?
-  type         CategoryType  @default(EXPENSE)
-  parentId     String?       // 👈 NEW: For subcategories
-  isSystem     Boolean       @default(false)
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  
-  // 👈 NEW: Self-referencing relationships for category hierarchy
-  parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  subcategories Category[]   @relation("CategoryHierarchy")
+  id            String        @id @default(cuid())
+  userId        String?
+  name          String
+  description   String?
+  icon          String?
+  color         String?
+  type          CategoryType  @default(EXPENSE)
+  parentId      String?
+  isSystem      Boolean       @default(false)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  parent        Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories Category[]    @relation("CategoryHierarchy")
+  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
 
-  // 👈 NEW: Unique constraint to prevent duplicate system categories
   @@unique([name, isSystem])
   @@map("categories")
 }
