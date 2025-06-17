@@ -12,8 +12,9 @@ async function bootstrap() {
     }));
     app.enableCors();
     app.setGlobalPrefix("api/v1");
-    await app.listen(3000);
-    console.log("🚀 Application is running on: http://localhost:3000");
+    await app.listen(3001, "0.0.0.0");
+    console.log("🚀 Application is running on: http://0.0.0.0:3001");
+    console.log("📱 React Native can connect via: http://192.168.1.9:3001");
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

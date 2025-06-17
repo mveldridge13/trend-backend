@@ -20,28 +20,35 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
     }
     async register(registerDto) {
+        console.log("📝 Registration attempt for:", registerDto.email);
         const existingUser = await this.usersRepository.findByEmail(registerDto.email);
         if (existingUser) {
+            console.log("❌ User already exists:", registerDto.email);
             throw new common_1.ConflictException("User with this email already exists");
         }
         if (registerDto.username) {
             const userWithUsername = await this.usersRepository.findByUsername(registerDto.username);
             if (userWithUsername) {
+                console.log("❌ Username already taken:", registerDto.username);
                 throw new common_1.ConflictException("Username already taken");
             }
         }
+        console.log("🔐 Hashing password...");
         const saltRounds = 12;
         const passwordHash = await bcrypt.hash(registerDto.password, saltRounds);
+        console.log("👤 Creating user...");
         const user = await this.usersRepository.create({
             ...registerDto,
             passwordHash,
         });
+        console.log("🎫 Generating JWT token...");
         const payload = {
             sub: user.id,
             email: user.email,
             username: user.username,
         };
         const access_token = this.jwtService.sign(payload);
+        console.log("✅ Registration successful for:", user.email);
         return {
             access_token,
             user: {
@@ -57,21 +64,49 @@ let AuthService = class AuthService {
         };
     }
     async login(loginDto) {
+        console.log("🔐 Login attempt for:", loginDto.email);
+        console.log("🔐 Login data received:", {
+            email: loginDto.email,
+            passwordLength: loginDto.password?.length || 0,
+        });
+        console.log("👤 Looking up user...");
         const user = await this.usersRepository.findByEmail(loginDto.email);
+        console.log("👤 User found:", user ? "Yes" : "No");
+        if (user) {
+            console.log("👤 User details:", {
+                id: user.id,
+                email: user.email,
+                isActive: user.isActive,
+                hasPasswordHash: !!user.passwordHash,
+                passwordHashLength: user.passwordHash?.length || 0,
+            });
+        }
         if (!user || !user.isActive) {
+            console.log("❌ User not found or inactive");
             throw new common_1.UnauthorizedException("Invalid credentials");
         }
+        console.log("🔑 Verifying password...");
+        console.log("🔑 Comparing:", {
+            providedPasswordLength: loginDto.password?.length || 0,
+            storedPasswordHashLength: user.passwordHash?.length || 0,
+        });
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash || "");
+        console.log("🔑 Password validation result:", isPasswordValid);
         if (!isPasswordValid) {
+            console.log("❌ Invalid password for user:", user.email);
             throw new common_1.UnauthorizedException("Invalid credentials");
         }
+        console.log("✅ Password verified successfully");
+        console.log("📅 Updating last login...");
         await this.usersRepository.updateLastLogin(user.id);
+        console.log("🎫 Generating JWT token...");
         const payload = {
             sub: user.id,
             email: user.email,
             username: user.username,
         };
         const access_token = this.jwtService.sign(payload);
+        console.log("✅ Login successful for:", user.email);
         return {
             access_token,
             user: {
