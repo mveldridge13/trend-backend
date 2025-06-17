@@ -44,6 +44,29 @@ let UsersService = class UsersService {
         const updatedUser = await this.usersRepository.update(id, updateData);
         return this.toUserDto(updatedUser);
     }
+    async getUserProfile(id) {
+        const user = await this.usersRepository.findById(id);
+        if (!user) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        return {
+            income: user.income ? Number(user.income) : undefined,
+            setupComplete: user.setupComplete,
+            hasSeenWelcome: user.hasSeenWelcome,
+        };
+    }
+    async updateUserProfile(id, profileData) {
+        const existingUser = await this.usersRepository.findById(id);
+        if (!existingUser) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        const updatedUser = await this.usersRepository.updateProfile(id, profileData);
+        return {
+            income: updatedUser.income ? Number(updatedUser.income) : undefined,
+            setupComplete: updatedUser.setupComplete,
+            hasSeenWelcome: updatedUser.hasSeenWelcome,
+        };
+    }
     async deactivate(id) {
         const existingUser = await this.usersRepository.findById(id);
         if (!existingUser) {

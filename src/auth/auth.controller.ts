@@ -1,5 +1,15 @@
-import { Controller, Post, Body } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Body,
+  Request,
+  UseGuards,
+} from "@nestjs/common";
 import { AuthService } from "./auth.service";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -13,5 +23,21 @@ export class AuthController {
   @Post("login")
   async login(@Body() loginDto: any) {
     return this.authService.login(loginDto);
+  }
+
+  // NEW: Profile endpoints for AppNavigator
+  @Get("profile")
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@Request() req) {
+    return this.authService.getUserProfile(req.user.id);
+  }
+
+  @Put("profile")
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Request() req,
+    @Body() updateProfileDto: UpdateUserProfileDto
+  ) {
+    return this.authService.updateUserProfile(req.user.id, updateProfileDto);
   }
 }

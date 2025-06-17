@@ -9,4 +9,7 @@ export declare class UserDto {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    income?: number;
+    setupComplete: boolean;
+    hasSeenWelcome: boolean;
 }

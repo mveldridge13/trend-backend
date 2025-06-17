@@ -75,6 +75,18 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             throw error;
         }
     }
+    async updateProfile(id, data) {
+        try {
+            return await this.prisma.user.update({
+                where: { id },
+                data,
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+            throw error;
+        }
+    }
     async updateLastLogin(id) {
         try {
             await this.prisma.user.update({
