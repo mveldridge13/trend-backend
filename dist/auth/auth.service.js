@@ -129,6 +129,31 @@ let AuthService = class AuthService {
         const { passwordHash, ...result } = user;
         return result;
     }
+    async getUserProfile(id) {
+        console.log("👤 Getting user profile for:", id);
+        const user = await this.usersRepository.findById(id);
+        if (!user || !user.isActive) {
+            throw new common_1.UnauthorizedException("User not found");
+        }
+        return {
+            income: user.income ? Number(user.income) : undefined,
+            setupComplete: user.setupComplete,
+            hasSeenWelcome: user.hasSeenWelcome,
+        };
+    }
+    async updateUserProfile(id, profileData) {
+        console.log("👤 Updating user profile for:", id, profileData);
+        const user = await this.usersRepository.findById(id);
+        if (!user || !user.isActive) {
+            throw new common_1.UnauthorizedException("User not found");
+        }
+        const updatedUser = await this.usersRepository.updateProfile(id, profileData);
+        return {
+            income: updatedUser.income ? Number(updatedUser.income) : undefined,
+            setupComplete: updatedUser.setupComplete,
+            hasSeenWelcome: updatedUser.hasSeenWelcome,
+        };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([

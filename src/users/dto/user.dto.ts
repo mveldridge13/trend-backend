@@ -9,4 +9,9 @@ export class UserDto {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  // NEW: User setup fields
+  income?: number;
+  setupComplete: boolean;
+  hasSeenWelcome: boolean;
 }

@@ -3,6 +3,7 @@ import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
 import { UpdateUserDto } from "../dto/update-user.dto";
+import { UpdateUserProfileDto } from "../dto/update-user-profile.dto";
 export declare class UsersRepository extends BaseRepository<User> {
     constructor(prisma: PrismaService);
     findByEmail(email: string): Promise<User | null>;
@@ -12,5 +13,6 @@ export declare class UsersRepository extends BaseRepository<User> {
         passwordHash: string;
     }): Promise<User>;
     update(id: string, data: UpdateUserDto): Promise<User>;
+    updateProfile(id: string, data: UpdateUserProfileDto): Promise<User>;
     updateLastLogin(id: string): Promise<void>;
 }

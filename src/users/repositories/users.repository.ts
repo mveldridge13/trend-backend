@@ -4,6 +4,7 @@ import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
 import { UpdateUserDto } from "../dto/update-user.dto";
+import { UpdateUserProfileDto } from "../dto/update-user-profile.dto";
 
 @Injectable()
 export class UsersRepository extends BaseRepository<User> {
@@ -58,6 +59,19 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   async update(id: string, data: UpdateUserDto): Promise<User> {
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data,
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+      throw error;
+    }
+  }
+
+  // NEW: Separate method for profile updates
+  async updateProfile(id: string, data: UpdateUserProfileDto): Promise<User> {
     try {
       return await this.prisma.user.update({
         where: { id },
