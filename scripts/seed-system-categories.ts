@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 const hierarchicalCategories = [
   // ==============================================
-  // MAIN CATEGORIES (7 main categories)
+  // MAIN CATEGORIES (8 main categories)
   // ==============================================
 
   // 1. FOOD (Main Category)
@@ -17,8 +17,15 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
+        name: "Coffee",
+        description: "Coffee shops, cafes, beverages",
+        type: CategoryType.EXPENSE,
+        icon: "cafe-outline",
+        color: "#FF6B6B",
+      },
+      {
         name: "Dining Out",
-        description: "Restaurants, takeout, delivery",
+        description: "Restaurants, sit-down dining",
         type: CategoryType.EXPENSE,
         icon: "restaurant",
         color: "#FF6B6B",
@@ -28,6 +35,13 @@ const hierarchicalCategories = [
         description: "Food and household essentials",
         type: CategoryType.EXPENSE,
         icon: "basket-outline",
+        color: "#FF6B6B",
+      },
+      {
+        name: "Take Out",
+        description: "Takeout, delivery, fast food",
+        type: CategoryType.EXPENSE,
+        icon: "bag-outline",
         color: "#FF6B6B",
       },
     ],
@@ -43,16 +57,51 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
-        name: "Transportation",
-        description: "Gas, public transit, car payments",
+        name: "Fuel",
+        description: "Gas, petrol, electric charging",
         type: CategoryType.EXPENSE,
-        icon: "car",
+        icon: "battery-charging-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Car Insurance",
+        description: "Vehicle insurance coverage",
+        type: CategoryType.EXPENSE,
+        icon: "shield-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Maintenance",
+        description: "Car repairs, servicing, parts",
+        type: CategoryType.EXPENSE,
+        icon: "construct-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Parking",
+        description: "Parking fees, tolls, permits",
+        type: CategoryType.EXPENSE,
+        icon: "location-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Public Transport",
+        description: "Bus, train, taxi, rideshare",
+        type: CategoryType.EXPENSE,
+        icon: "train-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Registration",
+        description: "Vehicle registration, license fees",
+        type: CategoryType.EXPENSE,
+        icon: "document-text-outline",
         color: "#4ECDC4",
       },
     ],
   },
 
-  // 3. BILLS (Main Category)
+  // 3. BILLS (Main Category) - UPDATED SUBCATEGORIES
   {
     name: "Bills",
     description: "Regular bills and essential expenses",
@@ -62,24 +111,38 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
-        name: "Housing",
-        description: "Rent, mortgage, utilities",
+        name: "Rent/Mortgage",
+        description: "Rent, mortgage, property expenses",
         type: CategoryType.EXPENSE,
         icon: "home-outline",
         color: "#45B7D1",
       },
       {
-        name: "Utilities",
-        description: "Electricity, gas, water, internet",
+        name: "Home Insurance",
+        description: "Home, property, and contents insurance",
         type: CategoryType.EXPENSE,
-        icon: "flash-outline",
+        icon: "shield-outline",
         color: "#45B7D1",
       },
       {
-        name: "Insurance",
-        description: "Health, auto, home insurance",
+        name: "Internet",
+        description: "Internet and broadband services",
         type: CategoryType.EXPENSE,
-        icon: "shield-outline",
+        icon: "wifi-outline",
+        color: "#45B7D1",
+      },
+      {
+        name: "Phone",
+        description: "Mobile and landline phone services",
+        type: CategoryType.EXPENSE,
+        icon: "call-outline",
+        color: "#45B7D1",
+      },
+      {
+        name: "Water",
+        description: "Water and sewer services",
+        type: CategoryType.EXPENSE,
+        icon: "water-outline",
         color: "#45B7D1",
       },
     ],
@@ -114,10 +177,38 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
-        name: "Shopping",
-        description: "Clothes, electronics, general purchases",
+        name: "Beauty & Personal Care",
+        description: "Cosmetics, skincare, toiletries, personal hygiene",
         type: CategoryType.EXPENSE,
-        icon: "bag-outline",
+        icon: "flower-outline",
+        color: "#FECA57",
+      },
+      {
+        name: "Buy Now, Pay Later (BNPL)",
+        description: "Afterpay, Klarna, ZIP, installment purchases",
+        type: CategoryType.EXPENSE,
+        icon: "card-outline",
+        color: "#FECA57",
+      },
+      {
+        name: "Clothing",
+        description: "Clothes, shoes, accessories, fashion",
+        type: CategoryType.EXPENSE,
+        icon: "shirt-outline",
+        color: "#FECA57",
+      },
+      {
+        name: "Electronics",
+        description: "Gadgets, tech accessories, electronics",
+        type: CategoryType.EXPENSE,
+        icon: "phone-portrait-outline",
+        color: "#FECA57",
+      },
+      {
+        name: "Home & Furniture",
+        description: "Furniture, home decor, household items",
+        type: CategoryType.EXPENSE,
+        icon: "home-outline",
         color: "#FECA57",
       },
     ],
@@ -133,17 +224,31 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
-        name: "Entertainment",
-        description: "Movies, games, hobbies",
+        name: "Hobby",
+        description: "Hobbies, crafts, personal interests",
         type: CategoryType.EXPENSE,
-        icon: "game-controller-outline",
+        icon: "color-palette-outline",
         color: "#FF9FF3",
       },
       {
-        name: "Education",
-        description: "Books, courses, training",
+        name: "Movies",
+        description: "Cinema, movie rentals, streaming movies",
         type: CategoryType.EXPENSE,
-        icon: "library-outline",
+        icon: "film-outline",
+        color: "#FF9FF3",
+      },
+      {
+        name: "Social Event",
+        description: "Concerts, sporting events, live entertainment",
+        type: CategoryType.EXPENSE,
+        icon: "people-outline",
+        color: "#FF9FF3",
+      },
+      {
+        name: "Subscriptions",
+        description: "Streaming services, memberships, recurring entertainment",
+        type: CategoryType.EXPENSE,
+        icon: "refresh-outline",
         color: "#FF9FF3",
       },
     ],
@@ -166,13 +271,6 @@ const hierarchicalCategories = [
         color: "#A8A8A8",
       },
       {
-        name: "Goal Contribution",
-        description: "Contributions to savings goals",
-        type: CategoryType.TRANSFER,
-        icon: "flag-outline",
-        color: "#A8A8A8",
-      },
-      {
         name: "Debt Payment",
         description: "Loan payments, credit cards",
         type: CategoryType.EXPENSE,
@@ -180,10 +278,10 @@ const hierarchicalCategories = [
         color: "#A8A8A8",
       },
       {
-        name: "Savings",
-        description: "Emergency fund, general savings",
-        type: CategoryType.EXPENSE,
-        icon: "storefront-outline",
+        name: "Goal Contribution",
+        description: "Contributions to savings goals",
+        type: CategoryType.TRANSFER,
+        icon: "flag-outline",
         color: "#A8A8A8",
       },
       {
@@ -191,6 +289,13 @@ const hierarchicalCategories = [
         description: "Stocks, bonds, retirement funds",
         type: CategoryType.INVESTMENT,
         icon: "stats-chart-outline",
+        color: "#A8A8A8",
+      },
+      {
+        name: "Savings",
+        description: "Emergency fund, general savings",
+        type: CategoryType.EXPENSE,
+        icon: "storefront-outline",
         color: "#A8A8A8",
       },
     ],
@@ -209,10 +314,10 @@ const hierarchicalCategories = [
     isMain: true,
     subcategories: [
       {
-        name: "Salary",
-        description: "Regular employment income",
+        name: "Business Income",
+        description: "Business revenue and profits",
         type: CategoryType.INCOME,
-        icon: "wallet-outline",
+        icon: "business-outline",
         color: "#10B981",
       },
       {
@@ -230,17 +335,17 @@ const hierarchicalCategories = [
         color: "#10B981",
       },
       {
-        name: "Business Income",
-        description: "Business revenue and profits",
-        type: CategoryType.INCOME,
-        icon: "business-outline",
-        color: "#10B981",
-      },
-      {
         name: "Other Income",
         description: "Miscellaneous income sources",
         type: CategoryType.INCOME,
         icon: "add-circle-outline",
+        color: "#10B981",
+      },
+      {
+        name: "Salary",
+        description: "Regular employment income",
+        type: CategoryType.INCOME,
+        icon: "wallet-outline",
         color: "#10B981",
       },
     ],
@@ -250,11 +355,9 @@ const hierarchicalCategories = [
 async function seedHierarchicalCategories() {
   console.log("🌱 Seeding hierarchical categories...");
 
-  // First, clear existing categories
-  console.log("🧹 Clearing existing categories...");
-  await prisma.category.deleteMany({
-    where: { isSystem: true },
-  });
+  // First, clear existing categories completely to ensure clean slate
+  console.log("🧹 Clearing ALL existing categories...");
+  await prisma.category.deleteMany({});
 
   for (const mainCategory of hierarchicalCategories) {
     try {
@@ -294,11 +397,8 @@ async function seedHierarchicalCategories() {
         }
       }
     } catch (error: any) {
-      if (error.code === "P2002") {
-        console.log(`⚠️  Already exists: ${mainCategory.name}`);
-      } else {
-        console.error(`❌ Error creating ${mainCategory.name}:`, error.message);
-      }
+      console.error(`❌ Error creating ${mainCategory.name}:`, error.message);
+      throw error; // Re-throw to stop execution on any error
     }
   }
 
