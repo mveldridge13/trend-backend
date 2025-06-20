@@ -7,4 +7,6 @@ export declare class CreateTransactionDto {
     type: TransactionType;
     budgetId?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    recurrence?: string;
 }

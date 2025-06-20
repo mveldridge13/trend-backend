@@ -25,6 +25,10 @@ export class TransactionFilterDto {
 
   @IsOptional()
   @IsString()
+  subcategoryId?: string;
+
+  @IsOptional()
+  @IsString()
   budgetId?: string;
 
   @IsOptional()

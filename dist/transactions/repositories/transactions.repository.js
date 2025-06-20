@@ -28,6 +28,8 @@ let TransactionsRepository = class TransactionsRepository {
                 type: data.type,
                 budgetId: data.budgetId,
                 categoryId: data.categoryId,
+                subcategoryId: data.subcategoryId,
+                recurrence: data.recurrence,
             },
             include: {
                 budget: {
@@ -35,6 +37,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 category: {
                     select: { id: true, name: true, icon: true, color: true, type: true },
+                },
+                subcategory: {
+                    select: { id: true, name: true, icon: true, color: true },
                 },
             },
         });
@@ -65,6 +70,9 @@ let TransactionsRepository = class TransactionsRepository {
         if (filters.search) {
             where.description = { contains: filters.search, mode: "insensitive" };
         }
+        if (filters.subcategoryId) {
+            where.subcategoryId = filters.subcategoryId;
+        }
         return this.prisma.transaction.findMany({
             where,
             include: {
@@ -73,6 +81,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 category: {
                     select: { id: true, name: true, icon: true, color: true, type: true },
+                },
+                subcategory: {
+                    select: { id: true, name: true, icon: true, color: true },
                 },
             },
             orderBy: {
@@ -91,6 +102,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 category: {
                     select: { id: true, name: true, icon: true, color: true, type: true },
+                },
+                subcategory: {
+                    select: { id: true, name: true, icon: true, color: true },
                 },
             },
         });
@@ -112,6 +126,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 category: {
                     select: { id: true, name: true, icon: true, color: true, type: true },
+                },
+                subcategory: {
+                    select: { id: true, name: true, icon: true, color: true },
                 },
             },
         });
@@ -143,6 +160,9 @@ let TransactionsRepository = class TransactionsRepository {
         }
         if (filters.type) {
             where.type = filters.type;
+        }
+        if (filters.subcategoryId) {
+            where.subcategoryId = filters.subcategoryId;
         }
         return this.prisma.transaction.count({ where });
     }
