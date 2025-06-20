@@ -23,8 +23,8 @@ export class TransactionsRepository {
         type: data.type,
         budgetId: data.budgetId,
         categoryId: data.categoryId,
-        subcategoryId: data.subcategoryId, // ✅ ADDED: Include subcategoryId
-        recurrence: data.recurrence, // ✅ ADDED: Include recurrence
+        subcategoryId: data.subcategoryId, // ✅ Include subcategoryId
+        recurrence: data.recurrence, // ✅ Include recurrence
       },
       include: {
         budget: {
@@ -34,7 +34,6 @@ export class TransactionsRepository {
           select: { id: true, name: true, icon: true, color: true, type: true },
         },
         subcategory: {
-          // ✅ ADDED: Include subcategory relation
           select: { id: true, name: true, icon: true, color: true },
         },
       },
@@ -77,7 +76,7 @@ export class TransactionsRepository {
       where.description = { contains: filters.search, mode: "insensitive" };
     }
 
-    // ✅ ADDED: Support for subcategoryId filter
+    // ✅ Support for subcategoryId filter
     if (filters.subcategoryId) {
       where.subcategoryId = filters.subcategoryId;
     }
@@ -92,7 +91,6 @@ export class TransactionsRepository {
           select: { id: true, name: true, icon: true, color: true, type: true },
         },
         subcategory: {
-          // ✅ ADDED: Include subcategory relation
           select: { id: true, name: true, icon: true, color: true },
         },
       },
@@ -115,7 +113,6 @@ export class TransactionsRepository {
           select: { id: true, name: true, icon: true, color: true, type: true },
         },
         subcategory: {
-          // ✅ ADDED: Include subcategory relation
           select: { id: true, name: true, icon: true, color: true },
         },
       },
@@ -137,12 +134,12 @@ export class TransactionsRepository {
       updateData.date = new Date(data.date);
     }
 
-    // ✅ ADDED: Handle subcategoryId and recurrence in updates
-    // These fields are already included in the spread operator above,
-    // but making it explicit for clarity
-
+    // ✅ FIXED: Add userId to where clause for security and correctness
     return this.prisma.transaction.update({
-      where: { id },
+      where: {
+        id,
+        userId, // ✅ CRITICAL FIX: Ensure user can only update their own transactions
+      },
       data: updateData,
       include: {
         budget: {
@@ -152,7 +149,6 @@ export class TransactionsRepository {
           select: { id: true, name: true, icon: true, color: true, type: true },
         },
         subcategory: {
-          // ✅ ADDED: Include subcategory relation
           select: { id: true, name: true, icon: true, color: true },
         },
       },
@@ -161,7 +157,10 @@ export class TransactionsRepository {
 
   async delete(id: string, userId: string): Promise<Transaction> {
     return this.prisma.transaction.delete({
-      where: { id },
+      where: {
+        id,
+        userId, // ✅ FIXED: Add userId for security consistency
+      },
     });
   }
 
@@ -197,7 +196,7 @@ export class TransactionsRepository {
       where.type = filters.type;
     }
 
-    // ✅ ADDED: Support for subcategoryId filter in count
+    // ✅ Support for subcategoryId filter in count
     if (filters.subcategoryId) {
       where.subcategoryId = filters.subcategoryId;
     }

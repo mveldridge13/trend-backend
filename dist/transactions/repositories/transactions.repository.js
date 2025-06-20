@@ -118,7 +118,10 @@ let TransactionsRepository = class TransactionsRepository {
             updateData.date = new Date(data.date);
         }
         return this.prisma.transaction.update({
-            where: { id },
+            where: {
+                id,
+                userId,
+            },
             data: updateData,
             include: {
                 budget: {
@@ -135,7 +138,10 @@ let TransactionsRepository = class TransactionsRepository {
     }
     async delete(id, userId) {
         return this.prisma.transaction.delete({
-            where: { id },
+            where: {
+                id,
+                userId,
+            },
         });
     }
     async count(userId, filters = {}) {
