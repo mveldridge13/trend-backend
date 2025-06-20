@@ -190,17 +190,18 @@ export class TransactionsService {
       userId: transaction.userId,
       budgetId: transaction.budgetId,
       categoryId: transaction.categoryId,
+      subcategoryId: transaction.subcategoryId, // ✅ ADDED: Include subcategoryId
       description: transaction.description,
       amount: Number(transaction.amount),
       currency: transaction.currency,
       date: transaction.date,
       type: transaction.type,
-      recurrence: "none", // Default since not in schema yet
+      recurrence: transaction.recurrence || "none", // ✅ UPDATED: Use actual field
       isAICategorized: transaction.isAICategorized,
       aiConfidence: transaction.aiConfidence,
-      notes: null, // Not in schema yet
-      location: null, // Not in schema yet
-      merchantName: null, // Not in schema yet
+      notes: transaction.notes || null, // ✅ UPDATED: Use actual field
+      location: transaction.location || null, // ✅ UPDATED: Use actual field
+      merchantName: transaction.merchantName || null, // ✅ UPDATED: Use actual field
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
       budget: transaction.budget
@@ -216,6 +217,15 @@ export class TransactionsService {
             icon: transaction.category.icon,
             color: transaction.category.color,
             type: transaction.category.type,
+          }
+        : undefined,
+      // ✅ ADDED: Include subcategory data
+      subcategory: transaction.subcategory
+        ? {
+            id: transaction.subcategory.id,
+            name: transaction.subcategory.name,
+            icon: transaction.subcategory.icon,
+            color: transaction.subcategory.color,
           }
         : undefined,
     };
@@ -234,17 +244,20 @@ export class TransactionsService {
     const averageTransaction =
       transactionCount > 0 ? (income + expenses) / transactionCount : 0;
 
-    // Category breakdown
+    // ✅ UPDATED: Category breakdown with subcategory support
     const categoryMap = new Map();
     transactions.forEach((transaction) => {
-      if (transaction.category) {
-        const categoryId = transaction.category.id;
+      // Use subcategory if available, otherwise use main category
+      const categoryToUse = transaction.subcategory || transaction.category;
+
+      if (categoryToUse) {
+        const categoryId = categoryToUse.id;
         if (!categoryMap.has(categoryId)) {
           categoryMap.set(categoryId, {
             categoryId,
-            categoryName: transaction.category.name,
-            categoryIcon: transaction.category.icon,
-            categoryColor: transaction.category.color,
+            categoryName: categoryToUse.name,
+            categoryIcon: categoryToUse.icon,
+            categoryColor: categoryToUse.color,
             amount: 0,
             transactionCount: 0,
           });

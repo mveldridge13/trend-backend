@@ -52,22 +52,23 @@ model Budget {
 }
 
 model Category {
-  id            String        @id @default(cuid())
-  userId        String?
-  name          String
-  description   String?
-  icon          String?
-  color         String?
-  type          CategoryType  @default(EXPENSE)
-  parentId      String?
-  isSystem      Boolean       @default(false)
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  parent        Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  subcategories Category[]    @relation("CategoryHierarchy")
-  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
+  id                      String        @id @default(cuid())
+  userId                  String?
+  name                    String
+  description             String?
+  icon                    String?
+  color                   String?
+  type                    CategoryType  @default(EXPENSE)
+  parentId                String?
+  isSystem                Boolean       @default(false)
+  isActive                Boolean       @default(true)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  parent                  Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories           Category[]    @relation("CategoryHierarchy")
+  user                    User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions            Transaction[]
+  subcategoryTransactions Transaction[] @relation("TransactionSubcategory")
 
   @@unique([name, isSystem])
   @@map("categories")
@@ -78,21 +79,28 @@ model Transaction {
   userId          String
   budgetId        String?
   categoryId      String?
+  subcategoryId   String?
   description     String
   amount          Decimal         @db.Decimal(12, 2)
   currency        String          @default("USD")
   date            DateTime
   type            TransactionType
+  recurrence      String?
   isAICategorized Boolean         @default(false)
   aiConfidence    Float?
+  notes           String?
+  location        String?
+  merchantName    String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   budget          Budget?         @relation(fields: [budgetId], references: [id])
   category        Category?       @relation(fields: [categoryId], references: [id])
+  subcategory     Category?       @relation("TransactionSubcategory", fields: [subcategoryId], references: [id])
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@index([categoryId])
+  @@index([subcategoryId])
   @@map("transactions")
 }
 

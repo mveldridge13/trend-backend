@@ -39,4 +39,12 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   categoryId?: string;
+
+  @IsString()
+  @IsOptional()
+  subcategoryId?: string;
+
+  @IsString()
+  @IsOptional()
+  recurrence?: string;
 }

@@ -110,17 +110,18 @@ let TransactionsService = class TransactionsService {
             userId: transaction.userId,
             budgetId: transaction.budgetId,
             categoryId: transaction.categoryId,
+            subcategoryId: transaction.subcategoryId,
             description: transaction.description,
             amount: Number(transaction.amount),
             currency: transaction.currency,
             date: transaction.date,
             type: transaction.type,
-            recurrence: "none",
+            recurrence: transaction.recurrence || "none",
             isAICategorized: transaction.isAICategorized,
             aiConfidence: transaction.aiConfidence,
-            notes: null,
-            location: null,
-            merchantName: null,
+            notes: transaction.notes || null,
+            location: transaction.location || null,
+            merchantName: transaction.merchantName || null,
             createdAt: transaction.createdAt,
             updatedAt: transaction.updatedAt,
             budget: transaction.budget
@@ -138,6 +139,14 @@ let TransactionsService = class TransactionsService {
                     type: transaction.category.type,
                 }
                 : undefined,
+            subcategory: transaction.subcategory
+                ? {
+                    id: transaction.subcategory.id,
+                    name: transaction.subcategory.name,
+                    icon: transaction.subcategory.icon,
+                    color: transaction.subcategory.color,
+                }
+                : undefined,
         };
     }
     calculateAnalytics(transactions) {
@@ -151,14 +160,15 @@ let TransactionsService = class TransactionsService {
         const averageTransaction = transactionCount > 0 ? (income + expenses) / transactionCount : 0;
         const categoryMap = new Map();
         transactions.forEach((transaction) => {
-            if (transaction.category) {
-                const categoryId = transaction.category.id;
+            const categoryToUse = transaction.subcategory || transaction.category;
+            if (categoryToUse) {
+                const categoryId = categoryToUse.id;
                 if (!categoryMap.has(categoryId)) {
                     categoryMap.set(categoryId, {
                         categoryId,
-                        categoryName: transaction.category.name,
-                        categoryIcon: transaction.category.icon,
-                        categoryColor: transaction.category.color,
+                        categoryName: categoryToUse.name,
+                        categoryIcon: categoryToUse.icon,
+                        categoryColor: categoryToUse.color,
                         amount: 0,
                         transactionCount: 0,
                     });

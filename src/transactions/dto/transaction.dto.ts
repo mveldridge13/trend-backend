@@ -5,6 +5,7 @@ export class TransactionDto {
   userId: string;
   budgetId?: string;
   categoryId?: string;
+  subcategoryId?: string;
   description: string;
   amount: number;
   currency: string;
@@ -31,5 +32,12 @@ export class TransactionDto {
     icon?: string;
     color?: string;
     type: string;
+  };
+
+  subcategory?: {
+    id: string;
+    name: string;
+    icon?: string;
+    color?: string;
   };
 }

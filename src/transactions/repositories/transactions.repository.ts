@@ -23,6 +23,8 @@ export class TransactionsRepository {
         type: data.type,
         budgetId: data.budgetId,
         categoryId: data.categoryId,
+        subcategoryId: data.subcategoryId, // ✅ ADDED: Include subcategoryId
+        recurrence: data.recurrence, // ✅ ADDED: Include recurrence
       },
       include: {
         budget: {
@@ -30,6 +32,10 @@ export class TransactionsRepository {
         },
         category: {
           select: { id: true, name: true, icon: true, color: true, type: true },
+        },
+        subcategory: {
+          // ✅ ADDED: Include subcategory relation
+          select: { id: true, name: true, icon: true, color: true },
         },
       },
     });
@@ -71,6 +77,11 @@ export class TransactionsRepository {
       where.description = { contains: filters.search, mode: "insensitive" };
     }
 
+    // ✅ ADDED: Support for subcategoryId filter
+    if (filters.subcategoryId) {
+      where.subcategoryId = filters.subcategoryId;
+    }
+
     return this.prisma.transaction.findMany({
       where,
       include: {
@@ -79,6 +90,10 @@ export class TransactionsRepository {
         },
         category: {
           select: { id: true, name: true, icon: true, color: true, type: true },
+        },
+        subcategory: {
+          // ✅ ADDED: Include subcategory relation
+          select: { id: true, name: true, icon: true, color: true },
         },
       },
       orderBy: {
@@ -99,6 +114,10 @@ export class TransactionsRepository {
         category: {
           select: { id: true, name: true, icon: true, color: true, type: true },
         },
+        subcategory: {
+          // ✅ ADDED: Include subcategory relation
+          select: { id: true, name: true, icon: true, color: true },
+        },
       },
     });
   }
@@ -118,6 +137,10 @@ export class TransactionsRepository {
       updateData.date = new Date(data.date);
     }
 
+    // ✅ ADDED: Handle subcategoryId and recurrence in updates
+    // These fields are already included in the spread operator above,
+    // but making it explicit for clarity
+
     return this.prisma.transaction.update({
       where: { id },
       data: updateData,
@@ -127,6 +150,10 @@ export class TransactionsRepository {
         },
         category: {
           select: { id: true, name: true, icon: true, color: true, type: true },
+        },
+        subcategory: {
+          // ✅ ADDED: Include subcategory relation
+          select: { id: true, name: true, icon: true, color: true },
         },
       },
     });
@@ -168,6 +195,11 @@ export class TransactionsRepository {
 
     if (filters.type) {
       where.type = filters.type;
+    }
+
+    // ✅ ADDED: Support for subcategoryId filter in count
+    if (filters.subcategoryId) {
+      where.subcategoryId = filters.subcategoryId;
     }
 
     return this.prisma.transaction.count({ where });

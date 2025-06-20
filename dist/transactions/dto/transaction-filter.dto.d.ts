@@ -3,6 +3,7 @@ export declare class TransactionFilterDto {
     startDate?: string;
     endDate?: string;
     categoryId?: string;
+    subcategoryId?: string;
     budgetId?: string;
     type?: TransactionType;
     recurrence?: string;
