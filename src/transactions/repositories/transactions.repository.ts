@@ -124,6 +124,9 @@ export class TransactionsRepository {
     userId: string,
     data: UpdateTransactionDto
   ): Promise<Transaction> {
+    console.log("🔍 Repository UPDATE - Input params:", { id, userId });
+    console.log("🔍 Repository UPDATE - Data to update:", data);
+
     const updateData: any = { ...data };
 
     if (data.amount !== undefined) {
@@ -134,8 +137,18 @@ export class TransactionsRepository {
       updateData.date = new Date(data.date);
     }
 
-    // ✅ FIXED: Add userId to where clause for security and correctness
-    return this.prisma.transaction.update({
+    console.log("🔍 Repository UPDATE - Final updateData:", updateData);
+
+    // First, let's check if the transaction exists
+    const existingTransaction = await this.prisma.transaction.findFirst({
+      where: { id, userId },
+    });
+    console.log(
+      "🔍 Repository UPDATE - Existing transaction:",
+      existingTransaction
+    );
+
+    const result = await this.prisma.transaction.update({
       where: {
         id,
         userId, // ✅ CRITICAL FIX: Ensure user can only update their own transactions
@@ -153,6 +166,9 @@ export class TransactionsRepository {
         },
       },
     });
+
+    console.log("🔍 Repository UPDATE - Final result:", result);
+    return result;
   }
 
   async delete(id: string, userId: string): Promise<Transaction> {
