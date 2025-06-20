@@ -46,10 +46,13 @@ let TransactionsService = class TransactionsService {
         return this.mapToDto(transaction);
     }
     async update(id, userId, updateTransactionDto) {
+        console.log("🔍 Service UPDATE - Input params:", { id, userId });
+        console.log("🔍 Service UPDATE - UpdateTransactionDto:", updateTransactionDto);
         const existingTransaction = await this.transactionsRepository.findById(id, userId);
         if (!existingTransaction) {
             throw new common_1.NotFoundException(`Transaction with ID ${id} not found`);
         }
+        console.log("🔍 Service UPDATE - Existing transaction found:", existingTransaction);
         if (updateTransactionDto.amount !== undefined &&
             updateTransactionDto.type !== undefined) {
             this.validateTransactionAmount(updateTransactionDto.amount, updateTransactionDto.type);
@@ -63,8 +66,12 @@ let TransactionsService = class TransactionsService {
         if (updateTransactionDto.date !== undefined) {
             this.validateTransactionDate(updateTransactionDto.date);
         }
+        console.log("🔍 Service UPDATE - About to call repository update");
         const updatedTransaction = await this.transactionsRepository.update(id, userId, updateTransactionDto);
-        return this.mapToDto(updatedTransaction);
+        console.log("🔍 Service UPDATE - Repository result:", updatedTransaction);
+        const result = this.mapToDto(updatedTransaction);
+        console.log("🔍 Service UPDATE - Final mapped result:", result);
+        return result;
     }
     async remove(id, userId) {
         const transaction = await this.transactionsRepository.findById(id, userId);

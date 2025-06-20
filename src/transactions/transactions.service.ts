@@ -79,6 +79,12 @@ export class TransactionsService {
     userId: string,
     updateTransactionDto: UpdateTransactionDto
   ): Promise<TransactionDto> {
+    console.log("🔍 Service UPDATE - Input params:", { id, userId });
+    console.log(
+      "🔍 Service UPDATE - UpdateTransactionDto:",
+      updateTransactionDto
+    );
+
     // Check if transaction exists
     const existingTransaction = await this.transactionsRepository.findById(
       id,
@@ -87,6 +93,11 @@ export class TransactionsService {
     if (!existingTransaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
+
+    console.log(
+      "🔍 Service UPDATE - Existing transaction found:",
+      existingTransaction
+    );
 
     // Validate amount and type if being updated
     if (
@@ -114,12 +125,19 @@ export class TransactionsService {
       this.validateTransactionDate(updateTransactionDto.date);
     }
 
+    console.log("🔍 Service UPDATE - About to call repository update");
     const updatedTransaction = await this.transactionsRepository.update(
       id,
       userId,
       updateTransactionDto
     );
-    return this.mapToDto(updatedTransaction);
+
+    console.log("🔍 Service UPDATE - Repository result:", updatedTransaction);
+
+    const result = this.mapToDto(updatedTransaction);
+    console.log("🔍 Service UPDATE - Final mapped result:", result);
+
+    return result;
   }
 
   async remove(id: string, userId: string): Promise<void> {

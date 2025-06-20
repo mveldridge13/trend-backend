@@ -110,6 +110,8 @@ let TransactionsRepository = class TransactionsRepository {
         });
     }
     async update(id, userId, data) {
+        console.log("🔍 Repository UPDATE - Input params:", { id, userId });
+        console.log("🔍 Repository UPDATE - Data to update:", data);
         const updateData = { ...data };
         if (data.amount !== undefined) {
             updateData.amount = new client_1.Prisma.Decimal(data.amount);
@@ -117,7 +119,12 @@ let TransactionsRepository = class TransactionsRepository {
         if (data.date !== undefined) {
             updateData.date = new Date(data.date);
         }
-        return this.prisma.transaction.update({
+        console.log("🔍 Repository UPDATE - Final updateData:", updateData);
+        const existingTransaction = await this.prisma.transaction.findFirst({
+            where: { id, userId },
+        });
+        console.log("🔍 Repository UPDATE - Existing transaction:", existingTransaction);
+        const result = await this.prisma.transaction.update({
             where: {
                 id,
                 userId,
@@ -135,6 +142,8 @@ let TransactionsRepository = class TransactionsRepository {
                 },
             },
         });
+        console.log("🔍 Repository UPDATE - Final result:", result);
+        return result;
     }
     async delete(id, userId) {
         return this.prisma.transaction.delete({
