@@ -25,6 +25,11 @@ model User {
   setupComplete  Boolean       @default(false)
   hasSeenWelcome Boolean       @default(false)
   
+  // NEW: Tutorial onboarding fields
+  hasSeenBalanceCardTour     Boolean @default(false)
+  hasSeenAddTransactionTour   Boolean @default(false)
+  hasSeenTransactionSwipeTour Boolean @default(false)
+  
   budgets        Budget[]
   categories     Category[]
   transactions   Transaction[]

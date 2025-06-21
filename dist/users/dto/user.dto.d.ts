@@ -12,4 +12,7 @@ export declare class UserDto {
     income?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
+    hasSeenBalanceCardTour?: boolean;
+    hasSeenAddTransactionTour?: boolean;
+    hasSeenTransactionSwipeTour?: boolean;
 }

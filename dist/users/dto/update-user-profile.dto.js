@@ -30,4 +30,19 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateUserProfileDto.prototype, "hasSeenWelcome", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateUserProfileDto.prototype, "hasSeenBalanceCardTour", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateUserProfileDto.prototype, "hasSeenAddTransactionTour", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateUserProfileDto.prototype, "hasSeenTransactionSwipeTour", void 0);
 //# sourceMappingURL=update-user-profile.dto.js.map
