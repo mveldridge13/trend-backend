@@ -5,4 +5,10 @@ export declare class UpdateUserDto {
     currency?: string;
     timezone?: string;
     isActive?: boolean;
+    income?: number;
+    setupComplete?: boolean;
+    hasSeenWelcome?: boolean;
+    hasSeenBalanceCardTour?: boolean;
+    hasSeenAddTransactionTour?: boolean;
+    hasSeenTransactionSwipeTour?: boolean;
 }

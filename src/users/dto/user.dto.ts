@@ -14,4 +14,9 @@ export class UserDto {
   income?: number;
   setupComplete: boolean;
   hasSeenWelcome: boolean;
+
+  // NEW: Tutorial onboarding fields
+  hasSeenBalanceCardTour?: boolean;
+  hasSeenAddTransactionTour?: boolean;
+  hasSeenTransactionSwipeTour?: boolean;
 }

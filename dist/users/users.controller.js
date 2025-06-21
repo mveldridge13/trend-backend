@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const users_service_1 = require("./users.service");
 const update_user_dto_1 = require("./dto/update-user.dto");
+const update_user_profile_dto_1 = require("./dto/update-user-profile.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -32,6 +33,10 @@ let UsersController = class UsersController {
     async updateProfile(req, updateUserDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateUserDto);
+    }
+    async updateOnboarding(req, updateOnboardingDto) {
+        const userId = req.user.id;
+        return this.usersService.updateProfile(userId, updateOnboardingDto);
     }
     async deactivateAccount(req) {
         const userId = req.user.id;
@@ -54,6 +59,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Patch)("onboarding"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_user_profile_dto_1.UpdateUserProfileDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateOnboarding", null);
 __decorate([
     (0, common_1.Delete)("profile"),
     (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),

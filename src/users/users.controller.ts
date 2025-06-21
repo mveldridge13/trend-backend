@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Patch,
   Delete,
   Body,
   UseGuards,
@@ -13,6 +14,7 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { UsersService } from "./users.service";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
 
 @Controller("users")
@@ -37,6 +39,15 @@ export class UsersController {
   ): Promise<UserDto> {
     const userId = req.user.id;
     return this.usersService.updateProfile(userId, updateUserDto);
+  }
+
+  @Patch("onboarding")
+  async updateOnboarding(
+    @Request() req,
+    @Body() updateOnboardingDto: UpdateUserProfileDto
+  ): Promise<UserDto> {
+    const userId = req.user.id;
+    return this.usersService.updateProfile(userId, updateOnboardingDto);
   }
 
   @Delete("profile")

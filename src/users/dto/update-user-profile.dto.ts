@@ -1,3 +1,5 @@
+// UpdateUserProfileDto.ts
+
 import { IsOptional, IsBoolean, IsNumber, Min } from "class-validator";
 
 export class UpdateUserProfileDto {
@@ -13,4 +15,17 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsBoolean()
   hasSeenWelcome?: boolean;
+
+  // NEW: Add these fields
+  @IsOptional()
+  @IsBoolean()
+  hasSeenBalanceCardTour?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasSeenAddTransactionTour?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hasSeenTransactionSwipeTour?: boolean;
 }
