@@ -166,13 +166,24 @@ export class AuthService {
     return result;
   }
 
-  // NEW: Profile methods for AppNavigator
-  async getUserProfile(
-    id: string
-  ): Promise<{
+  // UPDATED: Profile methods for AppNavigator with onboarding fields
+  async getUserProfile(id: string): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    username: string | null;
+    currency: string;
+    timezone: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
     income?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
+    hasSeenBalanceCardTour: boolean;
+    hasSeenAddTransactionTour: boolean;
+    hasSeenTransactionSwipeTour: boolean;
   }> {
     console.log("👤 Getting user profile for:", id);
     const user = await this.usersRepository.findById(id);
@@ -182,9 +193,24 @@ export class AuthService {
     }
 
     return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      currency: user.currency,
+      timezone: user.timezone,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       income: user.income ? Number(user.income) : undefined,
       setupComplete: user.setupComplete,
       hasSeenWelcome: user.hasSeenWelcome,
+      hasSeenBalanceCardTour: (user as any).hasSeenBalanceCardTour ?? false,
+      hasSeenAddTransactionTour:
+        (user as any).hasSeenAddTransactionTour ?? false,
+      hasSeenTransactionSwipeTour:
+        (user as any).hasSeenTransactionSwipeTour ?? false,
     };
   }
 
@@ -192,9 +218,22 @@ export class AuthService {
     id: string,
     profileData: UpdateUserProfileDto
   ): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    username: string | null;
+    currency: string;
+    timezone: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
     income?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
+    hasSeenBalanceCardTour: boolean;
+    hasSeenAddTransactionTour: boolean;
+    hasSeenTransactionSwipeTour: boolean;
   }> {
     console.log("👤 Updating user profile for:", id, profileData);
     const user = await this.usersRepository.findById(id);
@@ -209,9 +248,25 @@ export class AuthService {
     );
 
     return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      username: updatedUser.username,
+      currency: updatedUser.currency,
+      timezone: updatedUser.timezone,
+      isActive: updatedUser.isActive,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
       income: updatedUser.income ? Number(updatedUser.income) : undefined,
       setupComplete: updatedUser.setupComplete,
       hasSeenWelcome: updatedUser.hasSeenWelcome,
+      hasSeenBalanceCardTour:
+        (updatedUser as any).hasSeenBalanceCardTour ?? false,
+      hasSeenAddTransactionTour:
+        (updatedUser as any).hasSeenAddTransactionTour ?? false,
+      hasSeenTransactionSwipeTour:
+        (updatedUser as any).hasSeenTransactionSwipeTour ?? false,
     };
   }
 }

@@ -12,13 +12,39 @@ export declare class AuthService {
     login(loginDto: LoginDto): Promise<AuthResponseDto>;
     validateUser(id: string): Promise<any>;
     getUserProfile(id: string): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        username: string | null;
+        currency: string;
+        timezone: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         income?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
+        hasSeenBalanceCardTour: boolean;
+        hasSeenAddTransactionTour: boolean;
+        hasSeenTransactionSwipeTour: boolean;
     }>;
     updateUserProfile(id: string, profileData: UpdateUserProfileDto): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        username: string | null;
+        currency: string;
+        timezone: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         income?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
+        hasSeenBalanceCardTour: boolean;
+        hasSeenAddTransactionTour: boolean;
+        hasSeenTransactionSwipeTour: boolean;
     }>;
 }
