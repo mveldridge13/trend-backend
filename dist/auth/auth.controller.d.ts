@@ -6,13 +6,39 @@ export declare class AuthController {
     register(registerDto: any): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
     login(loginDto: any): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
     getProfile(req: any): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        username: string | null;
+        currency: string;
+        timezone: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         income?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
+        hasSeenBalanceCardTour: boolean;
+        hasSeenAddTransactionTour: boolean;
+        hasSeenTransactionSwipeTour: boolean;
     }>;
     updateProfile(req: any, updateProfileDto: UpdateUserProfileDto): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        username: string | null;
+        currency: string;
+        timezone: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         income?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
+        hasSeenBalanceCardTour: boolean;
+        hasSeenAddTransactionTour: boolean;
+        hasSeenTransactionSwipeTour: boolean;
     }>;
 }

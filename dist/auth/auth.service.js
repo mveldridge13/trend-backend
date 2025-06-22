@@ -136,9 +136,22 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException("User not found");
         }
         return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            currency: user.currency,
+            timezone: user.timezone,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
             income: user.income ? Number(user.income) : undefined,
             setupComplete: user.setupComplete,
             hasSeenWelcome: user.hasSeenWelcome,
+            hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
+            hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
+            hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
         };
     }
     async updateUserProfile(id, profileData) {
@@ -149,9 +162,22 @@ let AuthService = class AuthService {
         }
         const updatedUser = await this.usersRepository.updateProfile(id, profileData);
         return {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            username: updatedUser.username,
+            currency: updatedUser.currency,
+            timezone: updatedUser.timezone,
+            isActive: updatedUser.isActive,
+            createdAt: updatedUser.createdAt,
+            updatedAt: updatedUser.updatedAt,
             income: updatedUser.income ? Number(updatedUser.income) : undefined,
             setupComplete: updatedUser.setupComplete,
             hasSeenWelcome: updatedUser.hasSeenWelcome,
+            hasSeenBalanceCardTour: updatedUser.hasSeenBalanceCardTour ?? false,
+            hasSeenAddTransactionTour: updatedUser.hasSeenAddTransactionTour ?? false,
+            hasSeenTransactionSwipeTour: updatedUser.hasSeenTransactionSwipeTour ?? false,
         };
     }
 };
