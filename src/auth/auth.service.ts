@@ -75,6 +75,11 @@ export class AuthService {
         currency: user.currency,
         timezone: user.timezone,
         createdAt: user.createdAt,
+        income: user.income ? Number(user.income) : null,
+        setupComplete: user.setupComplete ?? false,
+        hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
+        hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
+        hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
       },
     };
   }
@@ -152,6 +157,11 @@ export class AuthService {
         currency: user.currency,
         timezone: user.timezone,
         createdAt: user.createdAt,
+        income: user.income ? Number(user.income) : null,
+        setupComplete: user.setupComplete ?? false,
+        hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
+        hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
+        hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
       },
     };
   }
@@ -166,7 +176,6 @@ export class AuthService {
     return result;
   }
 
-  // UPDATED: Profile methods for AppNavigator with onboarding fields
   async getUserProfile(id: string): Promise<{
     id: string;
     email: string;
@@ -204,13 +213,11 @@ export class AuthService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       income: user.income ? Number(user.income) : undefined,
-      setupComplete: user.setupComplete,
-      hasSeenWelcome: user.hasSeenWelcome,
-      hasSeenBalanceCardTour: (user as any).hasSeenBalanceCardTour ?? false,
-      hasSeenAddTransactionTour:
-        (user as any).hasSeenAddTransactionTour ?? false,
-      hasSeenTransactionSwipeTour:
-        (user as any).hasSeenTransactionSwipeTour ?? false,
+      setupComplete: user.setupComplete ?? false,
+      hasSeenWelcome: user.hasSeenWelcome ?? false,
+      hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
+      hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
+      hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
     };
   }
 
@@ -259,14 +266,12 @@ export class AuthService {
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
       income: updatedUser.income ? Number(updatedUser.income) : undefined,
-      setupComplete: updatedUser.setupComplete,
-      hasSeenWelcome: updatedUser.hasSeenWelcome,
-      hasSeenBalanceCardTour:
-        (updatedUser as any).hasSeenBalanceCardTour ?? false,
-      hasSeenAddTransactionTour:
-        (updatedUser as any).hasSeenAddTransactionTour ?? false,
+      setupComplete: updatedUser.setupComplete ?? false,
+      hasSeenWelcome: updatedUser.hasSeenWelcome ?? false,
+      hasSeenBalanceCardTour: updatedUser.hasSeenBalanceCardTour ?? false,
+      hasSeenAddTransactionTour: updatedUser.hasSeenAddTransactionTour ?? false,
       hasSeenTransactionSwipeTour:
-        (updatedUser as any).hasSeenTransactionSwipeTour ?? false,
+        updatedUser.hasSeenTransactionSwipeTour ?? false,
     };
   }
 }

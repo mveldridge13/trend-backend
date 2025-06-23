@@ -10,13 +10,13 @@ export class UserDto {
   createdAt: Date;
   updatedAt: Date;
 
-  // NEW: User setup fields
+  // User setup fields
   income?: number;
   setupComplete: boolean;
   hasSeenWelcome: boolean;
 
-  // NEW: Tutorial onboarding fields
-  hasSeenBalanceCardTour?: boolean;
-  hasSeenAddTransactionTour?: boolean;
-  hasSeenTransactionSwipeTour?: boolean;
+  // Tutorial onboarding fields - removed optional modifiers for consistency
+  hasSeenBalanceCardTour: boolean;
+  hasSeenAddTransactionTour: boolean;
+  hasSeenTransactionSwipeTour: boolean;
 }
