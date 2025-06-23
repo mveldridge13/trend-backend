@@ -9,5 +9,10 @@ export declare class AuthResponseDto {
         currency: string;
         timezone: string;
         createdAt: Date;
+        income: number | null;
+        setupComplete: boolean;
+        hasSeenBalanceCardTour: boolean;
+        hasSeenAddTransactionTour: boolean;
+        hasSeenTransactionSwipeTour: boolean;
     };
 }
