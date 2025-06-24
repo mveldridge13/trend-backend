@@ -25,6 +25,19 @@ export class TransactionAnalyticsDto {
     transactionCount: number;
   }[];
 
+  // ✅ NEW: Spending velocity analysis
+  spendingVelocity: {
+    currentMonthSpent: number;
+    daysElapsed: number;
+    daysInMonth: number;
+    dailyAverage: number;
+    projectedMonthlySpending: number;
+    monthlyBudget?: number;
+    velocityStatus: "ON_TRACK" | "SLIGHTLY_HIGH" | "HIGH" | "VERY_HIGH";
+    daysToOverspend?: number;
+    recommendedDailySpending: number;
+  };
+
   // Recent transactions summary
   recentTransactions: {
     totalAmount: number;
