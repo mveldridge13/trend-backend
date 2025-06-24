@@ -22,5 +22,7 @@ export declare class TransactionsService {
     private validateTransactionAmount;
     private validateTransactionDate;
     private mapToDto;
+    private calculateSpendingVelocity;
+    private calculateTrends;
     private calculateAnalytics;
 }
