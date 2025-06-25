@@ -18,8 +18,6 @@ async function bootstrap() {
 
   // ✅ Listen on all interfaces and correct port
   await app.listen(3001, "0.0.0.0");
-  console.log("🚀 Application is running on: http://0.0.0.0:3001");
-  console.log("📱 React Native can connect via: http://192.168.1.9:3001");
 }
 
 bootstrap();

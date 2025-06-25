@@ -112,10 +112,7 @@ export class TransactionsService {
     userId: string,
     createTransactionDto: CreateTransactionDto
   ): Promise<TransactionDto> {
-    this.validateTransactionAmount(
-      createTransactionDto.amount,
-      createTransactionDto.type
-    );
+    this.validateTransactionAmount(createTransactionDto.amount);
     this.validateTransactionDate(createTransactionDto.date);
 
     const transaction = await this.transactionsRepository.create(
@@ -177,20 +174,11 @@ export class TransactionsService {
       updateTransactionDto.amount !== undefined &&
       updateTransactionDto.type !== undefined
     ) {
-      this.validateTransactionAmount(
-        updateTransactionDto.amount,
-        updateTransactionDto.type
-      );
+      this.validateTransactionAmount(updateTransactionDto.amount);
     } else if (updateTransactionDto.amount !== undefined) {
-      this.validateTransactionAmount(
-        updateTransactionDto.amount,
-        existingTransaction.type
-      );
+      this.validateTransactionAmount(updateTransactionDto.amount);
     } else if (updateTransactionDto.type !== undefined) {
-      this.validateTransactionAmount(
-        Number(existingTransaction.amount),
-        updateTransactionDto.type
-      );
+      this.validateTransactionAmount(Number(existingTransaction.amount));
     }
 
     if (updateTransactionDto.date !== undefined) {
@@ -235,8 +223,6 @@ export class TransactionsService {
     userId: string,
     filters: Partial<TransactionFilterDto> = {}
   ): Promise<DiscretionaryBreakdownDto> {
-    console.log("🔍 Getting discretionary breakdown with filters:", filters);
-
     const now = new Date();
     const defaultStartDate = new Date();
     defaultStartDate.setDate(now.getDate() - 30);
@@ -245,10 +231,6 @@ export class TransactionsService {
     const endDate = filters.endDate || now.toISOString();
     const selectedDate = filters.endDate || now.toISOString().split("T")[0];
     const selectedPeriod = this.determinePeriodType(startDate, endDate);
-
-    console.log(
-      `📅 Discretionary breakdown for: ${selectedDate} (${selectedPeriod})`
-    );
 
     const transactions = await this.transactionsRepository.findMany(userId, {
       startDate,
@@ -260,17 +242,9 @@ export class TransactionsService {
       sortOrder: "desc",
     } as TransactionFilterDto);
 
-    console.log(
-      `📊 Found ${transactions.length} expense transactions in period`
-    );
-
     const discretionaryTransactions = transactions.filter((t) => {
       return t.recurrence === "none" || !t.recurrence;
     });
-
-    console.log(
-      `📊 Filtered to ${discretionaryTransactions.length} discretionary transactions`
-    );
 
     const targetTransactions = this.filterTransactionsForPeriod(
       discretionaryTransactions,
@@ -278,17 +252,9 @@ export class TransactionsService {
       selectedPeriod
     );
 
-    console.log(
-      `📊 Found ${targetTransactions.length} transactions for selected ${selectedPeriod}`
-    );
-
     const totalDiscretionaryAmount = targetTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
       0
-    );
-
-    console.log(
-      `💰 Total discretionary spending: $${totalDiscretionaryAmount.toFixed(2)}`
     );
 
     const categoryBreakdown = this.calculateCategoryBreakdown(
@@ -365,13 +331,6 @@ export class TransactionsService {
   ): any[] {
     const targetDate = new Date(selectedDate);
 
-    console.log(
-      `🔍 Filtering transactions for ${selectedPeriod} period:`,
-      selectedDate
-    );
-    console.log(`🔍 Target date:`, targetDate.toISOString());
-    console.log(`🔍 Available transactions:`, transactions.length);
-
     if (selectedPeriod === "daily") {
       // ✅ FIXED: More lenient daily filtering with proper timezone handling
       const dayStart = new Date(targetDate);
@@ -379,10 +338,6 @@ export class TransactionsService {
 
       const dayEnd = new Date(targetDate);
       dayEnd.setHours(23, 59, 59, 999);
-
-      console.log(
-        `🔍 Daily range: ${dayStart.toISOString()} to ${dayEnd.toISOString()}`
-      );
 
       const filtered = transactions.filter((t) => {
         const transactionDate = new Date(t.date);
@@ -397,20 +352,9 @@ export class TransactionsService {
 
         const matches = isInRange || isInDateStr;
 
-        if (!matches) {
-          console.log(
-            `🔍 Transaction ${t.id} (${transactionDate.toISOString()}) is outside range`
-          );
-        } else {
-          console.log(
-            `✅ Transaction ${t.id} (${transactionDate.toISOString()}) matches`
-          );
-        }
-
         return matches;
       });
 
-      console.log(`🔍 Filtered to ${filtered.length} daily transactions`);
       return filtered;
     } else if (selectedPeriod === "weekly") {
       const weekStart = new Date(targetDate);
@@ -484,12 +428,6 @@ export class TransactionsService {
           defaultCategoryColors[category.name?.toLowerCase()] ||
           "#CCCCCC";
 
-        console.log(`🎨 Setting color for category "${category.name}":`, {
-          databaseColor: category.color,
-          fallbackColor: defaultCategoryColors[category.name],
-          finalColor: categoryColor,
-        });
-
         categoryMap.set(categoryId, {
           categoryId,
           categoryName: category.name,
@@ -541,13 +479,6 @@ export class TransactionsService {
           },
         ],
       });
-
-      console.log(`🔍 Created subcategory entry:`, {
-        uniqueKey: uniqueSubcategoryKey,
-        subcategoryName,
-        amount,
-        transactionId: transaction.id,
-      });
     });
 
     return Array.from(categoryMap.values())
@@ -569,17 +500,6 @@ export class TransactionsService {
             };
           })
           .sort((a, b) => b.amount - a.amount);
-
-        console.log(`🏷️ Final category data for "${category.categoryName}":`, {
-          categoryColor: category.categoryColor,
-          amount: category.amount,
-          subcategoriesCount: subcategories.length,
-          subcategoryDetails: subcategories.map((sub) => ({
-            name: sub.subcategoryName,
-            amount: sub.amount,
-            transactionCount: sub.transactionCount,
-          })),
-        });
 
         return {
           categoryId: category.categoryId,
@@ -872,10 +792,7 @@ export class TransactionsService {
     };
   }
 
-  private validateTransactionAmount(
-    amount: number,
-    type: TransactionType
-  ): void {
+  private validateTransactionAmount(amount: number): void {
     if (amount <= 0) {
       throw new BadRequestException(
         "Transaction amount must be greater than 0"
