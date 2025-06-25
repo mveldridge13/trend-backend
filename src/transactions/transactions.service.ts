@@ -557,6 +557,159 @@ export class TransactionsService {
     return monthlyRecurringTotal;
   }
 
+  // ✅ FIXED: Calculate discretionary trends (excluding recurring transactions)
+  private calculateDiscretionaryTrends(
+    transactions: any[],
+    startDate?: string,
+    endDate?: string
+  ): Array<{
+    month: string;
+    discretionaryExpenses: number;
+  }> {
+    if (!startDate || !endDate) {
+      return [];
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    console.log(
+      `📊 Calculating discretionary trends for ${daysDiff} days (${startDate} to ${endDate})`
+    );
+
+    // Filter to only discretionary (non-recurring) expense transactions
+    const discretionaryTransactions = transactions.filter((t) => {
+      return t.type === "EXPENSE" && (t.recurrence === "none" || !t.recurrence);
+    });
+
+    console.log(
+      `📊 Filtered to ${discretionaryTransactions.length} discretionary transactions (excluded recurring)`
+    );
+
+    // Determine period type based on date range (same logic as calculateTrends)
+    let periodType: "daily" | "weekly" | "monthly";
+    if (daysDiff <= 14) {
+      periodType = "daily";
+    } else if (daysDiff <= 84) {
+      periodType = "weekly";
+    } else {
+      periodType = "monthly";
+    }
+
+    console.log(`📊 Using ${periodType} period type for discretionary trends`);
+
+    const discretionaryTrends: Array<{
+      month: string;
+      discretionaryExpenses: number;
+    }> = [];
+
+    if (periodType === "daily") {
+      // ✅ FIXED: Generate daily discretionary trends with proper date range filtering
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dayStr = d.toISOString().split("T")[0];
+
+        // ✅ FIXED: Use same date range logic as calculateDailyBurnRate
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+
+        const dayDiscretionaryExpenses = discretionaryTransactions
+          .filter((t) => {
+            const transactionDate = new Date(t.date);
+            // ✅ FIXED: Use date range comparison instead of string comparison
+            return transactionDate >= dayStart && transactionDate < dayEnd;
+          })
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        // ✅ ENHANCED DEBUG: Show each day's calculation
+        console.log(
+          `📊 Discretionary ${dayStr}: $${dayDiscretionaryExpenses.toFixed(2)} (${
+            discretionaryTransactions.filter((t) => {
+              const transactionDate = new Date(t.date);
+              return transactionDate >= dayStart && transactionDate < dayEnd;
+            }).length
+          } transactions)`
+        );
+
+        discretionaryTrends.push({
+          month: dayStr,
+          discretionaryExpenses: dayDiscretionaryExpenses,
+        });
+      }
+    } else if (periodType === "weekly") {
+      // Generate weekly discretionary trends
+      const current = new Date(start);
+      while (current <= end) {
+        const weekStart = new Date(current);
+        const weekEnd = new Date(current);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        if (weekEnd > end) {
+          weekEnd.setTime(end.getTime());
+        }
+
+        const weekDiscretionaryExpenses = discretionaryTransactions
+          .filter((t) => {
+            const transactionDate = new Date(t.date);
+            return transactionDate >= weekStart && transactionDate <= weekEnd;
+          })
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        discretionaryTrends.push({
+          month: weekStart.toISOString().split("T")[0],
+          discretionaryExpenses: weekDiscretionaryExpenses,
+        });
+
+        current.setDate(current.getDate() + 7);
+      }
+    } else {
+      // Generate monthly discretionary trends
+      const months = new Set<string>();
+
+      const startYear = start.getFullYear();
+      const startMonth = start.getMonth();
+      const endYear = end.getFullYear();
+      const endMonth = end.getMonth();
+
+      for (let year = startYear; year <= endYear; year++) {
+        const monthStart = year === startYear ? startMonth : 0;
+        const monthEnd = year === endYear ? endMonth : 11;
+
+        for (let month = monthStart; month <= monthEnd; month++) {
+          const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
+          months.add(monthStr);
+        }
+      }
+
+      months.forEach((monthStr) => {
+        const monthDiscretionaryExpenses = discretionaryTransactions
+          .filter((t) => {
+            const transactionMonth = new Date(t.date)
+              .toISOString()
+              .substring(0, 7);
+            return transactionMonth === monthStr;
+          })
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        discretionaryTrends.push({
+          month: monthStr,
+          discretionaryExpenses: monthDiscretionaryExpenses,
+        });
+      });
+    }
+
+    console.log(
+      `📊 Generated ${discretionaryTrends.length} discretionary trend periods with totals:`,
+      discretionaryTrends.map((t) => ({
+        date: t.month,
+        amount: t.discretionaryExpenses,
+      }))
+    );
+    return discretionaryTrends.sort((a, b) => a.month.localeCompare(b.month));
+  }
+
   // ✅ EXISTING: Calculate spending velocity analysis
   private calculateSpendingVelocity(
     transactions: any[],
@@ -680,7 +833,7 @@ export class TransactionsService {
 
     console.log(`🎯 Velocity status: ${velocityStatus}`);
     console.log(
-      `💡 Recommended daily spending: $${recommendedDailySpending.toFixed(2)}`
+      `💡 Recommended daily spending: ${recommendedDailySpending.toFixed(2)}`
     );
 
     return {
@@ -861,7 +1014,7 @@ export class TransactionsService {
     return trends.sort((a, b) => a.month.localeCompare(b.month));
   }
 
-  // ✅ UPDATED: Calculate analytics with Daily Burn Rate
+  // ✅ UPDATED: Calculate analytics with Daily Burn Rate and Discretionary Trends
   private calculateAnalytics(
     transactions: any[],
     filters: Partial<TransactionFilterDto> = {},
@@ -909,11 +1062,35 @@ export class TransactionsService {
       })
     );
 
-    // Calculate trends
+    // Calculate regular trends (all transactions)
     const monthlyTrends = this.calculateTrends(
       transactions,
       filters.startDate,
       filters.endDate
+    );
+
+    // ✅ NEW: Calculate discretionary trends (non-recurring only)
+    const discretionaryTrends = this.calculateDiscretionaryTrends(
+      transactions,
+      filters.startDate,
+      filters.endDate
+    );
+
+    // ✅ NEW: Merge discretionary data into monthly trends
+    const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
+      const discretionaryTrend = discretionaryTrends.find(
+        (dt) => dt.month === trend.month
+      );
+
+      return {
+        ...trend,
+        discretionaryExpenses: discretionaryTrend?.discretionaryExpenses || 0,
+      };
+    });
+
+    console.log(
+      `📊 Enhanced monthly trends with discretionary data:`,
+      enhancedMonthlyTrends
     );
 
     // Calculate spending velocity
@@ -932,7 +1109,7 @@ export class TransactionsService {
       transactionCount,
       averageTransaction,
       categoryBreakdown,
-      monthlyTrends,
+      monthlyTrends: enhancedMonthlyTrends, // ✅ NEW: Now includes discretionaryExpenses
       spendingVelocity,
       dailyBurnRate, // ✅ UPDATED: Now excludes recurring transactions
       recentTransactions: {

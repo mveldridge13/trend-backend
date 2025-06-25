@@ -16,11 +16,12 @@ export class TransactionAnalyticsDto {
     percentage: number;
   }[];
 
-  // Monthly trends
+  // ✅ UPDATED: Monthly trends now include discretionary expenses
   monthlyTrends: {
     month: string;
     income: number;
-    expenses: number;
+    expenses: number; // All expenses (existing)
+    discretionaryExpenses: number; // ✅ NEW: Non-recurring expenses only
     net: number;
     transactionCount: number;
   }[];
@@ -46,7 +47,7 @@ export class TransactionAnalyticsDto {
     recommendedDailySpending: number;
     burnRateStatus: "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
     weeklyTrend: number[];
-    weeklyTrendWithLabels: { day: string; amount: number; isToday: boolean }[]; // ✅ NEW: Correct day labels ending with today
+    weeklyTrendWithLabels: { day: string; amount: number; isToday: boolean }[];
     projectedMonthlySpending: number;
     monthlyIncomeCapacity: number;
   };
