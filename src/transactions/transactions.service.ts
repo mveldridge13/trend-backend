@@ -10,7 +10,96 @@ import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionDto } from "./dto/transaction.dto";
 import { TransactionFilterDto } from "./dto/transaction-filter.dto";
 import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
+//import { DiscretionaryBreakdownDto } from "./dto/discretionary-breakdown.dto";
 import { Transaction, TransactionType, IncomeFrequency } from "@prisma/client";
+
+// ✅ Inline interface definition for discretionary breakdown
+interface DiscretionaryBreakdownDto {
+  selectedDate: string;
+  selectedPeriod: "daily" | "weekly" | "monthly";
+  totalDiscretionaryAmount: number;
+  transactions: {
+    id: string;
+    date: string;
+    amount: number;
+    description: string;
+    merchant?: string;
+    categoryId: string;
+    categoryName: string;
+    subcategoryId?: string;
+    subcategoryName?: string;
+  }[];
+  categoryBreakdown: {
+    categoryId: string;
+    categoryName: string;
+    categoryIcon?: string;
+    categoryColor?: string;
+    amount: number;
+    transactionCount: number;
+    percentage: number;
+    subcategories: {
+      subcategoryId?: string;
+      subcategoryName: string;
+      amount: number;
+      transactionCount: number;
+      percentage: number;
+      transactions: {
+        id: string;
+        date: string;
+        amount: number;
+        description: string;
+        merchant?: string;
+      }[];
+    }[];
+    transactions: {
+      id: string;
+      date: string;
+      amount: number;
+      description: string;
+      merchant?: string;
+      subcategoryId?: string;
+      subcategoryName?: string;
+    }[];
+  }[];
+  previousPeriod?: {
+    date: string;
+    totalDiscretionaryAmount: number;
+    percentageChange: number;
+    topCategories: {
+      categoryName: string;
+      amount: number;
+    }[];
+  };
+  insights: {
+    type: "info" | "warning" | "success" | "error";
+    category?: string;
+    title: string;
+    message: string;
+    suggestion?: string;
+    amount?: number;
+  }[];
+  summary: {
+    transactionCount: number;
+    averageTransactionAmount: number;
+    largestTransaction: {
+      id: string;
+      amount: number;
+      description: string;
+      categoryName: string;
+    };
+    topSpendingCategory: {
+      categoryName: string;
+      amount: number;
+      percentage: number;
+    };
+    spendingDistribution: {
+      morning: number;
+      afternoon: number;
+      evening: number;
+      night: number;
+    };
+  };
+}
 
 @Injectable()
 export class TransactionsService {
@@ -23,13 +112,10 @@ export class TransactionsService {
     userId: string,
     createTransactionDto: CreateTransactionDto
   ): Promise<TransactionDto> {
-    // Validate that the transaction amount is appropriate for the type
     this.validateTransactionAmount(
       createTransactionDto.amount,
       createTransactionDto.type
     );
-
-    // Validate date is not in future (optional business rule)
     this.validateTransactionDate(createTransactionDto.date);
 
     const transaction = await this.transactionsRepository.create(
@@ -68,11 +154,9 @@ export class TransactionsService {
 
   async findOne(id: string, userId: string): Promise<TransactionDto> {
     const transaction = await this.transactionsRepository.findById(id, userId);
-
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
-
     return this.mapToDto(transaction);
   }
 
@@ -81,13 +165,6 @@ export class TransactionsService {
     userId: string,
     updateTransactionDto: UpdateTransactionDto
   ): Promise<TransactionDto> {
-    console.log("🔍 Service UPDATE - Input params:", { id, userId });
-    console.log(
-      "🔍 Service UPDATE - UpdateTransactionDto:",
-      updateTransactionDto
-    );
-
-    // Check if transaction exists
     const existingTransaction = await this.transactionsRepository.findById(
       id,
       userId
@@ -96,12 +173,6 @@ export class TransactionsService {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
 
-    console.log(
-      "🔍 Service UPDATE - Existing transaction found:",
-      existingTransaction
-    );
-
-    // Validate amount and type if being updated
     if (
       updateTransactionDto.amount !== undefined &&
       updateTransactionDto.type !== undefined
@@ -122,33 +193,24 @@ export class TransactionsService {
       );
     }
 
-    // Validate date if being updated
     if (updateTransactionDto.date !== undefined) {
       this.validateTransactionDate(updateTransactionDto.date);
     }
 
-    console.log("🔍 Service UPDATE - About to call repository update");
     const updatedTransaction = await this.transactionsRepository.update(
       id,
       userId,
       updateTransactionDto
     );
 
-    console.log("🔍 Service UPDATE - Repository result:", updatedTransaction);
-
-    const result = this.mapToDto(updatedTransaction);
-    console.log("🔍 Service UPDATE - Final mapped result:", result);
-
-    return result;
+    return this.mapToDto(updatedTransaction);
   }
 
   async remove(id: string, userId: string): Promise<void> {
     const transaction = await this.transactionsRepository.findById(id, userId);
-
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
-
     await this.transactionsRepository.delete(id, userId);
   }
 
@@ -156,18 +218,647 @@ export class TransactionsService {
     userId: string,
     filters: Partial<TransactionFilterDto> = {}
   ): Promise<TransactionAnalyticsDto> {
-    // Get user profile for income-based calculations
     const userProfile = await this.usersRepository.findById(userId);
-
     const transactions = await this.transactionsRepository.findMany(userId, {
       ...filters,
-      limit: 10000, // Get all transactions for analytics
+      limit: 10000,
       offset: 0,
       sortBy: "date",
       sortOrder: "desc",
     } as TransactionFilterDto);
 
     return this.calculateAnalytics(transactions, filters, userProfile);
+  }
+
+  // ✅ FIXED: Get discretionary breakdown for daily spending analysis
+  async getDiscretionaryBreakdown(
+    userId: string,
+    filters: Partial<TransactionFilterDto> = {}
+  ): Promise<DiscretionaryBreakdownDto> {
+    console.log("🔍 Getting discretionary breakdown with filters:", filters);
+
+    const now = new Date();
+    const defaultStartDate = new Date();
+    defaultStartDate.setDate(now.getDate() - 30);
+
+    const startDate = filters.startDate || defaultStartDate.toISOString();
+    const endDate = filters.endDate || now.toISOString();
+    const selectedDate = filters.endDate || now.toISOString().split("T")[0];
+    const selectedPeriod = this.determinePeriodType(startDate, endDate);
+
+    console.log(
+      `📅 Discretionary breakdown for: ${selectedDate} (${selectedPeriod})`
+    );
+
+    const transactions = await this.transactionsRepository.findMany(userId, {
+      startDate,
+      endDate,
+      type: TransactionType.EXPENSE,
+      limit: 10000,
+      offset: 0,
+      sortBy: "date",
+      sortOrder: "desc",
+    } as TransactionFilterDto);
+
+    console.log(
+      `📊 Found ${transactions.length} expense transactions in period`
+    );
+
+    const discretionaryTransactions = transactions.filter((t) => {
+      return t.recurrence === "none" || !t.recurrence;
+    });
+
+    console.log(
+      `📊 Filtered to ${discretionaryTransactions.length} discretionary transactions`
+    );
+
+    const targetTransactions = this.filterTransactionsForPeriod(
+      discretionaryTransactions,
+      selectedDate,
+      selectedPeriod
+    );
+
+    console.log(
+      `📊 Found ${targetTransactions.length} transactions for selected ${selectedPeriod}`
+    );
+
+    const totalDiscretionaryAmount = targetTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
+
+    console.log(
+      `💰 Total discretionary spending: $${totalDiscretionaryAmount.toFixed(2)}`
+    );
+
+    const categoryBreakdown = this.calculateCategoryBreakdown(
+      targetTransactions,
+      totalDiscretionaryAmount
+    );
+
+    const mappedTransactions = targetTransactions.map((t) => ({
+      id: t.id,
+      date: t.date,
+      amount: Number(t.amount),
+      description: t.description,
+      merchant: t.merchantName,
+      categoryId: t.category?.id || "unknown",
+      categoryName: t.category?.name || "Other",
+      subcategoryId: t.subcategory?.id,
+      subcategoryName: t.subcategory?.name,
+    }));
+
+    const previousPeriod = this.calculatePreviousPeriodComparison(
+      discretionaryTransactions,
+      selectedDate,
+      selectedPeriod
+    );
+
+    const insights = this.generateDiscretionaryInsights(
+      categoryBreakdown,
+      totalDiscretionaryAmount,
+      previousPeriod,
+      selectedPeriod
+    );
+
+    const summary = this.calculateDiscretionarySummary(
+      targetTransactions,
+      categoryBreakdown
+    );
+
+    return {
+      selectedDate,
+      selectedPeriod,
+      totalDiscretionaryAmount,
+      transactions: mappedTransactions,
+      categoryBreakdown,
+      previousPeriod,
+      insights,
+      summary,
+    };
+  }
+
+  private determinePeriodType(
+    startDate: string,
+    endDate: string
+  ): "daily" | "weekly" | "monthly" {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysDiff <= 1) {
+      return "daily";
+    } else if (daysDiff <= 7) {
+      return "weekly";
+    } else {
+      return "monthly";
+    }
+  }
+
+  // ✅ FIXED: More lenient daily filtering with better timezone handling
+  private filterTransactionsForPeriod(
+    transactions: any[],
+    selectedDate: string,
+    selectedPeriod: "daily" | "weekly" | "monthly"
+  ): any[] {
+    const targetDate = new Date(selectedDate);
+
+    console.log(
+      `🔍 Filtering transactions for ${selectedPeriod} period:`,
+      selectedDate
+    );
+    console.log(`🔍 Target date:`, targetDate.toISOString());
+    console.log(`🔍 Available transactions:`, transactions.length);
+
+    if (selectedPeriod === "daily") {
+      // ✅ FIXED: More lenient daily filtering with proper timezone handling
+      const dayStart = new Date(targetDate);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(targetDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      console.log(
+        `🔍 Daily range: ${dayStart.toISOString()} to ${dayEnd.toISOString()}`
+      );
+
+      const filtered = transactions.filter((t) => {
+        const transactionDate = new Date(t.date);
+
+        // ✅ FIXED: Also check by date string for timezone issues
+        const transactionDateStr = transactionDate.toISOString().split("T")[0];
+        const targetDateStr = targetDate.toISOString().split("T")[0];
+
+        const isInRange =
+          transactionDate >= dayStart && transactionDate <= dayEnd;
+        const isInDateStr = transactionDateStr === targetDateStr;
+
+        const matches = isInRange || isInDateStr;
+
+        if (!matches) {
+          console.log(
+            `🔍 Transaction ${t.id} (${transactionDate.toISOString()}) is outside range`
+          );
+        } else {
+          console.log(
+            `✅ Transaction ${t.id} (${transactionDate.toISOString()}) matches`
+          );
+        }
+
+        return matches;
+      });
+
+      console.log(`🔍 Filtered to ${filtered.length} daily transactions`);
+      return filtered;
+    } else if (selectedPeriod === "weekly") {
+      const weekStart = new Date(targetDate);
+      weekStart.setDate(targetDate.getDate() - targetDate.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      return transactions.filter((t) => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= weekStart && transactionDate <= weekEnd;
+      });
+    } else {
+      const monthStart = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth(),
+        1
+      );
+      monthStart.setHours(0, 0, 0, 0);
+
+      const monthEnd = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth() + 1,
+        0
+      );
+      monthEnd.setHours(23, 59, 59, 999);
+
+      return transactions.filter((t) => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= monthStart && transactionDate <= monthEnd;
+      });
+    }
+  }
+
+  // ✅ FIXED: Enhanced category breakdown with proper color handling and fallbacks
+  private calculateCategoryBreakdown(transactions: any[], totalAmount: number) {
+    const categoryMap = new Map();
+
+    // ✅ DEFAULT CATEGORY COLORS - Fallback when database colors are missing
+    const defaultCategoryColors = {
+      Food: "#FF6B6B",
+      Shopping: "#FFB84D",
+      Transport: "#4ECDC4",
+      Entertainment: "#96CEB4",
+      Health: "#FF9FF3",
+      Home: "#FECA57",
+      Education: "#A8A8A8",
+      Travel: "#FF8C42",
+      Gifts: "#6C5CE7",
+      Coffee: "#FD79A8",
+      Clothing: "#FFB84D",
+      Groceries: "#FF6B6B",
+      Takeout: "#FF6B6B",
+      "Take Out": "#FF6B6B",
+      Dining: "#FF6B6B",
+      Restaurant: "#FF6B6B",
+    };
+
+    transactions.forEach((transaction) => {
+      const category = transaction.category;
+      if (!category) return;
+
+      const categoryId = category.id;
+      if (!categoryMap.has(categoryId)) {
+        // ✅ FIXED: Use database color first, then fallback to default colors, then gray
+        const categoryColor =
+          category.color ||
+          defaultCategoryColors[category.name] ||
+          defaultCategoryColors[category.name?.toLowerCase()] ||
+          "#CCCCCC";
+
+        console.log(`🎨 Setting color for category "${category.name}":`, {
+          databaseColor: category.color,
+          fallbackColor: defaultCategoryColors[category.name],
+          finalColor: categoryColor,
+        });
+
+        categoryMap.set(categoryId, {
+          categoryId,
+          categoryName: category.name,
+          categoryIcon: category.icon,
+          categoryColor: categoryColor, // ✅ Enhanced color logic
+          amount: 0,
+          transactionCount: 0,
+          subcategories: new Map(),
+          transactions: [],
+        });
+      }
+
+      const categoryData = categoryMap.get(categoryId);
+      const amount = Number(transaction.amount);
+
+      categoryData.amount += amount;
+      categoryData.transactionCount += 1;
+      categoryData.transactions.push({
+        id: transaction.id,
+        date: transaction.date,
+        amount: amount,
+        description: transaction.description,
+        merchant: transaction.merchantName,
+        subcategoryId: transaction.subcategory?.id,
+        subcategoryName: transaction.subcategory?.name,
+      });
+
+      const subcategoryName =
+        transaction.subcategory?.name ||
+        this.matchSubcategory(transaction.description, category.name);
+
+      if (!categoryData.subcategories.has(subcategoryName)) {
+        categoryData.subcategories.set(subcategoryName, {
+          subcategoryId: transaction.subcategory?.id,
+          subcategoryName,
+          amount: 0,
+          transactionCount: 0,
+          percentage: 0,
+          transactions: [],
+        });
+      }
+
+      const subcategoryData = categoryData.subcategories.get(subcategoryName);
+      subcategoryData.amount += amount;
+      subcategoryData.transactionCount += 1;
+      subcategoryData.transactions.push({
+        id: transaction.id,
+        date: transaction.date,
+        amount: amount,
+        description: transaction.description,
+        merchant: transaction.merchantName,
+      });
+    });
+
+    return Array.from(categoryMap.values())
+      .map((category) => {
+        const percentage =
+          totalAmount > 0 ? (category.amount / totalAmount) * 100 : 0;
+
+        // ✅ FIXED: Explicit conversion from Map values to plain objects with proper typing
+        const subcategories = Array.from(category.subcategories.values())
+          .map((sub: any) => {
+            return {
+              subcategoryId: sub.subcategoryId,
+              subcategoryName: sub.subcategoryName,
+              amount: sub.amount,
+              transactionCount: sub.transactionCount,
+              percentage:
+                category.amount > 0 ? (sub.amount / category.amount) * 100 : 0,
+              transactions: sub.transactions,
+            };
+          })
+          .sort((a, b) => b.amount - a.amount);
+
+        console.log(`🏷️ Final category data for "${category.categoryName}":`, {
+          categoryColor: category.categoryColor,
+          amount: category.amount,
+          subcategoriesCount: subcategories.length,
+        });
+
+        return {
+          categoryId: category.categoryId,
+          categoryName: category.categoryName,
+          categoryIcon: category.categoryIcon,
+          categoryColor: category.categoryColor, // ✅ This should now have proper colors
+          amount: category.amount,
+          transactionCount: category.transactionCount,
+          percentage,
+          subcategories,
+          transactions: category.transactions,
+        };
+      })
+      .sort((a, b) => b.amount - a.amount);
+  }
+
+  private matchSubcategory(description: string, categoryName: string): string {
+    const desc = (description || "").toLowerCase();
+    const category = categoryName.toLowerCase();
+
+    if (category.includes("food") || category.includes("dining")) {
+      if (
+        desc.includes("uber") ||
+        desc.includes("doordash") ||
+        desc.includes("delivery")
+      ) {
+        return "Takeout & Delivery";
+      }
+      if (
+        desc.includes("woolworth") ||
+        desc.includes("coles") ||
+        desc.includes("supermarket") ||
+        desc.includes("grocery")
+      ) {
+        return "Groceries";
+      }
+      if (
+        desc.includes("starbucks") ||
+        desc.includes("cafe") ||
+        desc.includes("coffee")
+      ) {
+        return "Coffee & Cafes";
+      }
+      if (desc.includes("restaurant") || desc.includes("dining")) {
+        return "Restaurants";
+      }
+    }
+
+    if (category.includes("transport") || category.includes("car")) {
+      if (
+        desc.includes("gas") ||
+        desc.includes("petrol") ||
+        desc.includes("shell") ||
+        desc.includes("bp")
+      ) {
+        return "Fuel";
+      }
+      if (
+        desc.includes("uber") ||
+        desc.includes("taxi") ||
+        desc.includes("rideshare")
+      ) {
+        return "Rideshare";
+      }
+      if (desc.includes("parking")) {
+        return "Parking";
+      }
+    }
+
+    if (category.includes("health") || category.includes("medical")) {
+      if (
+        desc.includes("chemist") ||
+        desc.includes("pharmacy") ||
+        desc.includes("medication")
+      ) {
+        return "Pharmacy";
+      }
+      if (
+        desc.includes("doctor") ||
+        desc.includes("medical") ||
+        desc.includes("clinic")
+      ) {
+        return "Medical Services";
+      }
+    }
+
+    if (category.includes("entertainment")) {
+      if (
+        desc.includes("netflix") ||
+        desc.includes("spotify") ||
+        desc.includes("subscription")
+      ) {
+        return "Streaming & Subscriptions";
+      }
+      if (desc.includes("movie") || desc.includes("cinema")) {
+        return "Movies & Cinema";
+      }
+    }
+
+    return "General";
+  }
+
+  private calculatePreviousPeriodComparison(
+    allTransactions: any[],
+    selectedDate: string,
+    selectedPeriod: "daily" | "weekly" | "monthly"
+  ) {
+    const targetDate = new Date(selectedDate);
+    let previousDate: Date;
+
+    if (selectedPeriod === "daily") {
+      previousDate = new Date(targetDate);
+      previousDate.setDate(targetDate.getDate() - 1);
+    } else if (selectedPeriod === "weekly") {
+      previousDate = new Date(targetDate);
+      previousDate.setDate(targetDate.getDate() - 7);
+    } else {
+      previousDate = new Date(targetDate);
+      previousDate.setMonth(targetDate.getMonth() - 1);
+    }
+
+    const previousTransactions = this.filterTransactionsForPeriod(
+      allTransactions,
+      previousDate.toISOString().split("T")[0],
+      selectedPeriod
+    );
+
+    const previousAmount = previousTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
+    const currentAmount = this.filterTransactionsForPeriod(
+      allTransactions,
+      selectedDate,
+      selectedPeriod
+    ).reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const percentageChange =
+      previousAmount > 0
+        ? ((currentAmount - previousAmount) / previousAmount) * 100
+        : 0;
+
+    const previousCategoryBreakdown = this.calculateCategoryBreakdown(
+      previousTransactions,
+      previousAmount
+    );
+    const topCategories = previousCategoryBreakdown.slice(0, 3).map((cat) => ({
+      categoryName: cat.categoryName,
+      amount: cat.amount,
+    }));
+
+    return {
+      date: previousDate.toISOString().split("T")[0],
+      totalDiscretionaryAmount: previousAmount,
+      percentageChange,
+      topCategories,
+    };
+  }
+
+  private generateDiscretionaryInsights(
+    categoryBreakdown: any[],
+    totalAmount: number,
+    previousPeriod: any,
+    selectedPeriod: "daily" | "weekly" | "monthly"
+  ) {
+    const insights: any[] = [];
+
+    if (categoryBreakdown.length > 0) {
+      const topCategory = categoryBreakdown[0];
+      if (topCategory.percentage > 40) {
+        insights.push({
+          type: "warning",
+          category: topCategory.categoryName,
+          title: "High Category Concentration",
+          message: `${topCategory.categoryName} accounts for ${topCategory.percentage.toFixed(1)}% of your discretionary spending.`,
+          suggestion:
+            "Consider diversifying your spending or setting a specific budget for this category.",
+          amount: topCategory.amount,
+        });
+      }
+    }
+
+    if (previousPeriod && previousPeriod.totalDiscretionaryAmount > 0) {
+      const changePercent = Math.abs(previousPeriod.percentageChange);
+      if (changePercent > 20) {
+        insights.push({
+          type: previousPeriod.percentageChange > 0 ? "warning" : "success",
+          title: `${selectedPeriod === "daily" ? "Daily" : selectedPeriod === "weekly" ? "Weekly" : "Monthly"} Spending Change`,
+          message: `Your discretionary spending has ${previousPeriod.percentageChange > 0 ? "increased" : "decreased"} by ${changePercent.toFixed(1)}% compared to the previous ${selectedPeriod}.`,
+          suggestion:
+            previousPeriod.percentageChange > 0
+              ? "Consider reviewing your recent purchases to identify areas for reduction."
+              : "Great job managing your discretionary spending!",
+        });
+      }
+    }
+
+    const totalTransactions = categoryBreakdown.reduce(
+      (sum, cat) => sum + cat.transactionCount,
+      0
+    );
+    if (selectedPeriod === "daily" && totalTransactions > 5) {
+      insights.push({
+        type: "info",
+        title: "High Transaction Frequency",
+        message: `You made ${totalTransactions} discretionary purchases today.`,
+        suggestion:
+          "Consider consolidating purchases or planning ahead to reduce transaction frequency.",
+      });
+    }
+
+    const averageTransaction = totalAmount / Math.max(totalTransactions, 1);
+    if (averageTransaction < 10 && totalTransactions > 3) {
+      insights.push({
+        type: "info",
+        title: "Frequent Small Purchases",
+        message: `Your average transaction is $${averageTransaction.toFixed(2)} with ${totalTransactions} purchases.`,
+        suggestion:
+          "Small purchases can add up quickly. Consider tracking them more closely.",
+      });
+    }
+
+    return insights;
+  }
+
+  private calculateDiscretionarySummary(
+    transactions: any[],
+    categoryBreakdown: any[]
+  ) {
+    const transactionCount = transactions.length;
+    const totalAmount = transactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
+    const averageTransactionAmount =
+      transactionCount > 0 ? totalAmount / transactionCount : 0;
+
+    const largestTransaction = transactions.reduce(
+      (largest, current) => {
+        return Number(current.amount) > Number(largest.amount)
+          ? current
+          : largest;
+      },
+      transactions[0] || { amount: 0, description: "", category: { name: "" } }
+    );
+
+    const topSpendingCategory = categoryBreakdown[0] || {
+      categoryName: "",
+      amount: 0,
+      percentage: 0,
+    };
+
+    const spendingDistribution = {
+      morning: 0,
+      afternoon: 0,
+      evening: 0,
+      night: 0,
+    };
+
+    transactions.forEach((t) => {
+      const hour = new Date(t.date).getHours();
+      const amount = Number(t.amount);
+
+      if (hour >= 6 && hour < 12) {
+        spendingDistribution.morning += amount;
+      } else if (hour >= 12 && hour < 18) {
+        spendingDistribution.afternoon += amount;
+      } else if (hour >= 18 && hour < 24) {
+        spendingDistribution.evening += amount;
+      } else {
+        spendingDistribution.night += amount;
+      }
+    });
+
+    return {
+      transactionCount,
+      averageTransactionAmount,
+      largestTransaction: {
+        id: largestTransaction.id,
+        amount: Number(largestTransaction.amount),
+        description: largestTransaction.description,
+        categoryName: largestTransaction.category?.name || "Other",
+      },
+      topSpendingCategory: {
+        categoryName: topSpendingCategory.categoryName,
+        amount: topSpendingCategory.amount,
+        percentage: topSpendingCategory.percentage,
+      },
+      spendingDistribution,
+    };
   }
 
   private validateTransactionAmount(
@@ -179,7 +870,6 @@ export class TransactionsService {
         "Transaction amount must be greater than 0"
       );
     }
-
     if (amount > 999999.99) {
       throw new BadRequestException(
         "Transaction amount cannot exceed $999,999.99"
@@ -190,13 +880,12 @@ export class TransactionsService {
   private validateTransactionDate(dateString: string): void {
     const transactionDate = new Date(dateString);
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+    today.setHours(23, 59, 59, 999);
 
     if (transactionDate > today) {
       throw new BadRequestException("Transaction date cannot be in the future");
     }
 
-    // Don't allow transactions older than 5 years (business rule)
     const fiveYearsAgo = new Date();
     fiveYearsAgo.setFullYear(today.getFullYear() - 5);
 
@@ -253,7 +942,6 @@ export class TransactionsService {
     };
   }
 
-  // ✅ UPDATED: Calculate Daily Burn Rate excluding recurring transactions
   private calculateDailyBurnRate(
     transactions: any[],
     userProfile: any
@@ -268,24 +956,17 @@ export class TransactionsService {
     projectedMonthlySpending: number;
     monthlyIncomeCapacity: number;
   } {
-    console.log(
-      "🔥 Calculating Daily Burn Rate (excluding recurring transactions)"
-    );
-
     const now = new Date();
-
-    // Calculate recent 7-day burn rate
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(now.getDate() - 7);
 
-    // ✅ FIXED: Only include NON-RECURRING expense transactions in burn rate
     const recentTransactions = transactions.filter((t) => {
       const transactionDate = new Date(t.date);
       return (
         transactionDate >= sevenDaysAgo &&
         transactionDate <= now &&
         t.type === "EXPENSE" &&
-        (t.recurrence === "none" || !t.recurrence) // ✅ Only discretionary spending
+        (t.recurrence === "none" || !t.recurrence)
       );
     });
 
@@ -293,25 +974,8 @@ export class TransactionsService {
       (sum, t) => sum + Number(t.amount),
       0
     );
-
     const currentDailyBurnRate = weeklySpending / 7;
-    console.log(
-      `🔥 Current 7-day discretionary burn rate: $${currentDailyBurnRate.toFixed(2)}/day`
-    );
-    console.log(
-      `📊 Excluded ${
-        transactions.filter(
-          (t) =>
-            new Date(t.date) >= sevenDaysAgo &&
-            new Date(t.date) <= now &&
-            t.type === "EXPENSE" &&
-            t.recurrence &&
-            t.recurrence !== "none"
-        ).length
-      } recurring transactions from burn rate calculation`
-    );
 
-    // Calculate sustainable daily rate based on user's income
     let sustainableDailyRate = 0;
     let monthlyIncomeCapacity = 0;
 
@@ -319,54 +983,33 @@ export class TransactionsService {
       const income = Number(userProfile.income);
       const frequency = userProfile.incomeFrequency as IncomeFrequency;
 
-      // Convert income to monthly based on frequency
       switch (frequency) {
         case IncomeFrequency.WEEKLY:
-          monthlyIncomeCapacity = (income * 52) / 12; // 52 weeks / 12 months
+          monthlyIncomeCapacity = (income * 52) / 12;
           break;
         case IncomeFrequency.FORTNIGHTLY:
-          monthlyIncomeCapacity = (income * 26) / 12; // 26 fortnights / 12 months
+          monthlyIncomeCapacity = (income * 26) / 12;
           break;
         case IncomeFrequency.MONTHLY:
           monthlyIncomeCapacity = income;
           break;
         default:
-          monthlyIncomeCapacity = income; // Fallback to monthly
+          monthlyIncomeCapacity = income;
       }
 
-      // ✅ UPDATED: Calculate monthly recurring expenses to subtract from income capacity
       const monthlyRecurringExpenses =
         this.calculateMonthlyRecurringExpenses(transactions);
-      console.log(
-        `💰 Monthly recurring expenses: $${monthlyRecurringExpenses.toFixed(2)}`
-      );
-
-      // Subtract fixed expenses from income capacity
       const userFixedExpenses = Number(userProfile.fixedExpenses) || 0;
       monthlyIncomeCapacity -= userFixedExpenses + monthlyRecurringExpenses;
-
-      // Calculate sustainable daily rate (80% of available income for buffer)
       sustainableDailyRate = (monthlyIncomeCapacity * 0.8) / 30;
-
-      console.log(
-        `💰 Monthly income capacity after recurring expenses: $${monthlyIncomeCapacity.toFixed(2)}`
-      );
-      console.log(
-        `🎯 Sustainable daily discretionary rate: $${sustainableDailyRate.toFixed(2)}/day`
-      );
     }
 
-    // ✅ UPDATED: Calculate weekly trend with correct day labels ending with TODAY (discretionary spending only)
     const weeklyTrend: number[] = [];
     const weeklyTrendWithLabels: {
       day: string;
       amount: number;
       isToday: boolean;
     }[] = [];
-
-    console.log(
-      `📅 Today is: ${now.toLocaleDateString("en-US", { weekday: "long" })}`
-    );
 
     for (let i = 6; i >= 0; i--) {
       const day = new Date();
@@ -383,7 +1026,6 @@ export class TransactionsService {
         day.getDate() + 1
       );
 
-      // ✅ FIXED: Only include non-recurring expenses in daily spending
       const daySpending = transactions
         .filter((t) => {
           const transactionDate = new Date(t.date);
@@ -391,13 +1033,13 @@ export class TransactionsService {
             transactionDate >= dayStart &&
             transactionDate < dayEnd &&
             t.type === "EXPENSE" &&
-            (t.recurrence === "none" || !t.recurrence) // ✅ Only discretionary spending
+            (t.recurrence === "none" || !t.recurrence)
           );
         })
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const dayLabel = day.toLocaleDateString("en-US", { weekday: "short" });
-      const isToday = i === 0; // Last iteration (i=0) is today
+      const isToday = i === 0;
 
       weeklyTrend.push(daySpending);
       weeklyTrendWithLabels.push({
@@ -405,16 +1047,10 @@ export class TransactionsService {
         amount: daySpending,
         isToday: isToday,
       });
-
-      console.log(
-        `📊 ${dayLabel} (${day.toISOString().split("T")[0]}): $${daySpending.toFixed(2)} discretionary ${isToday ? "← TODAY" : ""}`
-      );
     }
 
-    // Calculate projected monthly spending (discretionary only)
     const projectedMonthlySpending = currentDailyBurnRate * 30;
 
-    // Determine burn rate status
     let burnRateStatus: "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
     let daysUntilBudgetExceeded: number | null = null;
 
@@ -431,7 +1067,6 @@ export class TransactionsService {
         burnRateStatus = "CRITICAL";
       }
 
-      // Calculate days until budget exceeded
       if (currentDailyBurnRate > sustainableDailyRate) {
         const excessDailySpending = currentDailyBurnRate - sustainableDailyRate;
         const remainingDays = Math.floor(
@@ -440,21 +1075,13 @@ export class TransactionsService {
         daysUntilBudgetExceeded = Math.max(0, remainingDays);
       }
     } else {
-      // No income data - use spending velocity as fallback
       burnRateStatus = currentDailyBurnRate > 50 ? "HIGH" : "NORMAL";
     }
 
-    // Calculate recommended daily spending
-    const remainingDaysInMonth = 30 - now.getDate();
     const recommendedDailySpending =
       sustainableDailyRate > 0
-        ? Math.min(sustainableDailyRate, sustainableDailyRate * 0.9) // 10% buffer
-        : currentDailyBurnRate * 0.8; // 20% reduction if no income data
-
-    console.log(`🚨 Discretionary burn rate status: ${burnRateStatus}`);
-    console.log(
-      `📊 Weekly discretionary trend: [${weeklyTrend.map((x) => x.toFixed(0)).join(", ")}]`
-    );
+        ? Math.min(sustainableDailyRate, sustainableDailyRate * 0.9)
+        : currentDailyBurnRate * 0.8;
 
     return {
       currentDailyBurnRate,
@@ -463,19 +1090,17 @@ export class TransactionsService {
       recommendedDailySpending,
       burnRateStatus,
       weeklyTrend,
-      weeklyTrendWithLabels, // ✅ NEW: Includes correct day labels
+      weeklyTrendWithLabels,
       projectedMonthlySpending,
       monthlyIncomeCapacity,
     };
   }
 
-  // ✅ NEW: Helper method to calculate monthly recurring expenses
   private calculateMonthlyRecurringExpenses(transactions: any[]): number {
     const now = new Date();
     const lastThreeMonths = new Date();
     lastThreeMonths.setMonth(now.getMonth() - 3);
 
-    // Get all recurring expense transactions from last 3 months
     const recurringTransactions = transactions.filter((t) => {
       const transactionDate = new Date(t.date);
       return (
@@ -487,11 +1112,6 @@ export class TransactionsService {
       );
     });
 
-    console.log(
-      `📊 Found ${recurringTransactions.length} recurring transactions in last 3 months`
-    );
-
-    // Group by recurrence type and calculate monthly equivalent
     let monthlyRecurringTotal = 0;
 
     const recurrenceGroups = {
@@ -508,32 +1128,22 @@ export class TransactionsService {
       }
     });
 
-    // Calculate monthly equivalent for each recurrence type
-    // Weekly: multiply by ~4.33 (52 weeks / 12 months)
     const weeklyMonthly =
       recurrenceGroups.weekly.reduce((sum, t) => sum + Number(t.amount), 0) *
       (52 / 12);
-
-    // Fortnightly: multiply by ~2.17 (26 fortnights / 12 months)
     const fortnightlyMonthly =
       recurrenceGroups.fortnightly.reduce(
         (sum, t) => sum + Number(t.amount),
         0
       ) *
       (26 / 12);
-
-    // Monthly: use as is
     const monthlyMonthly = recurrenceGroups.monthly.reduce(
       (sum, t) => sum + Number(t.amount),
       0
     );
-
-    // Six months: divide by 6
     const sixMonthsMonthly =
       recurrenceGroups.sixmonths.reduce((sum, t) => sum + Number(t.amount), 0) /
       6;
-
-    // Yearly: divide by 12
     const yearlyMonthly =
       recurrenceGroups.yearly.reduce((sum, t) => sum + Number(t.amount), 0) /
       12;
@@ -545,19 +1155,9 @@ export class TransactionsService {
       sixMonthsMonthly +
       yearlyMonthly;
 
-    console.log(`💰 Monthly recurring breakdown:`, {
-      weekly: weeklyMonthly.toFixed(2),
-      fortnightly: fortnightlyMonthly.toFixed(2),
-      monthly: monthlyMonthly.toFixed(2),
-      sixMonths: sixMonthsMonthly.toFixed(2),
-      yearly: yearlyMonthly.toFixed(2),
-      total: monthlyRecurringTotal.toFixed(2),
-    });
-
     return monthlyRecurringTotal;
   }
 
-  // ✅ FIXED: Calculate discretionary trends (excluding recurring transactions)
   private calculateDiscretionaryTrends(
     transactions: any[],
     startDate?: string,
@@ -576,20 +1176,10 @@ export class TransactionsService {
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    console.log(
-      `📊 Calculating discretionary trends for ${daysDiff} days (${startDate} to ${endDate})`
-    );
-
-    // Filter to only discretionary (non-recurring) expense transactions
     const discretionaryTransactions = transactions.filter((t) => {
       return t.type === "EXPENSE" && (t.recurrence === "none" || !t.recurrence);
     });
 
-    console.log(
-      `📊 Filtered to ${discretionaryTransactions.length} discretionary transactions (excluded recurring)`
-    );
-
-    // Determine period type based on date range (same logic as calculateTrends)
     let periodType: "daily" | "weekly" | "monthly";
     if (daysDiff <= 14) {
       periodType = "daily";
@@ -599,39 +1189,23 @@ export class TransactionsService {
       periodType = "monthly";
     }
 
-    console.log(`📊 Using ${periodType} period type for discretionary trends`);
-
     const discretionaryTrends: Array<{
       month: string;
       discretionaryExpenses: number;
     }> = [];
 
     if (periodType === "daily") {
-      // ✅ FIXED: Generate daily discretionary trends with proper date range filtering
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dayStr = d.toISOString().split("T")[0];
-
-        // ✅ FIXED: Use same date range logic as calculateDailyBurnRate
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
 
         const dayDiscretionaryExpenses = discretionaryTransactions
           .filter((t) => {
             const transactionDate = new Date(t.date);
-            // ✅ FIXED: Use date range comparison instead of string comparison
             return transactionDate >= dayStart && transactionDate < dayEnd;
           })
           .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        // ✅ ENHANCED DEBUG: Show each day's calculation
-        console.log(
-          `📊 Discretionary ${dayStr}: $${dayDiscretionaryExpenses.toFixed(2)} (${
-            discretionaryTransactions.filter((t) => {
-              const transactionDate = new Date(t.date);
-              return transactionDate >= dayStart && transactionDate < dayEnd;
-            }).length
-          } transactions)`
-        );
 
         discretionaryTrends.push({
           month: dayStr,
@@ -639,7 +1213,6 @@ export class TransactionsService {
         });
       }
     } else if (periodType === "weekly") {
-      // Generate weekly discretionary trends
       const current = new Date(start);
       while (current <= end) {
         const weekStart = new Date(current);
@@ -665,9 +1238,7 @@ export class TransactionsService {
         current.setDate(current.getDate() + 7);
       }
     } else {
-      // Generate monthly discretionary trends
       const months = new Set<string>();
-
       const startYear = start.getFullYear();
       const startMonth = start.getMonth();
       const endYear = end.getFullYear();
@@ -700,17 +1271,9 @@ export class TransactionsService {
       });
     }
 
-    console.log(
-      `📊 Generated ${discretionaryTrends.length} discretionary trend periods with totals:`,
-      discretionaryTrends.map((t) => ({
-        date: t.month,
-        amount: t.discretionaryExpenses,
-      }))
-    );
     return discretionaryTrends.sort((a, b) => a.month.localeCompare(b.month));
   }
 
-  // ✅ EXISTING: Calculate spending velocity analysis
   private calculateSpendingVelocity(
     transactions: any[],
     userMonthlyBudget?: number
@@ -729,18 +1292,11 @@ export class TransactionsService {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Get first and last day of current month
     const monthStart = new Date(currentYear, currentMonth, 1);
     const monthEnd = new Date(currentYear, currentMonth + 1, 0);
     const daysInMonth = monthEnd.getDate();
     const daysElapsed = now.getDate();
 
-    console.log(
-      `🚀 Calculating spending velocity for month: ${currentMonth + 1}/${currentYear}`
-    );
-    console.log(`📅 Days elapsed: ${daysElapsed}/${daysInMonth}`);
-
-    // Filter transactions for current month
     const currentMonthTransactions = transactions.filter((t) => {
       const transactionDate = new Date(t.date);
       return (
@@ -754,17 +1310,9 @@ export class TransactionsService {
       (sum, t) => sum + Number(t.amount),
       0
     );
-
     const dailyAverage = daysElapsed > 0 ? currentMonthSpent / daysElapsed : 0;
     const projectedMonthlySpending = dailyAverage * daysInMonth;
 
-    console.log(`💰 Current month spent: $${currentMonthSpent}`);
-    console.log(`📊 Daily average: $${dailyAverage.toFixed(2)}`);
-    console.log(
-      `📈 Projected monthly: $${projectedMonthlySpending.toFixed(2)}`
-    );
-
-    // Determine velocity status
     let velocityStatus: "ON_TRACK" | "SLIGHTLY_HIGH" | "HIGH" | "VERY_HIGH";
     let daysToOverspend: number | undefined;
 
@@ -781,13 +1329,11 @@ export class TransactionsService {
         velocityStatus = "VERY_HIGH";
       }
 
-      // Calculate days until overspending
       if (dailyAverage > 0 && currentMonthSpent < userMonthlyBudget) {
         const remainingBudget = userMonthlyBudget - currentMonthSpent;
         daysToOverspend = Math.floor(remainingBudget / dailyAverage);
       }
     } else {
-      // Without budget, use previous month comparison
       const lastMonth = new Date(currentYear, currentMonth - 1, 1);
       const lastMonthEnd = new Date(currentYear, currentMonth, 0);
 
@@ -804,8 +1350,6 @@ export class TransactionsService {
         (sum, t) => sum + Number(t.amount),
         0
       );
-
-      console.log(`📅 Last month spent: $${lastMonthSpent}`);
 
       if (lastMonthSpent > 0) {
         const spendingRatio = projectedMonthlySpending / lastMonthSpent;
@@ -824,17 +1368,11 @@ export class TransactionsService {
       }
     }
 
-    // Calculate recommended daily spending
     const remainingDays = daysInMonth - daysElapsed;
-    const targetBudget = userMonthlyBudget || projectedMonthlySpending * 0.9; // 10% reduction if no budget
+    const targetBudget = userMonthlyBudget || projectedMonthlySpending * 0.9;
     const remainingBudget = Math.max(0, targetBudget - currentMonthSpent);
     const recommendedDailySpending =
       remainingDays > 0 ? remainingBudget / remainingDays : 0;
-
-    console.log(`🎯 Velocity status: ${velocityStatus}`);
-    console.log(
-      `💡 Recommended daily spending: ${recommendedDailySpending.toFixed(2)}`
-    );
 
     return {
       currentMonthSpent,
@@ -849,7 +1387,6 @@ export class TransactionsService {
     };
   }
 
-  // ✅ EXISTING: Calculate trends based on date range and period type
   private calculateTrends(
     transactions: any[],
     startDate?: string,
@@ -871,11 +1408,6 @@ export class TransactionsService {
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    console.log(
-      `📊 Calculating trends for ${daysDiff} days (${startDate} to ${endDate})`
-    );
-
-    // Determine period type based on date range
     let periodType: "daily" | "weekly" | "monthly";
     if (daysDiff <= 14) {
       periodType = "daily";
@@ -884,8 +1416,6 @@ export class TransactionsService {
     } else {
       periodType = "monthly";
     }
-
-    console.log(`📊 Using ${periodType} period type for ${daysDiff} day range`);
 
     const trends: Array<{
       month: string;
@@ -896,7 +1426,6 @@ export class TransactionsService {
     }> = [];
 
     if (periodType === "daily") {
-      // Generate daily trends
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dayStr = d.toISOString().split("T")[0];
 
@@ -922,7 +1451,6 @@ export class TransactionsService {
         });
       }
     } else if (periodType === "weekly") {
-      // Generate weekly trends
       const current = new Date(start);
       while (current <= end) {
         const weekStart = new Date(current);
@@ -957,12 +1485,7 @@ export class TransactionsService {
         current.setDate(current.getDate() + 7);
       }
     } else {
-      // Generate monthly trends
       const months = new Set<string>();
-
-      console.log(`📅 Start date: ${start.toISOString()}`);
-      console.log(`📅 End date: ${end.toISOString()}`);
-
       const startYear = start.getFullYear();
       const startMonth = start.getMonth();
       const endYear = end.getFullYear();
@@ -977,8 +1500,6 @@ export class TransactionsService {
           months.add(monthStr);
         }
       }
-
-      console.log(`📅 Months generated:`, Array.from(months));
 
       months.forEach((monthStr) => {
         const monthTransactions = transactions.filter((t) => {
@@ -996,10 +1517,6 @@ export class TransactionsService {
           .filter((t) => t.type === "EXPENSE")
           .reduce((sum, t) => sum + Number(t.amount), 0);
 
-        console.log(
-          `📊 Month ${monthStr}: ${monthTransactions.length} transactions, ${monthExpenses} expenses`
-        );
-
         trends.push({
           month: monthStr,
           income: monthIncome,
@@ -1010,11 +1527,9 @@ export class TransactionsService {
       });
     }
 
-    console.log(`📊 Generated ${trends.length} trend periods:`, trends);
     return trends.sort((a, b) => a.month.localeCompare(b.month));
   }
 
-  // ✅ UPDATED: Calculate analytics with Daily Burn Rate and Discretionary Trends
   private calculateAnalytics(
     transactions: any[],
     filters: Partial<TransactionFilterDto> = {},
@@ -1032,7 +1547,6 @@ export class TransactionsService {
     const averageTransaction =
       transactionCount > 0 ? (income + expenses) / transactionCount : 0;
 
-    // Category breakdown with subcategory support
     const categoryMap = new Map();
     transactions.forEach((transaction) => {
       const categoryToUse = transaction.subcategory || transaction.category;
@@ -1062,21 +1576,17 @@ export class TransactionsService {
       })
     );
 
-    // Calculate regular trends (all transactions)
     const monthlyTrends = this.calculateTrends(
       transactions,
       filters.startDate,
       filters.endDate
     );
-
-    // ✅ NEW: Calculate discretionary trends (non-recurring only)
     const discretionaryTrends = this.calculateDiscretionaryTrends(
       transactions,
       filters.startDate,
       filters.endDate
     );
 
-    // ✅ NEW: Merge discretionary data into monthly trends
     const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
       const discretionaryTrend = discretionaryTrends.find(
         (dt) => dt.month === trend.month
@@ -1088,15 +1598,7 @@ export class TransactionsService {
       };
     });
 
-    console.log(
-      `📊 Enhanced monthly trends with discretionary data:`,
-      enhancedMonthlyTrends
-    );
-
-    // Calculate spending velocity
     const spendingVelocity = this.calculateSpendingVelocity(transactions);
-
-    // ✅ UPDATED: Calculate Daily Burn Rate with recurrence filtering
     const dailyBurnRate = this.calculateDailyBurnRate(
       transactions,
       userProfile
@@ -1109,9 +1611,9 @@ export class TransactionsService {
       transactionCount,
       averageTransaction,
       categoryBreakdown,
-      monthlyTrends: enhancedMonthlyTrends, // ✅ NEW: Now includes discretionaryExpenses
+      monthlyTrends: enhancedMonthlyTrends,
       spendingVelocity,
-      dailyBurnRate, // ✅ UPDATED: Now excludes recurring transactions
+      dailyBurnRate,
       recentTransactions: {
         totalAmount: transactions
           .slice(0, 10)

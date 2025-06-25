@@ -14,6 +14,7 @@ export declare class TransactionsController {
         totalPages: number;
     }>;
     getAnalytics(req: any, filters: TransactionFilterDto): Promise<import("./dto/transaction-analytics.dto").TransactionAnalyticsDto>;
+    getDiscretionaryBreakdown(req: any, filters: TransactionFilterDto): Promise<any>;
     getSummary(req: any, filters: TransactionFilterDto): Promise<{
         totalIncome: number;
         totalExpenses: number;
