@@ -61,7 +61,6 @@ export class PrismaService
             `TRUNCATE TABLE "public"."${tablename}" CASCADE;`
           );
         } catch (error) {
-          console.log(`Error truncating ${tablename}:`, error);
         }
       }
     }

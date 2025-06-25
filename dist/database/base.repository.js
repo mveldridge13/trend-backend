@@ -40,7 +40,6 @@ let BaseRepository = class BaseRepository {
         };
     }
     handleDatabaseError(error) {
-        console.error("Database error:", error);
         if (error.code === "P2002") {
             throw new Error("Unique constraint violation");
         }

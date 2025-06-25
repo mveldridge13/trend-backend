@@ -20,7 +20,7 @@ let TransactionsService = class TransactionsService {
         this.usersRepository = usersRepository;
     }
     async create(userId, createTransactionDto) {
-        this.validateTransactionAmount(createTransactionDto.amount, createTransactionDto.type);
+        this.validateTransactionAmount(createTransactionDto.amount);
         this.validateTransactionDate(createTransactionDto.date);
         const transaction = await this.transactionsRepository.create(userId, createTransactionDto);
         return this.mapToDto(transaction);
@@ -54,13 +54,13 @@ let TransactionsService = class TransactionsService {
         }
         if (updateTransactionDto.amount !== undefined &&
             updateTransactionDto.type !== undefined) {
-            this.validateTransactionAmount(updateTransactionDto.amount, updateTransactionDto.type);
+            this.validateTransactionAmount(updateTransactionDto.amount);
         }
         else if (updateTransactionDto.amount !== undefined) {
-            this.validateTransactionAmount(updateTransactionDto.amount, existingTransaction.type);
+            this.validateTransactionAmount(updateTransactionDto.amount);
         }
         else if (updateTransactionDto.type !== undefined) {
-            this.validateTransactionAmount(Number(existingTransaction.amount), updateTransactionDto.type);
+            this.validateTransactionAmount(Number(existingTransaction.amount));
         }
         if (updateTransactionDto.date !== undefined) {
             this.validateTransactionDate(updateTransactionDto.date);
@@ -87,7 +87,6 @@ let TransactionsService = class TransactionsService {
         return this.calculateAnalytics(transactions, filters, userProfile);
     }
     async getDiscretionaryBreakdown(userId, filters = {}) {
-        console.log("🔍 Getting discretionary breakdown with filters:", filters);
         const now = new Date();
         const defaultStartDate = new Date();
         defaultStartDate.setDate(now.getDate() - 30);
@@ -95,7 +94,6 @@ let TransactionsService = class TransactionsService {
         const endDate = filters.endDate || now.toISOString();
         const selectedDate = filters.endDate || now.toISOString().split("T")[0];
         const selectedPeriod = this.determinePeriodType(startDate, endDate);
-        console.log(`📅 Discretionary breakdown for: ${selectedDate} (${selectedPeriod})`);
         const transactions = await this.transactionsRepository.findMany(userId, {
             startDate,
             endDate,
@@ -105,15 +103,11 @@ let TransactionsService = class TransactionsService {
             sortBy: "date",
             sortOrder: "desc",
         });
-        console.log(`📊 Found ${transactions.length} expense transactions in period`);
         const discretionaryTransactions = transactions.filter((t) => {
             return t.recurrence === "none" || !t.recurrence;
         });
-        console.log(`📊 Filtered to ${discretionaryTransactions.length} discretionary transactions`);
         const targetTransactions = this.filterTransactionsForPeriod(discretionaryTransactions, selectedDate, selectedPeriod);
-        console.log(`📊 Found ${targetTransactions.length} transactions for selected ${selectedPeriod}`);
         const totalDiscretionaryAmount = targetTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
-        console.log(`💰 Total discretionary spending: $${totalDiscretionaryAmount.toFixed(2)}`);
         const categoryBreakdown = this.calculateCategoryBreakdown(targetTransactions, totalDiscretionaryAmount);
         const mappedTransactions = targetTransactions.map((t) => ({
             id: t.id,
@@ -156,15 +150,11 @@ let TransactionsService = class TransactionsService {
     }
     filterTransactionsForPeriod(transactions, selectedDate, selectedPeriod) {
         const targetDate = new Date(selectedDate);
-        console.log(`🔍 Filtering transactions for ${selectedPeriod} period:`, selectedDate);
-        console.log(`🔍 Target date:`, targetDate.toISOString());
-        console.log(`🔍 Available transactions:`, transactions.length);
         if (selectedPeriod === "daily") {
             const dayStart = new Date(targetDate);
             dayStart.setHours(0, 0, 0, 0);
             const dayEnd = new Date(targetDate);
             dayEnd.setHours(23, 59, 59, 999);
-            console.log(`🔍 Daily range: ${dayStart.toISOString()} to ${dayEnd.toISOString()}`);
             const filtered = transactions.filter((t) => {
                 const transactionDate = new Date(t.date);
                 const transactionDateStr = transactionDate.toISOString().split("T")[0];
@@ -172,15 +162,8 @@ let TransactionsService = class TransactionsService {
                 const isInRange = transactionDate >= dayStart && transactionDate <= dayEnd;
                 const isInDateStr = transactionDateStr === targetDateStr;
                 const matches = isInRange || isInDateStr;
-                if (!matches) {
-                    console.log(`🔍 Transaction ${t.id} (${transactionDate.toISOString()}) is outside range`);
-                }
-                else {
-                    console.log(`✅ Transaction ${t.id} (${transactionDate.toISOString()}) matches`);
-                }
                 return matches;
             });
-            console.log(`🔍 Filtered to ${filtered.length} daily transactions`);
             return filtered;
         }
         else if (selectedPeriod === "weekly") {
@@ -236,11 +219,6 @@ let TransactionsService = class TransactionsService {
                     defaultCategoryColors[category.name] ||
                     defaultCategoryColors[category.name?.toLowerCase()] ||
                     "#CCCCCC";
-                console.log(`🎨 Setting color for category "${category.name}":`, {
-                    databaseColor: category.color,
-                    fallbackColor: defaultCategoryColors[category.name],
-                    finalColor: categoryColor,
-                });
                 categoryMap.set(categoryId, {
                     categoryId,
                     categoryName: category.name,
@@ -284,12 +262,6 @@ let TransactionsService = class TransactionsService {
                     },
                 ],
             });
-            console.log(`🔍 Created subcategory entry:`, {
-                uniqueKey: uniqueSubcategoryKey,
-                subcategoryName,
-                amount,
-                transactionId: transaction.id,
-            });
         });
         return Array.from(categoryMap.values())
             .map((category) => {
@@ -306,16 +278,6 @@ let TransactionsService = class TransactionsService {
                 };
             })
                 .sort((a, b) => b.amount - a.amount);
-            console.log(`🏷️ Final category data for "${category.categoryName}":`, {
-                categoryColor: category.categoryColor,
-                amount: category.amount,
-                subcategoriesCount: subcategories.length,
-                subcategoryDetails: subcategories.map((sub) => ({
-                    name: sub.subcategoryName,
-                    amount: sub.amount,
-                    transactionCount: sub.transactionCount,
-                })),
-            });
             return {
                 categoryId: category.categoryId,
                 categoryName: category.categoryName,
@@ -528,7 +490,7 @@ let TransactionsService = class TransactionsService {
             spendingDistribution,
         };
     }
-    validateTransactionAmount(amount, type) {
+    validateTransactionAmount(amount) {
         if (amount <= 0) {
             throw new common_1.BadRequestException("Transaction amount must be greater than 0");
         }

@@ -124,8 +124,6 @@ export class TransactionsRepository {
     userId: string,
     data: UpdateTransactionDto
   ): Promise<Transaction> {
-    console.log("🔍 Repository UPDATE - Input params:", { id, userId });
-    console.log("🔍 Repository UPDATE - Data to update:", data);
 
     const updateData: any = { ...data };
 
@@ -137,16 +135,7 @@ export class TransactionsRepository {
       updateData.date = new Date(data.date);
     }
 
-    console.log("🔍 Repository UPDATE - Final updateData:", updateData);
 
-    // First, let's check if the transaction exists
-    const existingTransaction = await this.prisma.transaction.findFirst({
-      where: { id, userId },
-    });
-    console.log(
-      "🔍 Repository UPDATE - Existing transaction:",
-      existingTransaction
-    );
 
     const result = await this.prisma.transaction.update({
       where: {
@@ -167,7 +156,6 @@ export class TransactionsRepository {
       },
     });
 
-    console.log("🔍 Repository UPDATE - Final result:", result);
     return result;
   }
 

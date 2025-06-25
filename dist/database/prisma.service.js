@@ -56,7 +56,6 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
                     await this.$executeRawUnsafe(`TRUNCATE TABLE "public"."${tablename}" CASCADE;`);
                 }
                 catch (error) {
-                    console.log(`Error truncating ${tablename}:`, error);
                 }
             }
         }

@@ -15,8 +15,4 @@ import { DatabaseModule } from "../database/database.module";
   ],
   exports: [TransactionsService, TransactionsRepository],
 })
-export class TransactionsModule {
-  constructor() {
-    console.log("🔥 TransactionsModule loaded successfully!");
-  }
-}
+export class TransactionsModule {}
