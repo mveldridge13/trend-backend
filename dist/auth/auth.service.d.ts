@@ -4,6 +4,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { IncomeFrequency } from "@prisma/client";
 export declare class AuthService {
     private readonly usersRepository;
     private readonly jwtService;
@@ -23,6 +24,9 @@ export declare class AuthService {
         createdAt: Date;
         updatedAt: Date;
         income?: number;
+        incomeFrequency?: IncomeFrequency;
+        nextPayDate?: Date;
+        fixedExpenses?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
         hasSeenBalanceCardTour: boolean;
@@ -41,6 +45,9 @@ export declare class AuthService {
         createdAt: Date;
         updatedAt: Date;
         income?: number;
+        incomeFrequency?: IncomeFrequency;
+        nextPayDate?: Date;
+        fixedExpenses?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
         hasSeenBalanceCardTour: boolean;

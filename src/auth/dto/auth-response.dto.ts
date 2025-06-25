@@ -1,3 +1,5 @@
+import { IncomeFrequency } from "@prisma/client";
+
 export class AuthResponseDto {
   access_token: string;
   user: {
@@ -10,6 +12,9 @@ export class AuthResponseDto {
     timezone: string;
     createdAt: Date;
     income: number | null;
+    incomeFrequency: IncomeFrequency | null;
+    nextPayDate: Date | null;
+    fixedExpenses: number | null;
     setupComplete: boolean;
     hasSeenBalanceCardTour: boolean;
     hasSeenAddTransactionTour: boolean;

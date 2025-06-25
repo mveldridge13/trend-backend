@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const transactions_controller_1 = require("./transactions.controller");
 const transactions_service_1 = require("./transactions.service");
 const transactions_repository_1 = require("./repositories/transactions.repository");
+const users_repository_1 = require("../users/repositories/users.repository");
 const database_module_1 = require("../database/database.module");
 let TransactionsModule = class TransactionsModule {
     constructor() {
@@ -25,7 +26,11 @@ exports.TransactionsModule = TransactionsModule = __decorate([
     (0, common_1.Module)({
         imports: [database_module_1.DatabaseModule],
         controllers: [transactions_controller_1.TransactionsController],
-        providers: [transactions_service_1.TransactionsService, transactions_repository_1.TransactionsRepository],
+        providers: [
+            transactions_service_1.TransactionsService,
+            transactions_repository_1.TransactionsRepository,
+            users_repository_1.UsersRepository,
+        ],
         exports: [transactions_service_1.TransactionsService, transactions_repository_1.TransactionsRepository],
     }),
     __metadata("design:paramtypes", [])

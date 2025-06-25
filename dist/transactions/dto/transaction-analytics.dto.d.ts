@@ -31,6 +31,21 @@ export declare class TransactionAnalyticsDto {
         daysToOverspend?: number;
         recommendedDailySpending: number;
     };
+    dailyBurnRate: {
+        currentDailyBurnRate: number;
+        sustainableDailyRate: number;
+        daysUntilBudgetExceeded: number | null;
+        recommendedDailySpending: number;
+        burnRateStatus: "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+        weeklyTrend: number[];
+        weeklyTrendWithLabels: {
+            day: string;
+            amount: number;
+            isToday: boolean;
+        }[];
+        projectedMonthlySpending: number;
+        monthlyIncomeCapacity: number;
+    };
     recentTransactions: {
         totalAmount: number;
         count: number;

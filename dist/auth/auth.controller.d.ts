@@ -17,6 +17,9 @@ export declare class AuthController {
         createdAt: Date;
         updatedAt: Date;
         income?: number;
+        incomeFrequency?: import(".prisma/client").IncomeFrequency;
+        nextPayDate?: Date;
+        fixedExpenses?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
         hasSeenBalanceCardTour: boolean;
@@ -35,6 +38,9 @@ export declare class AuthController {
         createdAt: Date;
         updatedAt: Date;
         income?: number;
+        incomeFrequency?: import(".prisma/client").IncomeFrequency;
+        nextPayDate?: Date;
+        fixedExpenses?: number;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
         hasSeenBalanceCardTour: boolean;

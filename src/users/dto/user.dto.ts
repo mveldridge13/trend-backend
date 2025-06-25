@@ -1,3 +1,5 @@
+import { IncomeFrequency } from "@prisma/client";
+
 export class UserDto {
   id: string;
   email: string;
@@ -10,8 +12,11 @@ export class UserDto {
   createdAt: Date;
   updatedAt: Date;
 
-  // User setup fields
+  // User setup fields - Enhanced with income frequency
   income?: number;
+  incomeFrequency?: IncomeFrequency;
+  nextPayDate?: Date;
+  fixedExpenses?: number;
   setupComplete: boolean;
   hasSeenWelcome: boolean;
 
