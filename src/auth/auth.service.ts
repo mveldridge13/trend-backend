@@ -10,6 +10,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { IncomeFrequency } from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -76,6 +77,9 @@ export class AuthService {
         timezone: user.timezone,
         createdAt: user.createdAt,
         income: user.income ? Number(user.income) : null,
+        incomeFrequency: user.incomeFrequency || null,
+        nextPayDate: user.nextPayDate || null,
+        fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
         setupComplete: user.setupComplete ?? false,
         hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
         hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
@@ -158,6 +162,9 @@ export class AuthService {
         timezone: user.timezone,
         createdAt: user.createdAt,
         income: user.income ? Number(user.income) : null,
+        incomeFrequency: (user.incomeFrequency as IncomeFrequency) || null,
+        nextPayDate: user.nextPayDate || null,
+        fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
         setupComplete: user.setupComplete ?? false,
         hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
         hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
@@ -188,6 +195,9 @@ export class AuthService {
     createdAt: Date;
     updatedAt: Date;
     income?: number;
+    incomeFrequency?: IncomeFrequency;
+    nextPayDate?: Date;
+    fixedExpenses?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
     hasSeenBalanceCardTour: boolean;
@@ -213,6 +223,11 @@ export class AuthService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       income: user.income ? Number(user.income) : undefined,
+      incomeFrequency: user.incomeFrequency || undefined,
+      nextPayDate: user.nextPayDate || undefined,
+      fixedExpenses: user.fixedExpenses
+        ? Number(user.fixedExpenses)
+        : undefined,
       setupComplete: user.setupComplete ?? false,
       hasSeenWelcome: user.hasSeenWelcome ?? false,
       hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
@@ -236,13 +251,26 @@ export class AuthService {
     createdAt: Date;
     updatedAt: Date;
     income?: number;
+    incomeFrequency?: IncomeFrequency;
+    nextPayDate?: Date;
+    fixedExpenses?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
     hasSeenBalanceCardTour: boolean;
     hasSeenAddTransactionTour: boolean;
     hasSeenTransactionSwipeTour: boolean;
   }> {
-    console.log("👤 Updating user profile for:", id, profileData);
+    // ✅ ADD DEBUGGING LOGS
+    console.log("🔥 AuthService.updateUserProfile called");
+    console.log("🔥 User ID:", id);
+    console.log(
+      "🔥 Profile data received:",
+      JSON.stringify(profileData, null, 2)
+    );
+    console.log("🔥 Income frequency in request:", profileData.incomeFrequency);
+    console.log("🔥 Income amount in request:", profileData.income);
+    console.log("🔥 Next pay date in request:", profileData.nextPayDate);
+
     const user = await this.usersRepository.findById(id);
 
     if (!user || !user.isActive) {
@@ -254,7 +282,15 @@ export class AuthService {
       profileData
     );
 
-    return {
+    // ✅ ADD MORE DEBUGGING LOGS
+    console.log("🔥 Updated user from database:", {
+      income: updatedUser.income,
+      incomeFrequency: updatedUser.incomeFrequency,
+      nextPayDate: updatedUser.nextPayDate,
+      setupComplete: updatedUser.setupComplete,
+    });
+
+    const result = {
       id: updatedUser.id,
       email: updatedUser.email,
       firstName: updatedUser.firstName,
@@ -266,6 +302,11 @@ export class AuthService {
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
       income: updatedUser.income ? Number(updatedUser.income) : undefined,
+      incomeFrequency: updatedUser.incomeFrequency || undefined,
+      nextPayDate: updatedUser.nextPayDate || undefined,
+      fixedExpenses: updatedUser.fixedExpenses
+        ? Number(updatedUser.fixedExpenses)
+        : undefined,
       setupComplete: updatedUser.setupComplete ?? false,
       hasSeenWelcome: updatedUser.hasSeenWelcome ?? false,
       hasSeenBalanceCardTour: updatedUser.hasSeenBalanceCardTour ?? false,
@@ -273,5 +314,15 @@ export class AuthService {
       hasSeenTransactionSwipeTour:
         updatedUser.hasSeenTransactionSwipeTour ?? false,
     };
+
+    // ✅ ADD FINAL DEBUGGING LOG
+    console.log("🔥 Final result being returned:", {
+      income: result.income,
+      incomeFrequency: result.incomeFrequency,
+      nextPayDate: result.nextPayDate,
+      setupComplete: result.setupComplete,
+    });
+
+    return result;
   }
 }

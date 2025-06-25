@@ -12,10 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsService = void 0;
 const common_1 = require("@nestjs/common");
 const transactions_repository_1 = require("./repositories/transactions.repository");
+const users_repository_1 = require("../users/repositories/users.repository");
 const client_1 = require("@prisma/client");
 let TransactionsService = class TransactionsService {
-    constructor(transactionsRepository) {
+    constructor(transactionsRepository, usersRepository) {
         this.transactionsRepository = transactionsRepository;
+        this.usersRepository = usersRepository;
     }
     async create(userId, createTransactionDto) {
         this.validateTransactionAmount(createTransactionDto.amount, createTransactionDto.type);
@@ -81,6 +83,7 @@ let TransactionsService = class TransactionsService {
         await this.transactionsRepository.delete(id, userId);
     }
     async getAnalytics(userId, filters = {}) {
+        const userProfile = await this.usersRepository.findById(userId);
         const transactions = await this.transactionsRepository.findMany(userId, {
             ...filters,
             limit: 10000,
@@ -88,7 +91,7 @@ let TransactionsService = class TransactionsService {
             sortBy: "date",
             sortOrder: "desc",
         });
-        return this.calculateAnalytics(transactions, filters);
+        return this.calculateAnalytics(transactions, filters, userProfile);
     }
     validateTransactionAmount(amount, type) {
         if (amount <= 0) {
@@ -155,6 +158,174 @@ let TransactionsService = class TransactionsService {
                 }
                 : undefined,
         };
+    }
+    calculateDailyBurnRate(transactions, userProfile) {
+        console.log("🔥 Calculating Daily Burn Rate (excluding recurring transactions)");
+        const now = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        const recentTransactions = transactions.filter((t) => {
+            const transactionDate = new Date(t.date);
+            return (transactionDate >= sevenDaysAgo &&
+                transactionDate <= now &&
+                t.type === "EXPENSE" &&
+                (t.recurrence === "none" || !t.recurrence));
+        });
+        const weeklySpending = recentTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+        const currentDailyBurnRate = weeklySpending / 7;
+        console.log(`🔥 Current 7-day discretionary burn rate: $${currentDailyBurnRate.toFixed(2)}/day`);
+        console.log(`📊 Excluded ${transactions.filter((t) => new Date(t.date) >= sevenDaysAgo &&
+            new Date(t.date) <= now &&
+            t.type === "EXPENSE" &&
+            t.recurrence &&
+            t.recurrence !== "none").length} recurring transactions from burn rate calculation`);
+        let sustainableDailyRate = 0;
+        let monthlyIncomeCapacity = 0;
+        if (userProfile?.income && userProfile?.incomeFrequency) {
+            const income = Number(userProfile.income);
+            const frequency = userProfile.incomeFrequency;
+            switch (frequency) {
+                case client_1.IncomeFrequency.WEEKLY:
+                    monthlyIncomeCapacity = (income * 52) / 12;
+                    break;
+                case client_1.IncomeFrequency.FORTNIGHTLY:
+                    monthlyIncomeCapacity = (income * 26) / 12;
+                    break;
+                case client_1.IncomeFrequency.MONTHLY:
+                    monthlyIncomeCapacity = income;
+                    break;
+                default:
+                    monthlyIncomeCapacity = income;
+            }
+            const monthlyRecurringExpenses = this.calculateMonthlyRecurringExpenses(transactions);
+            console.log(`💰 Monthly recurring expenses: $${monthlyRecurringExpenses.toFixed(2)}`);
+            const userFixedExpenses = Number(userProfile.fixedExpenses) || 0;
+            monthlyIncomeCapacity -= userFixedExpenses + monthlyRecurringExpenses;
+            sustainableDailyRate = (monthlyIncomeCapacity * 0.8) / 30;
+            console.log(`💰 Monthly income capacity after recurring expenses: $${monthlyIncomeCapacity.toFixed(2)}`);
+            console.log(`🎯 Sustainable daily discretionary rate: $${sustainableDailyRate.toFixed(2)}/day`);
+        }
+        const weeklyTrend = [];
+        const weeklyTrendWithLabels = [];
+        console.log(`📅 Today is: ${now.toLocaleDateString("en-US", { weekday: "long" })}`);
+        for (let i = 6; i >= 0; i--) {
+            const day = new Date();
+            day.setDate(now.getDate() - i);
+            const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+            const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+            const daySpending = transactions
+                .filter((t) => {
+                const transactionDate = new Date(t.date);
+                return (transactionDate >= dayStart &&
+                    transactionDate < dayEnd &&
+                    t.type === "EXPENSE" &&
+                    (t.recurrence === "none" || !t.recurrence));
+            })
+                .reduce((sum, t) => sum + Number(t.amount), 0);
+            const dayLabel = day.toLocaleDateString("en-US", { weekday: "short" });
+            const isToday = i === 0;
+            weeklyTrend.push(daySpending);
+            weeklyTrendWithLabels.push({
+                day: dayLabel,
+                amount: daySpending,
+                isToday: isToday,
+            });
+            console.log(`📊 ${dayLabel} (${day.toISOString().split("T")[0]}): $${daySpending.toFixed(2)} discretionary ${isToday ? "← TODAY" : ""}`);
+        }
+        const projectedMonthlySpending = currentDailyBurnRate * 30;
+        let burnRateStatus;
+        let daysUntilBudgetExceeded = null;
+        if (sustainableDailyRate > 0) {
+            const burnRatio = currentDailyBurnRate / sustainableDailyRate;
+            if (burnRatio <= 0.7) {
+                burnRateStatus = "LOW";
+            }
+            else if (burnRatio <= 1.0) {
+                burnRateStatus = "NORMAL";
+            }
+            else if (burnRatio <= 1.5) {
+                burnRateStatus = "HIGH";
+            }
+            else {
+                burnRateStatus = "CRITICAL";
+            }
+            if (currentDailyBurnRate > sustainableDailyRate) {
+                const excessDailySpending = currentDailyBurnRate - sustainableDailyRate;
+                const remainingDays = Math.floor(monthlyIncomeCapacity / excessDailySpending);
+                daysUntilBudgetExceeded = Math.max(0, remainingDays);
+            }
+        }
+        else {
+            burnRateStatus = currentDailyBurnRate > 50 ? "HIGH" : "NORMAL";
+        }
+        const remainingDaysInMonth = 30 - now.getDate();
+        const recommendedDailySpending = sustainableDailyRate > 0
+            ? Math.min(sustainableDailyRate, sustainableDailyRate * 0.9)
+            : currentDailyBurnRate * 0.8;
+        console.log(`🚨 Discretionary burn rate status: ${burnRateStatus}`);
+        console.log(`📊 Weekly discretionary trend: [${weeklyTrend.map((x) => x.toFixed(0)).join(", ")}]`);
+        return {
+            currentDailyBurnRate,
+            sustainableDailyRate,
+            daysUntilBudgetExceeded,
+            recommendedDailySpending,
+            burnRateStatus,
+            weeklyTrend,
+            weeklyTrendWithLabels,
+            projectedMonthlySpending,
+            monthlyIncomeCapacity,
+        };
+    }
+    calculateMonthlyRecurringExpenses(transactions) {
+        const now = new Date();
+        const lastThreeMonths = new Date();
+        lastThreeMonths.setMonth(now.getMonth() - 3);
+        const recurringTransactions = transactions.filter((t) => {
+            const transactionDate = new Date(t.date);
+            return (transactionDate >= lastThreeMonths &&
+                transactionDate <= now &&
+                t.type === "EXPENSE" &&
+                t.recurrence &&
+                t.recurrence !== "none");
+        });
+        console.log(`📊 Found ${recurringTransactions.length} recurring transactions in last 3 months`);
+        let monthlyRecurringTotal = 0;
+        const recurrenceGroups = {
+            weekly: [],
+            fortnightly: [],
+            monthly: [],
+            sixmonths: [],
+            yearly: [],
+        };
+        recurringTransactions.forEach((t) => {
+            if (recurrenceGroups[t.recurrence]) {
+                recurrenceGroups[t.recurrence].push(t);
+            }
+        });
+        const weeklyMonthly = recurrenceGroups.weekly.reduce((sum, t) => sum + Number(t.amount), 0) *
+            (52 / 12);
+        const fortnightlyMonthly = recurrenceGroups.fortnightly.reduce((sum, t) => sum + Number(t.amount), 0) *
+            (26 / 12);
+        const monthlyMonthly = recurrenceGroups.monthly.reduce((sum, t) => sum + Number(t.amount), 0);
+        const sixMonthsMonthly = recurrenceGroups.sixmonths.reduce((sum, t) => sum + Number(t.amount), 0) /
+            6;
+        const yearlyMonthly = recurrenceGroups.yearly.reduce((sum, t) => sum + Number(t.amount), 0) /
+            12;
+        monthlyRecurringTotal =
+            weeklyMonthly +
+                fortnightlyMonthly +
+                monthlyMonthly +
+                sixMonthsMonthly +
+                yearlyMonthly;
+        console.log(`💰 Monthly recurring breakdown:`, {
+            weekly: weeklyMonthly.toFixed(2),
+            fortnightly: fortnightlyMonthly.toFixed(2),
+            monthly: monthlyMonthly.toFixed(2),
+            sixMonths: sixMonthsMonthly.toFixed(2),
+            yearly: yearlyMonthly.toFixed(2),
+            total: monthlyRecurringTotal.toFixed(2),
+        });
+        return monthlyRecurringTotal;
     }
     calculateSpendingVelocity(transactions, userMonthlyBudget) {
         const now = new Date();
@@ -361,7 +532,7 @@ let TransactionsService = class TransactionsService {
         console.log(`📊 Generated ${trends.length} trend periods:`, trends);
         return trends.sort((a, b) => a.month.localeCompare(b.month));
     }
-    calculateAnalytics(transactions, filters = {}, userMonthlyBudget) {
+    calculateAnalytics(transactions, filters = {}, userProfile) {
         const income = transactions
             .filter((t) => t.type === client_1.TransactionType.INCOME)
             .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -395,7 +566,8 @@ let TransactionsService = class TransactionsService {
             percentage: expenses > 0 ? (category.amount / expenses) * 100 : 0,
         }));
         const monthlyTrends = this.calculateTrends(transactions, filters.startDate, filters.endDate);
-        const spendingVelocity = this.calculateSpendingVelocity(transactions, userMonthlyBudget);
+        const spendingVelocity = this.calculateSpendingVelocity(transactions);
+        const dailyBurnRate = this.calculateDailyBurnRate(transactions, userProfile);
         return {
             totalIncome: income,
             totalExpenses: expenses,
@@ -405,6 +577,7 @@ let TransactionsService = class TransactionsService {
             categoryBreakdown,
             monthlyTrends,
             spendingVelocity,
+            dailyBurnRate,
             recentTransactions: {
                 totalAmount: transactions
                     .slice(0, 10)
@@ -419,6 +592,7 @@ let TransactionsService = class TransactionsService {
 exports.TransactionsService = TransactionsService;
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository])
+    __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository,
+        users_repository_1.UsersRepository])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

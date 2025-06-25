@@ -61,6 +61,9 @@ let AuthService = class AuthService {
                 timezone: user.timezone,
                 createdAt: user.createdAt,
                 income: user.income ? Number(user.income) : null,
+                incomeFrequency: user.incomeFrequency || null,
+                nextPayDate: user.nextPayDate || null,
+                fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
                 setupComplete: user.setupComplete ?? false,
                 hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
                 hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
@@ -124,6 +127,9 @@ let AuthService = class AuthService {
                 timezone: user.timezone,
                 createdAt: user.createdAt,
                 income: user.income ? Number(user.income) : null,
+                incomeFrequency: user.incomeFrequency || null,
+                nextPayDate: user.nextPayDate || null,
+                fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
                 setupComplete: user.setupComplete ?? false,
                 hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
                 hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
@@ -157,6 +163,11 @@ let AuthService = class AuthService {
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             income: user.income ? Number(user.income) : undefined,
+            incomeFrequency: user.incomeFrequency || undefined,
+            nextPayDate: user.nextPayDate || undefined,
+            fixedExpenses: user.fixedExpenses
+                ? Number(user.fixedExpenses)
+                : undefined,
             setupComplete: user.setupComplete ?? false,
             hasSeenWelcome: user.hasSeenWelcome ?? false,
             hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
@@ -165,13 +176,24 @@ let AuthService = class AuthService {
         };
     }
     async updateUserProfile(id, profileData) {
-        console.log("👤 Updating user profile for:", id, profileData);
+        console.log("🔥 AuthService.updateUserProfile called");
+        console.log("🔥 User ID:", id);
+        console.log("🔥 Profile data received:", JSON.stringify(profileData, null, 2));
+        console.log("🔥 Income frequency in request:", profileData.incomeFrequency);
+        console.log("🔥 Income amount in request:", profileData.income);
+        console.log("🔥 Next pay date in request:", profileData.nextPayDate);
         const user = await this.usersRepository.findById(id);
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException("User not found");
         }
         const updatedUser = await this.usersRepository.updateProfile(id, profileData);
-        return {
+        console.log("🔥 Updated user from database:", {
+            income: updatedUser.income,
+            incomeFrequency: updatedUser.incomeFrequency,
+            nextPayDate: updatedUser.nextPayDate,
+            setupComplete: updatedUser.setupComplete,
+        });
+        const result = {
             id: updatedUser.id,
             email: updatedUser.email,
             firstName: updatedUser.firstName,
@@ -183,12 +205,24 @@ let AuthService = class AuthService {
             createdAt: updatedUser.createdAt,
             updatedAt: updatedUser.updatedAt,
             income: updatedUser.income ? Number(updatedUser.income) : undefined,
+            incomeFrequency: updatedUser.incomeFrequency || undefined,
+            nextPayDate: updatedUser.nextPayDate || undefined,
+            fixedExpenses: updatedUser.fixedExpenses
+                ? Number(updatedUser.fixedExpenses)
+                : undefined,
             setupComplete: updatedUser.setupComplete ?? false,
             hasSeenWelcome: updatedUser.hasSeenWelcome ?? false,
             hasSeenBalanceCardTour: updatedUser.hasSeenBalanceCardTour ?? false,
             hasSeenAddTransactionTour: updatedUser.hasSeenAddTransactionTour ?? false,
             hasSeenTransactionSwipeTour: updatedUser.hasSeenTransactionSwipeTour ?? false,
         };
+        console.log("🔥 Final result being returned:", {
+            income: result.income,
+            incomeFrequency: result.incomeFrequency,
+            nextPayDate: result.nextPayDate,
+            setupComplete: result.setupComplete,
+        });
+        return result;
     }
 };
 exports.AuthService = AuthService;

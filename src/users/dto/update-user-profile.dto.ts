@@ -1,5 +1,3 @@
-// UpdateUserProfileDto.ts
-
 import {
   IsOptional,
   IsBoolean,
@@ -7,7 +5,10 @@ import {
   Min,
   IsString,
   MaxLength,
+  IsDateString,
+  IsEnum,
 } from "class-validator";
+import { IncomeFrequency } from "@prisma/client";
 
 export class UpdateUserProfileDto {
   // Basic profile fields
@@ -35,11 +36,24 @@ export class UpdateUserProfileDto {
   @IsString()
   timezone?: string;
 
-  // User setup fields
+  // User setup fields - Enhanced with income frequency
   @IsOptional()
   @IsNumber()
   @Min(0)
   income?: number;
+
+  @IsOptional()
+  @IsEnum(IncomeFrequency)
+  incomeFrequency?: IncomeFrequency;
+
+  @IsOptional()
+  @IsDateString()
+  nextPayDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fixedExpenses?: number;
 
   @IsOptional()
   @IsBoolean()

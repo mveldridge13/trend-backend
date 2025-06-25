@@ -1,3 +1,4 @@
+import { IncomeFrequency } from "@prisma/client";
 export declare class UserDto {
     id: string;
     email: string;
@@ -10,6 +11,9 @@ export declare class UserDto {
     createdAt: Date;
     updatedAt: Date;
     income?: number;
+    incomeFrequency?: IncomeFrequency;
+    nextPayDate?: Date;
+    fixedExpenses?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
     hasSeenBalanceCardTour: boolean;
