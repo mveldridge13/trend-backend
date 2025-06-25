@@ -267,25 +267,28 @@ let TransactionsService = class TransactionsService {
             });
             const subcategoryName = transaction.subcategory?.name ||
                 this.matchSubcategory(transaction.description, category.name);
-            if (!categoryData.subcategories.has(subcategoryName)) {
-                categoryData.subcategories.set(subcategoryName, {
-                    subcategoryId: transaction.subcategory?.id,
-                    subcategoryName,
-                    amount: 0,
-                    transactionCount: 0,
-                    percentage: 0,
-                    transactions: [],
-                });
-            }
-            const subcategoryData = categoryData.subcategories.get(subcategoryName);
-            subcategoryData.amount += amount;
-            subcategoryData.transactionCount += 1;
-            subcategoryData.transactions.push({
-                id: transaction.id,
-                date: transaction.date,
+            const uniqueSubcategoryKey = `${subcategoryName}_${transaction.id}`;
+            categoryData.subcategories.set(uniqueSubcategoryKey, {
+                subcategoryId: transaction.subcategory?.id,
+                subcategoryName,
                 amount: amount,
-                description: transaction.description,
-                merchant: transaction.merchantName,
+                transactionCount: 1,
+                percentage: 0,
+                transactions: [
+                    {
+                        id: transaction.id,
+                        date: transaction.date,
+                        amount: amount,
+                        description: transaction.description,
+                        merchant: transaction.merchantName,
+                    },
+                ],
+            });
+            console.log(`🔍 Created subcategory entry:`, {
+                uniqueKey: uniqueSubcategoryKey,
+                subcategoryName,
+                amount,
+                transactionId: transaction.id,
             });
         });
         return Array.from(categoryMap.values())
@@ -307,6 +310,11 @@ let TransactionsService = class TransactionsService {
                 categoryColor: category.categoryColor,
                 amount: category.amount,
                 subcategoriesCount: subcategories.length,
+                subcategoryDetails: subcategories.map((sub) => ({
+                    name: sub.subcategoryName,
+                    amount: sub.amount,
+                    transactionCount: sub.transactionCount,
+                })),
             });
             return {
                 categoryId: category.categoryId,

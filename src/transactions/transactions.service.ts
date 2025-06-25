@@ -447,7 +447,7 @@ export class TransactionsService {
     }
   }
 
-  // ✅ FIXED: Enhanced category breakdown with proper color handling and fallbacks
+  // ✅ FIXED: Create separate subcategory entries instead of grouping by name
   private calculateCategoryBreakdown(transactions: any[], totalAmount: number) {
     const categoryMap = new Map();
 
@@ -521,26 +521,32 @@ export class TransactionsService {
         transaction.subcategory?.name ||
         this.matchSubcategory(transaction.description, category.name);
 
-      if (!categoryData.subcategories.has(subcategoryName)) {
-        categoryData.subcategories.set(subcategoryName, {
-          subcategoryId: transaction.subcategory?.id,
-          subcategoryName,
-          amount: 0,
-          transactionCount: 0,
-          percentage: 0,
-          transactions: [],
-        });
-      }
+      // ✅ FIXED: Create unique key for each transaction to avoid grouping
+      const uniqueSubcategoryKey = `${subcategoryName}_${transaction.id}`;
 
-      const subcategoryData = categoryData.subcategories.get(subcategoryName);
-      subcategoryData.amount += amount;
-      subcategoryData.transactionCount += 1;
-      subcategoryData.transactions.push({
-        id: transaction.id,
-        date: transaction.date,
-        amount: amount,
-        description: transaction.description,
-        merchant: transaction.merchantName,
+      // ✅ This ensures each transaction gets its own subcategory entry
+      categoryData.subcategories.set(uniqueSubcategoryKey, {
+        subcategoryId: transaction.subcategory?.id,
+        subcategoryName,
+        amount: amount, // ✅ Individual transaction amount
+        transactionCount: 1, // ✅ Always 1 per transaction
+        percentage: 0, // Will be calculated later
+        transactions: [
+          {
+            id: transaction.id,
+            date: transaction.date,
+            amount: amount,
+            description: transaction.description,
+            merchant: transaction.merchantName,
+          },
+        ],
+      });
+
+      console.log(`🔍 Created subcategory entry:`, {
+        uniqueKey: uniqueSubcategoryKey,
+        subcategoryName,
+        amount,
+        transactionId: transaction.id,
       });
     });
 
@@ -549,7 +555,7 @@ export class TransactionsService {
         const percentage =
           totalAmount > 0 ? (category.amount / totalAmount) * 100 : 0;
 
-        // ✅ FIXED: Explicit conversion from Map values to plain objects with proper typing
+        // ✅ FIXED: Convert Map values to array - now each transaction is separate
         const subcategories = Array.from(category.subcategories.values())
           .map((sub: any) => {
             return {
@@ -568,6 +574,11 @@ export class TransactionsService {
           categoryColor: category.categoryColor,
           amount: category.amount,
           subcategoriesCount: subcategories.length,
+          subcategoryDetails: subcategories.map((sub) => ({
+            name: sub.subcategoryName,
+            amount: sub.amount,
+            transactionCount: sub.transactionCount,
+          })),
         });
 
         return {
