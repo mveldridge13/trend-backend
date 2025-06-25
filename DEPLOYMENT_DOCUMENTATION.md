@@ -25,10 +25,12 @@
 - **API Documentation**: Swagger/OpenAPI
 
 ### Key Features
-- User authentication and authorization
-- Budget management with analytics
-- Transaction tracking with AI categorization
-- Hierarchical category system
+- User authentication and authorization with JWT
+- Budget management with comprehensive analytics
+- Transaction tracking with AI categorization support and subcategories
+- Hierarchical category system (8 main + 30+ subcategories)
+- Discretionary spending analysis with insights
+- User onboarding with tutorial progress tracking
 - Health monitoring and diagnostics
 - Rate limiting with throttling
 

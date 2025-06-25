@@ -1,0 +1,293 @@
+# Changelog
+
+All notable changes to the Trend Backend API will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2025-01-25
+
+### Added
+
+#### 🎯 Core Features
+- **User Authentication System**
+  - JWT-based authentication with 7-day expiration
+  - Secure password hashing with bcrypt (12 salt rounds)
+  - User registration and login endpoints
+  - Protected route guards with user validation
+
+#### 💰 Financial Management
+- **Transaction Management**
+  - Complete CRUD operations for transactions
+  - Support for Income, Expense, Transfer, and Refund types
+  - Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
+  - AI categorization support with confidence scoring
+  - Subcategory support for detailed categorization
+  - Rich metadata (notes, location, merchant name)
+  - Recurrence tracking for recurring transactions
+
+- **Budget System**
+  - Budget creation with flexible date ranges
+  - Status-based lifecycle (Draft, Active, Paused, Completed, Archived)
+  - Multi-currency budget support
+  - Recurring budget support
+  - Real-time budget performance tracking
+
+- **Category System**
+  - Hierarchical category structure (categories and subcategories)
+  - 8 main system categories with 30+ predefined subcategories
+  - User-defined custom categories
+  - Visual customization (icons and colors)
+  - Category analytics and usage tracking
+
+#### 📊 Analytics & Insights
+- **Transaction Analytics**
+  - Comprehensive spending analysis
+  - Category and subcategory breakdowns
+  - Monthly trend analysis
+  - Recent transaction summaries
+
+- **Discretionary Spending Analysis** ⭐ NEW
+  - Advanced discretionary spending breakdown
+  - Daily, weekly, and monthly period analysis
+  - Category and subcategory spending patterns
+  - Spending insights and recommendations
+  - Time-based spending distribution
+  - Previous period comparisons with percentage changes
+
+- **Budget Analytics**
+  - Budget performance tracking
+  - Spending velocity analysis
+  - Budget vs. actual spending comparisons
+  - Daily burn rate calculations
+
+#### 👤 User Management
+- **Profile Management**
+  - User profile CRUD operations
+  - Currency and timezone preferences
+  - Income tracking with frequency support (Weekly, Fortnightly, Monthly)
+  - Next pay date tracking
+  - Fixed expenses management
+
+- **User Onboarding** ⭐ NEW
+  - Progressive setup completion tracking
+  - Welcome flow management
+  - Tutorial completion tracking:
+    - Balance Card Tour
+    - Add Transaction Tour  
+    - Transaction Swipe Tour
+  - Setup validation and completion status
+
+#### 🏥 System Health
+- **Health Monitoring**
+  - Application health endpoints
+  - Database connectivity monitoring
+  - Memory usage tracking
+  - Response time monitoring
+  - Uptime tracking
+
+#### 🔒 Security & Performance
+- **Security Features**
+  - Rate limiting (100 requests per minute)
+  - CORS support for cross-origin requests
+  - Input validation with class-validator
+  - SQL injection protection via Prisma ORM
+  - User data isolation (users can only access their own data)
+
+- **Performance Optimizations**
+  - Strategic database indexing
+  - Connection pooling with Prisma
+  - Optimized query patterns
+  - Graceful error handling
+
+### Database Schema
+
+#### Models
+- **User Model**
+  - Authentication fields (email, passwordHash)
+  - Profile information (firstName, lastName, username)
+  - Financial setup (income, incomeFrequency, nextPayDate, fixedExpenses)
+  - Onboarding tracking (setupComplete, tutorial completion flags)
+  - Preferences (currency, timezone)
+
+- **Transaction Model**
+  - Core transaction data (amount, date, type, currency)
+  - Categorization (categoryId, subcategoryId)
+  - AI support (isAICategorized, aiConfidence)
+  - Rich metadata (notes, location, merchantName)
+  - Budget association (budgetId)
+  - Recurrence tracking
+
+- **Budget Model**
+  - Budget details (name, description, totalAmount)
+  - Date management (startDate, endDate)
+  - Status lifecycle (BudgetStatus enum)
+  - Recurring budget support
+
+- **Category Model**
+  - Hierarchical structure (parentId for subcategories)
+  - Visual customization (icon, color)
+  - System vs. user-defined categories
+  - Type classification (Income, Expense, Transfer, Investment)
+
+#### Enums
+- `BudgetStatus`: DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED
+- `CategoryType`: INCOME, EXPENSE, TRANSFER, INVESTMENT
+- `TransactionType`: INCOME, EXPENSE, TRANSFER, REFUND
+- `IncomeFrequency`: WEEKLY, FORTNIGHTLY, MONTHLY
+
+### API Endpoints
+
+#### Authentication
+- `POST /auth/register` - User registration
+- `POST /auth/login` - User authentication
+- `GET /auth/profile` - Get user profile
+- `PUT /auth/profile` - Update user profile
+
+#### Users
+- `GET /users/profile` - Get user profile
+- `PUT /users/profile` - Update user profile
+- `PATCH /users/onboarding` - Update onboarding status
+- `DELETE /users/profile` - Deactivate account
+
+#### Transactions
+- `GET /transactions` - List transactions with filtering
+- `POST /transactions` - Create transaction
+- `GET /transactions/analytics` - Get transaction analytics
+- `GET /transactions/discretionary-breakdown` - Get discretionary spending analysis ⭐ NEW
+- `GET /transactions/summary` - Get transaction summary
+- `GET /transactions/recent` - Get recent transactions
+- `GET /transactions/:id` - Get transaction by ID
+- `PATCH /transactions/:id` - Update transaction
+- `DELETE /transactions/:id` - Delete transaction
+- `GET /transactions/by-category/:categoryId` - Get transactions by category
+- `GET /transactions/by-budget/:budgetId` - Get transactions by budget
+- `POST /transactions/search` - Advanced transaction search
+
+#### Budgets
+- `GET /budgets` - List budgets
+- `POST /budgets` - Create budget
+- `GET /budgets/:id` - Get budget by ID
+- `PUT /budgets/:id` - Update budget
+- `DELETE /budgets/:id` - Delete budget
+- `GET /budgets/:id/analytics` - Get budget analytics
+
+#### Categories
+- `GET /categories` - List categories
+- `POST /categories` - Create category
+- `GET /categories/system` - Get system categories
+- `GET /categories/popular` - Get popular categories
+- `GET /categories/archived` - Get archived categories
+- `GET /categories/:id` - Get category by ID
+- `GET /categories/:id/analytics` - Get category analytics
+- `PATCH /categories/:id` - Update category
+- `DELETE /categories/:id` - Delete/archive category
+- `POST /categories/:id/restore` - Restore archived category
+
+#### Health
+- `GET /health` - Application health check
+- `GET /health/ping` - Simple ping endpoint
+- `GET /` - Root endpoint
+
+### Technical Specifications
+
+#### Dependencies
+- **Framework**: NestJS 10.x
+- **Database**: PostgreSQL 15+ with Prisma ORM 6.x
+- **Authentication**: JWT with Passport.js
+- **Validation**: class-validator and class-transformer
+- **Security**: bcryptjs, rate limiting with @nestjs/throttler
+- **Documentation**: Swagger/OpenAPI integration
+
+#### Configuration
+- **Port**: 3001 (configurable via PORT environment variable)
+- **API Prefix**: `/api/v1`
+- **Database**: PostgreSQL with connection pooling
+- **JWT Expiration**: 7 days (configurable)
+- **Rate Limiting**: 100 requests per minute
+
+#### Development Tools
+- **TypeScript**: Full type safety
+- **ESLint**: Code linting with automatic fixes
+- **Prettier**: Code formatting
+- **Jest**: Unit and integration testing
+- **Prisma Studio**: Database GUI
+- **Docker Compose**: Development environment setup
+
+### Documentation
+
+#### Comprehensive Documentation Suite
+- **README.md**: Project overview and quick start guide
+- **API_DOCUMENTATION.md**: Complete API reference with examples
+- **DATABASE_DOCUMENTATION.md**: Database schema and relationships ⭐ NEW
+- **DEVELOPMENT_SETUP.md**: Development environment setup guide ⭐ NEW
+- **DEPLOYMENT_DOCUMENTATION.md**: Environment configuration and deployment
+- **AUTHENTICATION_DOCUMENTATION.md**: Security implementation details
+- **CHANGELOG.md**: Version history and feature tracking ⭐ NEW
+
+### Infrastructure
+
+#### Database Seeding
+- **System Categories**: 8 main categories with 30+ subcategories
+- **Hierarchical Structure**: Parent-child category relationships
+- **Color Coding**: Pre-configured colors for UI consistency
+- **Icon Integration**: Ionicon names for mobile UI
+
+#### Migration System
+- **Prisma Migrations**: Version-controlled database changes
+- **Seed Scripts**: Automated system data population
+- **Development Tools**: Database reset and studio access
+
+## Development Notes
+
+### Recent Improvements (Current Release)
+- ✅ **Debug Log Cleanup**: Removed all console.log statements for cleaner production logs
+- ✅ **Documentation Update**: Comprehensive documentation overhaul with current features
+- ✅ **Port Standardization**: Consistent use of port 3001 across all documentation
+- ✅ **Feature Documentation**: Added missing discretionary breakdown endpoint documentation
+- ✅ **Database Documentation**: Complete schema documentation with relationships
+- ✅ **Development Guide**: Comprehensive setup and workflow documentation
+
+### Code Quality Improvements
+- TypeScript strict mode enabled
+- Comprehensive input validation
+- Error handling standardization
+- Security best practices implementation
+- Performance optimization patterns
+
+### Testing Coverage
+- Unit tests for core services
+- Integration tests for API endpoints
+- Database testing strategies
+- Authentication flow testing
+
+## Upcoming Features (Roadmap)
+
+### Planned Enhancements
+- **Enhanced AI Categorization**: Machine learning transaction categorization
+- **Advanced Budget Alerts**: Spending limit notifications and velocity warnings
+- **Export Functionality**: CSV/PDF financial reports
+- **Recurring Transaction Automation**: Smart recurring expense detection
+- **Advanced Analytics**: Predictive spending insights
+- **Multi-Currency Enhancements**: Real-time currency conversion
+- **Caching Layer**: Redis integration for improved performance
+
+### Technical Improvements
+- **Real-time Updates**: WebSocket integration for live updates
+- **Advanced Monitoring**: Application performance monitoring
+- **API Versioning**: Enhanced version management
+- **Microservices Architecture**: Service decomposition for scalability
+
+---
+
+## Support
+
+For questions, issues, or contributions:
+- **Documentation**: Comprehensive guides available in `/docs`
+- **Health Endpoints**: Use `/health` and `/health/ping` for system diagnostics
+- **Development**: Follow the Development Setup Guide for local environment
+- **API Testing**: Use Swagger UI at `/api` endpoint for interactive testing
+
+**Last Updated**: January 25, 2025  
+**Version**: 1.0.0  
+**API Version**: v1

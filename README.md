@@ -70,9 +70,9 @@ npm run db:seed
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:3000`
+The API will be available at `http://localhost:3001`
 
-**API Documentation**: `http://localhost:3000/api` (Swagger UI)
+**API Documentation**: `http://localhost:3001/api` (Swagger UI)
 
 ---
 
@@ -152,7 +152,7 @@ src/
 
 ### Base URL
 ```
-http://localhost:3000/api/v1
+http://localhost:3001/api/v1
 ```
 
 ### Key Endpoints
@@ -167,10 +167,11 @@ PUT  /auth/profile      # Update user profile (protected)
 
 #### Transactions
 ```bash
-GET  /transactions              # List with filtering
-POST /transactions              # Create transaction
-GET  /transactions/analytics    # Financial analytics
-GET  /transactions/summary      # Transaction summary
+GET  /transactions                        # List with filtering
+POST /transactions                        # Create transaction
+GET  /transactions/analytics              # Financial analytics
+GET  /transactions/discretionary-breakdown # Discretionary spending analysis
+GET  /transactions/summary                # Transaction summary
 ```
 
 #### Budgets
@@ -276,10 +277,10 @@ docker-compose up -d
 - **Analytics**: Most-used categories, spending by category
 
 ### User Onboarding
-- **Progressive Setup**: Multi-step profile completion
-- **Tutorial Tracking**: Mobile app feature introductions
-- **Welcome Flows**: First-time user experience
-- **Setup Validation**: Required information completion
+- **Progressive Setup**: Multi-step profile completion with income frequency tracking
+- **Tutorial Tracking**: Mobile app feature introductions (Balance Card, Add Transaction, Transaction Swipe)
+- **Welcome Flows**: First-time user experience with completion tracking
+- **Setup Validation**: Required information completion including income, fixed expenses, and pay dates
 
 ---
 
@@ -340,11 +341,11 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 🎯 Roadmap
 
 ### Upcoming Features
-- **AI Categorization**: Machine learning transaction categorization
-- **Recurring Transactions**: Automated recurring expense tracking
-- **Budget Alerts**: Spending limit notifications
+- **Enhanced AI Categorization**: Machine learning transaction categorization (foundation already implemented)
+- **Recurring Transactions**: Automated recurring expense tracking (basic recurrence field implemented)
+- **Budget Alerts**: Spending limit notifications and velocity warnings
 - **Export Features**: CSV/PDF financial reports
-- **Multi-Currency**: Enhanced currency conversion support
+- **Multi-Currency**: Enhanced currency conversion support (basic multi-currency already supported)
 
 ### Performance Improvements
 - **Caching Layer**: Redis integration for improved performance

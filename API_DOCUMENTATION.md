@@ -168,6 +168,9 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
   "timezone": "America/New_York",
   "isActive": true,
   "income": 5000.00,
+  "incomeFrequency": "MONTHLY", // WEEKLY, FORTNIGHTLY, MONTHLY
+  "nextPayDate": "2025-02-01T00:00:00.000Z",
+  "fixedExpenses": 2500.00,
   "setupComplete": true,
   "hasSeenWelcome": true,
   "hasSeenBalanceCardTour": true,
@@ -181,6 +184,9 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
   - `username`: 3-30 characters
   - `currency`: Must be one of the supported currencies
   - `income`: Must be >= 0
+  - `incomeFrequency`: Must be one of: WEEKLY, FORTNIGHTLY, MONTHLY
+  - `nextPayDate`: Must be a valid ISO date string
+  - `fixedExpenses`: Must be >= 0
 
 #### Update Onboarding Status
 - **Endpoint:** `PATCH /users/onboarding`
@@ -219,8 +225,11 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
   "type": "EXPENSE", // INCOME, EXPENSE, TRANSFER, REFUND
   "budgetId": "budget_id", // optional
   "categoryId": "category_id", // optional
-  "subcategoryId": "subcategory_id", // optional
-  "recurrence": "MONTHLY" // optional
+  "subcategoryId": "subcategory_id", // optional - must belong to the specified category
+  "recurrence": "none", // optional - "none", "weekly", "fortnightly", "monthly", "yearly"
+  "notes": "Additional notes", // optional
+  "location": "Store location", // optional  
+  "merchantName": "Merchant name" // optional
 }
 ```
 - **Validation:**
@@ -361,6 +370,97 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
     "totalAmount": 500.00,
     "count": 10,
     "topCategories": ["Food", "Transportation", "Entertainment"]
+  }
+}
+```
+
+#### Get Discretionary Breakdown
+- **Endpoint:** `GET /transactions/discretionary-breakdown`
+- **Description:** Get comprehensive discretionary spending analysis with category breakdowns, insights, and spending patterns
+- **Authentication:** Required
+- **Query Parameters:** Same as transaction filtering (startDate, endDate, etc.)
+- **Response:** `200 OK`
+```json
+{
+  "selectedDate": "2025-01-15",
+  "selectedPeriod": "daily",
+  "totalDiscretionaryAmount": 150.75,
+  "transactions": [
+    {
+      "id": "transaction_id",
+      "date": "2025-01-15T10:30:00.000Z",
+      "amount": 45.50,
+      "description": "Coffee shop visit",
+      "merchant": "Starbucks",
+      "categoryId": "category_id",
+      "categoryName": "Food",
+      "subcategoryId": "subcategory_id",
+      "subcategoryName": "Coffee"
+    }
+  ],
+  "categoryBreakdown": [
+    {
+      "categoryId": "category_id",
+      "categoryName": "Food",
+      "categoryIcon": "restaurant-outline",
+      "categoryColor": "#FF6B6B",
+      "amount": 75.25,
+      "transactionCount": 3,
+      "percentage": 49.9,
+      "subcategories": [
+        {
+          "subcategoryId": "subcategory_id",
+          "subcategoryName": "Coffee",
+          "amount": 45.50,
+          "transactionCount": 2,
+          "percentage": 60.5,
+          "transactions": [...]
+        }
+      ],
+      "transactions": [...]
+    }
+  ],
+  "previousPeriod": {
+    "date": "2025-01-14",
+    "totalDiscretionaryAmount": 120.00,
+    "percentageChange": 25.6,
+    "topCategories": [
+      {
+        "categoryName": "Food",
+        "amount": 60.00
+      }
+    ]
+  },
+  "insights": [
+    {
+      "type": "warning",
+      "category": "Food",
+      "title": "High Category Concentration",
+      "message": "Food accounts for 49.9% of your discretionary spending.",
+      "suggestion": "Consider setting a specific budget for this category.",
+      "amount": 75.25
+    }
+  ],
+  "summary": {
+    "transactionCount": 5,
+    "averageTransactionAmount": 30.15,
+    "largestTransaction": {
+      "id": "transaction_id",
+      "amount": 45.50,
+      "description": "Coffee shop visit",
+      "categoryName": "Food"
+    },
+    "topSpendingCategory": {
+      "categoryName": "Food",
+      "amount": 75.25,
+      "percentage": 49.9
+    },
+    "spendingDistribution": {
+      "morning": 45.50,
+      "afternoon": 30.25,
+      "evening": 75.00,
+      "night": 0.00
+    }
   }
 }
 ```
