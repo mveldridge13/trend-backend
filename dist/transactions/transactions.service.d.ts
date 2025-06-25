@@ -26,6 +26,7 @@ export declare class TransactionsService {
     private mapToDto;
     private calculateDailyBurnRate;
     private calculateMonthlyRecurringExpenses;
+    private calculateDiscretionaryTrends;
     private calculateSpendingVelocity;
     private calculateTrends;
     private calculateAnalytics;

@@ -327,6 +327,108 @@ let TransactionsService = class TransactionsService {
         });
         return monthlyRecurringTotal;
     }
+    calculateDiscretionaryTrends(transactions, startDate, endDate) {
+        if (!startDate || !endDate) {
+            return [];
+        }
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`📊 Calculating discretionary trends for ${daysDiff} days (${startDate} to ${endDate})`);
+        const discretionaryTransactions = transactions.filter((t) => {
+            return t.type === "EXPENSE" && (t.recurrence === "none" || !t.recurrence);
+        });
+        console.log(`📊 Filtered to ${discretionaryTransactions.length} discretionary transactions (excluded recurring)`);
+        let periodType;
+        if (daysDiff <= 14) {
+            periodType = "daily";
+        }
+        else if (daysDiff <= 84) {
+            periodType = "weekly";
+        }
+        else {
+            periodType = "monthly";
+        }
+        console.log(`📊 Using ${periodType} period type for discretionary trends`);
+        const discretionaryTrends = [];
+        if (periodType === "daily") {
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dayStr = d.toISOString().split("T")[0];
+                const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+                const dayDiscretionaryExpenses = discretionaryTransactions
+                    .filter((t) => {
+                    const transactionDate = new Date(t.date);
+                    return transactionDate >= dayStart && transactionDate < dayEnd;
+                })
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+                console.log(`📊 Discretionary ${dayStr}: $${dayDiscretionaryExpenses.toFixed(2)} (${discretionaryTransactions.filter((t) => {
+                    const transactionDate = new Date(t.date);
+                    return transactionDate >= dayStart && transactionDate < dayEnd;
+                }).length} transactions)`);
+                discretionaryTrends.push({
+                    month: dayStr,
+                    discretionaryExpenses: dayDiscretionaryExpenses,
+                });
+            }
+        }
+        else if (periodType === "weekly") {
+            const current = new Date(start);
+            while (current <= end) {
+                const weekStart = new Date(current);
+                const weekEnd = new Date(current);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                if (weekEnd > end) {
+                    weekEnd.setTime(end.getTime());
+                }
+                const weekDiscretionaryExpenses = discretionaryTransactions
+                    .filter((t) => {
+                    const transactionDate = new Date(t.date);
+                    return transactionDate >= weekStart && transactionDate <= weekEnd;
+                })
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+                discretionaryTrends.push({
+                    month: weekStart.toISOString().split("T")[0],
+                    discretionaryExpenses: weekDiscretionaryExpenses,
+                });
+                current.setDate(current.getDate() + 7);
+            }
+        }
+        else {
+            const months = new Set();
+            const startYear = start.getFullYear();
+            const startMonth = start.getMonth();
+            const endYear = end.getFullYear();
+            const endMonth = end.getMonth();
+            for (let year = startYear; year <= endYear; year++) {
+                const monthStart = year === startYear ? startMonth : 0;
+                const monthEnd = year === endYear ? endMonth : 11;
+                for (let month = monthStart; month <= monthEnd; month++) {
+                    const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
+                    months.add(monthStr);
+                }
+            }
+            months.forEach((monthStr) => {
+                const monthDiscretionaryExpenses = discretionaryTransactions
+                    .filter((t) => {
+                    const transactionMonth = new Date(t.date)
+                        .toISOString()
+                        .substring(0, 7);
+                    return transactionMonth === monthStr;
+                })
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+                discretionaryTrends.push({
+                    month: monthStr,
+                    discretionaryExpenses: monthDiscretionaryExpenses,
+                });
+            });
+        }
+        console.log(`📊 Generated ${discretionaryTrends.length} discretionary trend periods with totals:`, discretionaryTrends.map((t) => ({
+            date: t.month,
+            amount: t.discretionaryExpenses,
+        })));
+        return discretionaryTrends.sort((a, b) => a.month.localeCompare(b.month));
+    }
     calculateSpendingVelocity(transactions, userMonthlyBudget) {
         const now = new Date();
         const currentMonth = now.getMonth();
@@ -405,7 +507,7 @@ let TransactionsService = class TransactionsService {
         const remainingBudget = Math.max(0, targetBudget - currentMonthSpent);
         const recommendedDailySpending = remainingDays > 0 ? remainingBudget / remainingDays : 0;
         console.log(`🎯 Velocity status: ${velocityStatus}`);
-        console.log(`💡 Recommended daily spending: $${recommendedDailySpending.toFixed(2)}`);
+        console.log(`💡 Recommended daily spending: ${recommendedDailySpending.toFixed(2)}`);
         return {
             currentMonthSpent,
             daysElapsed,
@@ -566,6 +668,15 @@ let TransactionsService = class TransactionsService {
             percentage: expenses > 0 ? (category.amount / expenses) * 100 : 0,
         }));
         const monthlyTrends = this.calculateTrends(transactions, filters.startDate, filters.endDate);
+        const discretionaryTrends = this.calculateDiscretionaryTrends(transactions, filters.startDate, filters.endDate);
+        const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
+            const discretionaryTrend = discretionaryTrends.find((dt) => dt.month === trend.month);
+            return {
+                ...trend,
+                discretionaryExpenses: discretionaryTrend?.discretionaryExpenses || 0,
+            };
+        });
+        console.log(`📊 Enhanced monthly trends with discretionary data:`, enhancedMonthlyTrends);
         const spendingVelocity = this.calculateSpendingVelocity(transactions);
         const dailyBurnRate = this.calculateDailyBurnRate(transactions, userProfile);
         return {
@@ -575,7 +686,7 @@ let TransactionsService = class TransactionsService {
             transactionCount,
             averageTransaction,
             categoryBreakdown,
-            monthlyTrends,
+            monthlyTrends: enhancedMonthlyTrends,
             spendingVelocity,
             dailyBurnRate,
             recentTransactions: {

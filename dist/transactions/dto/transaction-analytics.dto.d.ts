@@ -17,6 +17,7 @@ export declare class TransactionAnalyticsDto {
         month: string;
         income: number;
         expenses: number;
+        discretionaryExpenses: number;
         net: number;
         transactionCount: number;
     }[];
