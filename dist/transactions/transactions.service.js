@@ -13,6 +13,7 @@ exports.TransactionsService = void 0;
 const common_1 = require("@nestjs/common");
 const transactions_repository_1 = require("./repositories/transactions.repository");
 const users_repository_1 = require("../users/repositories/users.repository");
+const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
 const client_1 = require("@prisma/client");
 let TransactionsService = class TransactionsService {
     constructor(transactionsRepository, usersRepository) {
@@ -132,6 +133,327 @@ let TransactionsService = class TransactionsService {
             previousPeriod,
             insights,
             summary,
+        };
+    }
+    async getDayTimePatterns(userId, filters = {}) {
+        const now = new Date();
+        const defaultStartDate = new Date();
+        defaultStartDate.setDate(now.getDate() - 30);
+        const startDate = filters.startDate || defaultStartDate.toISOString();
+        const endDate = filters.endDate || now.toISOString();
+        const selectedPeriod = this.determinePeriodType(startDate, endDate);
+        const transactions = await this.transactionsRepository.findMany(userId, {
+            startDate,
+            endDate,
+            type: client_1.TransactionType.EXPENSE,
+            limit: 10000,
+            offset: 0,
+            sortBy: "date",
+            sortOrder: "desc",
+        });
+        const discretionaryTransactions = transactions.filter((t) => {
+            return t.recurrence === "none" || !t.recurrence;
+        });
+        const mappedTransactions = discretionaryTransactions.map((t) => ({
+            id: t.id,
+            date: t.date,
+            amount: Number(t.amount),
+            description: t.description,
+            merchantName: t.merchantName || undefined,
+            categoryId: t.category?.id,
+            categoryName: t.category?.name,
+            subcategoryId: t.subcategory?.id,
+            subcategoryName: t.subcategory?.name,
+        }));
+        const weekdayVsWeekend = this.calculateWeekdayVsWeekendBreakdown(mappedTransactions);
+        const dayOfWeekBreakdown = this.calculateDayOfWeekBreakdown(mappedTransactions);
+        const timeOfDayBreakdown = this.calculateTimeOfDayBreakdown(mappedTransactions);
+        const hourlyBreakdown = this.calculateHourlyBreakdown(mappedTransactions);
+        const summary = this.calculateDayTimePatternSummary(mappedTransactions, weekdayVsWeekend, dayOfWeekBreakdown, timeOfDayBreakdown, hourlyBreakdown);
+        const insights = this.generateDayTimePatternInsights(weekdayVsWeekend, dayOfWeekBreakdown, timeOfDayBreakdown, summary);
+        let previousPeriod = undefined;
+        try {
+            previousPeriod = await this.calculateDayTimePreviousPeriod(userId, startDate, endDate, selectedPeriod);
+        }
+        catch (error) {
+            console.warn("Failed to calculate previous period comparison:", error);
+        }
+        return {
+            selectedPeriod,
+            startDate: startDate.split("T")[0],
+            endDate: endDate.split("T")[0],
+            weekdayVsWeekend,
+            dayOfWeekBreakdown,
+            timeOfDayBreakdown,
+            hourlyBreakdown,
+            transactions: mappedTransactions,
+            summary,
+            insights,
+            previousPeriod,
+        };
+    }
+    calculateWeekdayVsWeekendBreakdown(transactions) {
+        let weekdayAmount = 0;
+        let weekendAmount = 0;
+        let weekdayCount = 0;
+        let weekendCount = 0;
+        const weekdayDays = new Set();
+        const weekendDays = new Set();
+        transactions.forEach((t) => {
+            const date = new Date(t.date);
+            const dayIndex = date.getDay();
+            const dateStr = date.toISOString().split("T")[0];
+            if ((0, day_time_patterns_dto_1.isWeekend)(dayIndex)) {
+                weekendAmount += t.amount;
+                weekendCount += 1;
+                weekendDays.add(dateStr);
+            }
+            else {
+                weekdayAmount += t.amount;
+                weekdayCount += 1;
+                weekdayDays.add(dateStr);
+            }
+        });
+        const totalAmount = weekdayAmount + weekendAmount;
+        const weekdayAverage = weekdayDays.size > 0 ? weekdayAmount / weekdayDays.size : 0;
+        const weekendAverage = weekendDays.size > 0 ? weekendAmount / weekendDays.size : 0;
+        return {
+            weekdays: {
+                amount: weekdayAmount,
+                averagePerDay: weekdayAverage,
+                transactionCount: weekdayCount,
+                percentage: totalAmount > 0 ? (weekdayAmount / totalAmount) * 100 : 0,
+            },
+            weekends: {
+                amount: weekendAmount,
+                averagePerDay: weekendAverage,
+                transactionCount: weekendCount,
+                percentage: totalAmount > 0 ? (weekendAmount / totalAmount) * 100 : 0,
+            },
+        };
+    }
+    calculateDayOfWeekBreakdown(transactions) {
+        const dayTotals = new Map();
+        for (let i = 0; i < 7; i++) {
+            dayTotals.set(i, { amount: 0, count: 0 });
+        }
+        transactions.forEach((t) => {
+            const dayIndex = new Date(t.date).getDay();
+            const dayData = dayTotals.get(dayIndex);
+            dayData.amount += t.amount;
+            dayData.count += 1;
+        });
+        const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+        return Array.from(dayTotals.entries()).map(([dayIndex, data]) => ({
+            day: day_time_patterns_dto_1.DAYS_OF_WEEK[dayIndex],
+            dayIndex,
+            amount: data.amount,
+            transactionCount: data.count,
+            averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+            percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+        }));
+    }
+    calculateTimeOfDayBreakdown(transactions) {
+        const periodTotals = new Map();
+        Object.keys(day_time_patterns_dto_1.TIME_PERIODS).forEach((period) => {
+            periodTotals.set(period, { amount: 0, count: 0 });
+        });
+        transactions.forEach((t) => {
+            const hour = new Date(t.date).getHours();
+            const period = (0, day_time_patterns_dto_1.getTimePeriod)(hour);
+            const periodData = periodTotals.get(period);
+            periodData.amount += t.amount;
+            periodData.count += 1;
+        });
+        const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+        return Object.entries(day_time_patterns_dto_1.TIME_PERIODS).map(([periodKey, periodInfo]) => {
+            const data = periodTotals.get(periodKey);
+            return {
+                period: periodInfo.name,
+                hours: periodInfo.hours,
+                startHour: periodInfo.start,
+                endHour: periodInfo.end,
+                amount: data.amount,
+                transactionCount: data.count,
+                averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+                percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+            };
+        });
+    }
+    calculateHourlyBreakdown(transactions) {
+        const hourlyTotals = new Map();
+        for (let i = 0; i < 24; i++) {
+            hourlyTotals.set(i, { amount: 0, count: 0 });
+        }
+        transactions.forEach((t) => {
+            const hour = new Date(t.date).getHours();
+            const hourData = hourlyTotals.get(hour);
+            hourData.amount += t.amount;
+            hourData.count += 1;
+        });
+        return Array.from(hourlyTotals.entries()).map(([hour, data]) => ({
+            hour,
+            amount: data.amount,
+            transactionCount: data.count,
+            averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+        }));
+    }
+    calculateDayTimePatternSummary(transactions, weekdayVsWeekend, dayOfWeekBreakdown, timeOfDayBreakdown, hourlyBreakdown) {
+        const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+        const totalTransactions = transactions.length;
+        const averageTransaction = totalTransactions > 0 ? totalAmount / totalTransactions : 0;
+        const mostActiveDay = dayOfWeekBreakdown.reduce((max, current) => current.amount > max.amount ? current : max);
+        const mostActivePeriod = timeOfDayBreakdown.reduce((max, current) => current.amount > max.amount ? current : max);
+        const peakHour = hourlyBreakdown.reduce((max, current) => current.amount > max.amount ? current : max);
+        let weekdayVsWeekendPreference;
+        const weekdayPercentage = weekdayVsWeekend.weekdays.percentage;
+        const weekendPercentage = weekdayVsWeekend.weekends.percentage;
+        if (Math.abs(weekdayPercentage - weekendPercentage) < 10) {
+            weekdayVsWeekendPreference = "balanced";
+        }
+        else if (weekdayPercentage > weekendPercentage) {
+            weekdayVsWeekendPreference = "weekdays";
+        }
+        else {
+            weekdayVsWeekendPreference = "weekends";
+        }
+        const eveningPeriod = timeOfDayBreakdown.find((p) => p.period === "Evening");
+        const eveningSpendingPercentage = eveningPeriod
+            ? eveningPeriod.percentage
+            : 0;
+        const isHighImpulse = eveningSpendingPercentage > 30 || weekendPercentage > 40;
+        return {
+            totalAmount,
+            totalTransactions,
+            averageTransaction,
+            mostActiveDay: {
+                day: mostActiveDay.day,
+                amount: mostActiveDay.amount,
+                transactionCount: mostActiveDay.transactionCount,
+            },
+            mostActivePeriod: {
+                period: mostActivePeriod.period,
+                amount: mostActivePeriod.amount,
+                transactionCount: mostActivePeriod.transactionCount,
+            },
+            peakSpendingHour: {
+                hour: peakHour.hour,
+                hourFormatted: (0, day_time_patterns_dto_1.formatHour)(peakHour.hour),
+                amount: peakHour.amount,
+                transactionCount: peakHour.transactionCount,
+            },
+            weekdayVsWeekendPreference,
+            impulsePurchaseIndicator: {
+                eveningSpendingPercentage,
+                weekendSpendingPercentage: weekendPercentage,
+                isHighImpulse,
+            },
+        };
+    }
+    generateDayTimePatternInsights(weekdayVsWeekend, dayOfWeekBreakdown, timeOfDayBreakdown, summary) {
+        const insights = [];
+        if (weekdayVsWeekend.weekends.percentage > 40) {
+            insights.push({
+                type: "warning",
+                title: "High Weekend Spending",
+                message: `${weekdayVsWeekend.weekends.percentage.toFixed(1)}% of your spending occurs on weekends.`,
+                suggestion: "Consider planning weekend activities with a set budget to avoid overspending.",
+                amount: weekdayVsWeekend.weekends.amount,
+            });
+        }
+        const eveningPeriod = timeOfDayBreakdown.find((p) => p.period === "Evening");
+        if (eveningPeriod && eveningPeriod.percentage > 35) {
+            insights.push({
+                type: "info",
+                title: "Evening Spending Pattern",
+                message: `You spend most (${eveningPeriod.percentage.toFixed(1)}%) in the evening hours.`,
+                suggestion: "Evening purchases are often impulse buys. Try planning purchases during daytime hours.",
+                dayOrTime: "Evening",
+            });
+        }
+        const peakDay = dayOfWeekBreakdown.reduce((max, current) => current.amount > max.amount ? current : max);
+        if (peakDay.percentage > 25) {
+            insights.push({
+                type: "tip",
+                title: `${peakDay.day} Spending Peak`,
+                message: `${peakDay.day} is your highest spending day with ${peakDay.percentage.toFixed(1)}% of weekly expenses.`,
+                suggestion: `Be extra mindful of spending on ${peakDay.day}s.`,
+                dayOrTime: peakDay.day,
+                amount: peakDay.amount,
+            });
+        }
+        if (summary.impulsePurchaseIndicator.isHighImpulse) {
+            insights.push({
+                type: "warning",
+                title: "Impulse Purchase Pattern Detected",
+                message: "High evening and weekend spending may indicate impulse purchases.",
+                suggestion: "Try implementing a 24-hour wait rule for non-essential purchases.",
+            });
+        }
+        if (summary.weekdayVsWeekendPreference === "balanced") {
+            insights.push({
+                type: "info",
+                title: "Balanced Spending Pattern",
+                message: "Your spending is well-distributed between weekdays and weekends.",
+                suggestion: "Great job maintaining consistent spending habits!",
+            });
+        }
+        return insights;
+    }
+    async calculateDayTimePreviousPeriod(userId, startDate, endDate, selectedPeriod) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        const previousStart = new Date(start);
+        previousStart.setDate(start.getDate() - daysDiff);
+        const previousEnd = new Date(end);
+        previousEnd.setDate(end.getDate() - daysDiff);
+        const previousTransactions = await this.transactionsRepository.findMany(userId, {
+            startDate: previousStart.toISOString(),
+            endDate: previousEnd.toISOString(),
+            type: client_1.TransactionType.EXPENSE,
+            limit: 10000,
+            offset: 0,
+            sortBy: "date",
+            sortOrder: "desc",
+        });
+        const previousMapped = previousTransactions.map((t) => ({
+            id: t.id,
+            date: t.date,
+            amount: Number(t.amount),
+            description: t.description,
+            merchantName: t.merchantName || undefined,
+            categoryId: t.category?.id,
+            categoryName: t.category?.name,
+            subcategoryId: t.subcategory?.id,
+            subcategoryName: t.subcategory?.name,
+        }));
+        const previousWeekdayVsWeekend = this.calculateWeekdayVsWeekendBreakdown(previousMapped);
+        const previousDayOfWeek = this.calculateDayOfWeekBreakdown(previousMapped);
+        const previousTotal = previousMapped.reduce((sum, t) => sum + t.amount, 0);
+        const currentTotal = previousTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+        const mostActiveDay = previousDayOfWeek.reduce((max, current) => current.amount > max.amount ? current : max);
+        const keyChanges = [];
+        if (Math.abs(previousWeekdayVsWeekend.weekdays.percentage - 50) > 10) {
+            const preference = previousWeekdayVsWeekend.weekdays.percentage > 50
+                ? "weekdays"
+                : "weekends";
+            keyChanges.push(`Previous period showed ${preference} spending preference`);
+        }
+        return {
+            startDate: previousStart.toISOString().split("T")[0],
+            endDate: previousEnd.toISOString().split("T")[0],
+            totalAmount: previousTotal,
+            totalTransactions: previousMapped.length,
+            weekdayVsWeekendChange: {
+                weekdaysChange: 0,
+                weekendsChange: 0,
+            },
+            mostActiveDay: {
+                day: mostActiveDay.day,
+                amount: mostActiveDay.amount,
+            },
+            keyChanges,
         };
     }
     determinePeriodType(startDate, endDate) {
@@ -431,7 +753,7 @@ let TransactionsService = class TransactionsService {
             insights.push({
                 type: "info",
                 title: "Frequent Small Purchases",
-                message: `Your average transaction is $${averageTransaction.toFixed(2)} with ${totalTransactions} purchases.`,
+                message: `Your average transaction is ${averageTransaction.toFixed(2)} with ${totalTransactions} purchases.`,
                 suggestion: "Small purchases can add up quickly. Consider tracking them more closely.",
             });
         }

@@ -5,6 +5,7 @@ import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionDto } from "./dto/transaction.dto";
 import { TransactionFilterDto } from "./dto/transaction-filter.dto";
 import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
+import { DayTimePatternsResponseDto } from "./dto/day-time-patterns.dto";
 interface DiscretionaryBreakdownDto {
     selectedDate: string;
     selectedPeriod: "daily" | "weekly" | "monthly";
@@ -108,6 +109,14 @@ export declare class TransactionsService {
     remove(id: string, userId: string): Promise<void>;
     getAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<TransactionAnalyticsDto>;
     getDiscretionaryBreakdown(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DiscretionaryBreakdownDto>;
+    getDayTimePatterns(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DayTimePatternsResponseDto>;
+    private calculateWeekdayVsWeekendBreakdown;
+    private calculateDayOfWeekBreakdown;
+    private calculateTimeOfDayBreakdown;
+    private calculateHourlyBreakdown;
+    private calculateDayTimePatternSummary;
+    private generateDayTimePatternInsights;
+    private calculateDayTimePreviousPeriod;
     private determinePeriodType;
     private filterTransactionsForPeriod;
     private calculateCategoryBreakdown;

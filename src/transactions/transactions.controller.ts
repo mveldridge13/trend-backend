@@ -53,6 +53,14 @@ export class TransactionsController {
     );
   }
 
+  @Get("day-time-patterns")
+  async getDayTimePatterns(
+    @Request() req,
+    @Query() filters: TransactionFilterDto
+  ): Promise<any> {
+    return this.transactionsService.getDayTimePatterns(req.user.id, filters);
+  }
+
   @Get("summary")
   async getSummary(@Request() req, @Query() filters: TransactionFilterDto) {
     const analytics = await this.transactionsService.getAnalytics(
