@@ -10,6 +10,22 @@ import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionDto } from "./dto/transaction.dto";
 import { TransactionFilterDto } from "./dto/transaction-filter.dto";
 import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
+import {
+  DayTimePatternsResponseDto,
+  DayTimePatternsFilters,
+  DayTimePatternTransaction,
+  WeekdayVsWeekendBreakdown,
+  DayOfWeekBreakdown,
+  TimeOfDayBreakdown,
+  HourlyBreakdown,
+  DayTimePatternSummary,
+  SpendingPatternInsight,
+  TIME_PERIODS,
+  DAYS_OF_WEEK,
+  formatHour,
+  isWeekend,
+  getTimePeriod,
+} from "./dto/day-time-patterns.dto";
 //import { DiscretionaryBreakdownDto } from "./dto/discretionary-breakdown.dto";
 import { Transaction, TransactionType, IncomeFrequency } from "@prisma/client";
 
@@ -301,6 +317,483 @@ export class TransactionsService {
       previousPeriod,
       insights,
       summary,
+    };
+  }
+
+  // ✅ NEW: Get day/time spending patterns analysis
+  async getDayTimePatterns(
+    userId: string,
+    filters: Partial<TransactionFilterDto> = {}
+  ): Promise<DayTimePatternsResponseDto> {
+    const now = new Date();
+    const defaultStartDate = new Date();
+    defaultStartDate.setDate(now.getDate() - 30);
+
+    const startDate = filters.startDate || defaultStartDate.toISOString();
+    const endDate = filters.endDate || now.toISOString();
+    const selectedPeriod = this.determinePeriodType(startDate, endDate);
+
+    // Get transactions for analysis - EXCLUDE recurring transactions (bills/obligations)
+    const transactions = await this.transactionsRepository.findMany(userId, {
+      startDate,
+      endDate,
+      type: TransactionType.EXPENSE,
+      limit: 10000,
+      offset: 0,
+      sortBy: "date",
+      sortOrder: "desc",
+    } as TransactionFilterDto);
+
+    // ✅ FILTER: Only include non-recurring transactions (discretionary spending)
+    const discretionaryTransactions = transactions.filter((t) => {
+      return t.recurrence === "none" || !t.recurrence;
+    });
+
+    // Map transactions to DTO format (using filtered discretionary transactions)
+    const mappedTransactions: DayTimePatternTransaction[] =
+      discretionaryTransactions.map((t: any) => ({
+        id: t.id,
+        date: t.date,
+        amount: Number(t.amount),
+        description: t.description,
+        merchantName: t.merchantName || undefined,
+        categoryId: t.category?.id,
+        categoryName: t.category?.name,
+        subcategoryId: t.subcategory?.id,
+        subcategoryName: t.subcategory?.name,
+      }));
+
+    // Calculate all breakdowns (using discretionary transactions only)
+    const weekdayVsWeekend =
+      this.calculateWeekdayVsWeekendBreakdown(mappedTransactions);
+    const dayOfWeekBreakdown =
+      this.calculateDayOfWeekBreakdown(mappedTransactions);
+    const timeOfDayBreakdown =
+      this.calculateTimeOfDayBreakdown(mappedTransactions);
+    const hourlyBreakdown = this.calculateHourlyBreakdown(mappedTransactions);
+    const summary = this.calculateDayTimePatternSummary(
+      mappedTransactions,
+      weekdayVsWeekend,
+      dayOfWeekBreakdown,
+      timeOfDayBreakdown,
+      hourlyBreakdown
+    );
+    const insights = this.generateDayTimePatternInsights(
+      weekdayVsWeekend,
+      dayOfWeekBreakdown,
+      timeOfDayBreakdown,
+      summary
+    );
+
+    // Calculate previous period comparison by default
+    let previousPeriod = undefined;
+    try {
+      previousPeriod = await this.calculateDayTimePreviousPeriod(
+        userId,
+        startDate,
+        endDate,
+        selectedPeriod
+      );
+    } catch (error) {
+      console.warn("Failed to calculate previous period comparison:", error);
+      // Continue without previous period data
+    }
+
+    return {
+      selectedPeriod,
+      startDate: startDate.split("T")[0],
+      endDate: endDate.split("T")[0],
+      weekdayVsWeekend,
+      dayOfWeekBreakdown,
+      timeOfDayBreakdown,
+      hourlyBreakdown,
+      transactions: mappedTransactions,
+      summary,
+      insights,
+      previousPeriod,
+    };
+  }
+
+  // ✅ Helper methods for day/time patterns analysis
+
+  private calculateWeekdayVsWeekendBreakdown(
+    transactions: DayTimePatternTransaction[]
+  ): WeekdayVsWeekendBreakdown {
+    let weekdayAmount = 0;
+    let weekendAmount = 0;
+    let weekdayCount = 0;
+    let weekendCount = 0;
+
+    const weekdayDays = new Set<string>();
+    const weekendDays = new Set<string>();
+
+    transactions.forEach((t) => {
+      const date = new Date(t.date);
+      const dayIndex = date.getDay();
+      const dateStr = date.toISOString().split("T")[0];
+
+      if (isWeekend(dayIndex)) {
+        weekendAmount += t.amount;
+        weekendCount += 1;
+        weekendDays.add(dateStr);
+      } else {
+        weekdayAmount += t.amount;
+        weekdayCount += 1;
+        weekdayDays.add(dateStr);
+      }
+    });
+
+    const totalAmount = weekdayAmount + weekendAmount;
+    const weekdayAverage =
+      weekdayDays.size > 0 ? weekdayAmount / weekdayDays.size : 0;
+    const weekendAverage =
+      weekendDays.size > 0 ? weekendAmount / weekendDays.size : 0;
+
+    return {
+      weekdays: {
+        amount: weekdayAmount,
+        averagePerDay: weekdayAverage,
+        transactionCount: weekdayCount,
+        percentage: totalAmount > 0 ? (weekdayAmount / totalAmount) * 100 : 0,
+      },
+      weekends: {
+        amount: weekendAmount,
+        averagePerDay: weekendAverage,
+        transactionCount: weekendCount,
+        percentage: totalAmount > 0 ? (weekendAmount / totalAmount) * 100 : 0,
+      },
+    };
+  }
+
+  private calculateDayOfWeekBreakdown(
+    transactions: DayTimePatternTransaction[]
+  ): DayOfWeekBreakdown[] {
+    const dayTotals = new Map<number, { amount: number; count: number }>();
+
+    // Initialize all days
+    for (let i = 0; i < 7; i++) {
+      dayTotals.set(i, { amount: 0, count: 0 });
+    }
+
+    transactions.forEach((t) => {
+      const dayIndex = new Date(t.date).getDay();
+      const dayData = dayTotals.get(dayIndex)!;
+      dayData.amount += t.amount;
+      dayData.count += 1;
+    });
+
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    return Array.from(dayTotals.entries()).map(([dayIndex, data]) => ({
+      day: DAYS_OF_WEEK[dayIndex],
+      dayIndex,
+      amount: data.amount,
+      transactionCount: data.count,
+      averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+      percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+    }));
+  }
+
+  private calculateTimeOfDayBreakdown(
+    transactions: DayTimePatternTransaction[]
+  ): TimeOfDayBreakdown[] {
+    const periodTotals = new Map<string, { amount: number; count: number }>();
+
+    // Initialize all periods
+    Object.keys(TIME_PERIODS).forEach((period) => {
+      periodTotals.set(period, { amount: 0, count: 0 });
+    });
+
+    transactions.forEach((t) => {
+      const hour = new Date(t.date).getHours();
+      const period = getTimePeriod(hour);
+      const periodData = periodTotals.get(period)!;
+      periodData.amount += t.amount;
+      periodData.count += 1;
+    });
+
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    return Object.entries(TIME_PERIODS).map(([periodKey, periodInfo]) => {
+      const data = periodTotals.get(periodKey)!;
+      return {
+        period: periodInfo.name,
+        hours: periodInfo.hours,
+        startHour: periodInfo.start,
+        endHour: periodInfo.end,
+        amount: data.amount,
+        transactionCount: data.count,
+        averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+        percentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0,
+      };
+    });
+  }
+
+  private calculateHourlyBreakdown(
+    transactions: DayTimePatternTransaction[]
+  ): HourlyBreakdown[] {
+    const hourlyTotals = new Map<number, { amount: number; count: number }>();
+
+    // Initialize all hours
+    for (let i = 0; i < 24; i++) {
+      hourlyTotals.set(i, { amount: 0, count: 0 });
+    }
+
+    transactions.forEach((t) => {
+      const hour = new Date(t.date).getHours();
+      const hourData = hourlyTotals.get(hour)!;
+      hourData.amount += t.amount;
+      hourData.count += 1;
+    });
+
+    return Array.from(hourlyTotals.entries()).map(([hour, data]) => ({
+      hour,
+      amount: data.amount,
+      transactionCount: data.count,
+      averageTransaction: data.count > 0 ? data.amount / data.count : 0,
+    }));
+  }
+
+  private calculateDayTimePatternSummary(
+    transactions: DayTimePatternTransaction[],
+    weekdayVsWeekend: WeekdayVsWeekendBreakdown,
+    dayOfWeekBreakdown: DayOfWeekBreakdown[],
+    timeOfDayBreakdown: TimeOfDayBreakdown[],
+    hourlyBreakdown: HourlyBreakdown[]
+  ): DayTimePatternSummary {
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalTransactions = transactions.length;
+    const averageTransaction =
+      totalTransactions > 0 ? totalAmount / totalTransactions : 0;
+
+    // Find most active day
+    const mostActiveDay = dayOfWeekBreakdown.reduce((max, current) =>
+      current.amount > max.amount ? current : max
+    );
+
+    // Find most active period
+    const mostActivePeriod = timeOfDayBreakdown.reduce((max, current) =>
+      current.amount > max.amount ? current : max
+    );
+
+    // Find peak spending hour
+    const peakHour = hourlyBreakdown.reduce((max, current) =>
+      current.amount > max.amount ? current : max
+    );
+
+    // Determine weekday vs weekend preference
+    let weekdayVsWeekendPreference: "weekdays" | "weekends" | "balanced";
+    const weekdayPercentage = weekdayVsWeekend.weekdays.percentage;
+    const weekendPercentage = weekdayVsWeekend.weekends.percentage;
+
+    if (Math.abs(weekdayPercentage - weekendPercentage) < 10) {
+      weekdayVsWeekendPreference = "balanced";
+    } else if (weekdayPercentage > weekendPercentage) {
+      weekdayVsWeekendPreference = "weekdays";
+    } else {
+      weekdayVsWeekendPreference = "weekends";
+    }
+
+    // Calculate impulse purchase indicators
+    const eveningPeriod = timeOfDayBreakdown.find(
+      (p) => p.period === "Evening"
+    );
+    const eveningSpendingPercentage = eveningPeriod
+      ? eveningPeriod.percentage
+      : 0;
+    const isHighImpulse =
+      eveningSpendingPercentage > 30 || weekendPercentage > 40;
+
+    return {
+      totalAmount,
+      totalTransactions,
+      averageTransaction,
+      mostActiveDay: {
+        day: mostActiveDay.day,
+        amount: mostActiveDay.amount,
+        transactionCount: mostActiveDay.transactionCount,
+      },
+      mostActivePeriod: {
+        period: mostActivePeriod.period,
+        amount: mostActivePeriod.amount,
+        transactionCount: mostActivePeriod.transactionCount,
+      },
+      peakSpendingHour: {
+        hour: peakHour.hour,
+        hourFormatted: formatHour(peakHour.hour),
+        amount: peakHour.amount,
+        transactionCount: peakHour.transactionCount,
+      },
+      weekdayVsWeekendPreference,
+      impulsePurchaseIndicator: {
+        eveningSpendingPercentage,
+        weekendSpendingPercentage: weekendPercentage,
+        isHighImpulse,
+      },
+    };
+  }
+
+  private generateDayTimePatternInsights(
+    weekdayVsWeekend: WeekdayVsWeekendBreakdown,
+    dayOfWeekBreakdown: DayOfWeekBreakdown[],
+    timeOfDayBreakdown: TimeOfDayBreakdown[],
+    summary: DayTimePatternSummary
+  ): SpendingPatternInsight[] {
+    const insights: SpendingPatternInsight[] = [];
+
+    // Weekend vs weekday insights
+    if (weekdayVsWeekend.weekends.percentage > 40) {
+      insights.push({
+        type: "warning",
+        title: "High Weekend Spending",
+        message: `${weekdayVsWeekend.weekends.percentage.toFixed(1)}% of your spending occurs on weekends.`,
+        suggestion:
+          "Consider planning weekend activities with a set budget to avoid overspending.",
+        amount: weekdayVsWeekend.weekends.amount,
+      });
+    }
+
+    // Evening spending patterns
+    const eveningPeriod = timeOfDayBreakdown.find(
+      (p) => p.period === "Evening"
+    );
+    if (eveningPeriod && eveningPeriod.percentage > 35) {
+      insights.push({
+        type: "info",
+        title: "Evening Spending Pattern",
+        message: `You spend most (${eveningPeriod.percentage.toFixed(1)}%) in the evening hours.`,
+        suggestion:
+          "Evening purchases are often impulse buys. Try planning purchases during daytime hours.",
+        dayOrTime: "Evening",
+      });
+    }
+
+    // Peak day insights
+    const peakDay = dayOfWeekBreakdown.reduce((max, current) =>
+      current.amount > max.amount ? current : max
+    );
+    if (peakDay.percentage > 25) {
+      insights.push({
+        type: "tip",
+        title: `${peakDay.day} Spending Peak`,
+        message: `${peakDay.day} is your highest spending day with ${peakDay.percentage.toFixed(1)}% of weekly expenses.`,
+        suggestion: `Be extra mindful of spending on ${peakDay.day}s.`,
+        dayOrTime: peakDay.day,
+        amount: peakDay.amount,
+      });
+    }
+
+    // Impulse purchase indicator
+    if (summary.impulsePurchaseIndicator.isHighImpulse) {
+      insights.push({
+        type: "warning",
+        title: "Impulse Purchase Pattern Detected",
+        message:
+          "High evening and weekend spending may indicate impulse purchases.",
+        suggestion:
+          "Try implementing a 24-hour wait rule for non-essential purchases.",
+      });
+    }
+
+    // Balanced spending insight
+    if (summary.weekdayVsWeekendPreference === "balanced") {
+      insights.push({
+        type: "info",
+        title: "Balanced Spending Pattern",
+        message:
+          "Your spending is well-distributed between weekdays and weekends.",
+        suggestion: "Great job maintaining consistent spending habits!",
+      });
+    }
+
+    return insights;
+  }
+
+  private async calculateDayTimePreviousPeriod(
+    userId: string,
+    startDate: string,
+    endDate: string,
+    selectedPeriod: string
+  ) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Calculate previous period dates
+    const previousStart = new Date(start);
+    previousStart.setDate(start.getDate() - daysDiff);
+    const previousEnd = new Date(end);
+    previousEnd.setDate(end.getDate() - daysDiff);
+
+    // Get previous period transactions
+    const previousTransactions = await this.transactionsRepository.findMany(
+      userId,
+      {
+        startDate: previousStart.toISOString(),
+        endDate: previousEnd.toISOString(),
+        type: TransactionType.EXPENSE,
+        limit: 10000,
+        offset: 0,
+        sortBy: "date",
+        sortOrder: "desc",
+      } as TransactionFilterDto
+    );
+
+    const previousMapped: DayTimePatternTransaction[] =
+      previousTransactions.map((t: any) => ({
+        id: t.id,
+        date: t.date,
+        amount: Number(t.amount),
+        description: t.description,
+        merchantName: t.merchantName || undefined,
+        categoryId: t.category?.id,
+        categoryName: t.category?.name,
+        subcategoryId: t.subcategory?.id,
+        subcategoryName: t.subcategory?.name,
+      }));
+
+    const previousWeekdayVsWeekend =
+      this.calculateWeekdayVsWeekendBreakdown(previousMapped);
+    const previousDayOfWeek = this.calculateDayOfWeekBreakdown(previousMapped);
+    const previousTotal = previousMapped.reduce((sum, t) => sum + t.amount, 0);
+    const currentTotal = previousTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
+
+    const mostActiveDay = previousDayOfWeek.reduce((max, current) =>
+      current.amount > max.amount ? current : max
+    );
+
+    // Calculate key changes
+    const keyChanges: string[] = [];
+
+    if (Math.abs(previousWeekdayVsWeekend.weekdays.percentage - 50) > 10) {
+      const preference =
+        previousWeekdayVsWeekend.weekdays.percentage > 50
+          ? "weekdays"
+          : "weekends";
+      keyChanges.push(
+        `Previous period showed ${preference} spending preference`
+      );
+    }
+
+    return {
+      startDate: previousStart.toISOString().split("T")[0],
+      endDate: previousEnd.toISOString().split("T")[0],
+      totalAmount: previousTotal,
+      totalTransactions: previousMapped.length,
+      weekdayVsWeekendChange: {
+        weekdaysChange: 0, // Would need current period data to calculate
+        weekendsChange: 0,
+      },
+      mostActiveDay: {
+        day: mostActiveDay.day,
+        amount: mostActiveDay.amount,
+      },
+      keyChanges,
     };
   }
 
@@ -716,7 +1209,7 @@ export class TransactionsService {
       insights.push({
         type: "info",
         title: "Frequent Small Purchases",
-        message: `Your average transaction is $${averageTransaction.toFixed(2)} with ${totalTransactions} purchases.`,
+        message: `Your average transaction is ${averageTransaction.toFixed(2)} with ${totalTransactions} purchases.`,
         suggestion:
           "Small purchases can add up quickly. Consider tracking them more closely.",
       });

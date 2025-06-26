@@ -35,6 +35,9 @@ let TransactionsController = class TransactionsController {
     async getDiscretionaryBreakdown(req, filters) {
         return this.transactionsService.getDiscretionaryBreakdown(req.user.id, filters);
     }
+    async getDayTimePatterns(req, filters) {
+        return this.transactionsService.getDayTimePatterns(req.user.id, filters);
+    }
     async getSummary(req, filters) {
         const analytics = await this.transactionsService.getAnalytics(req.user.id, filters);
         return {
@@ -124,6 +127,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, transaction_filter_dto_1.TransactionFilterDto]),
     __metadata("design:returntype", Promise)
 ], TransactionsController.prototype, "getDiscretionaryBreakdown", null);
+__decorate([
+    (0, common_1.Get)("day-time-patterns"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, transaction_filter_dto_1.TransactionFilterDto]),
+    __metadata("design:returntype", Promise)
+], TransactionsController.prototype, "getDayTimePatterns", null);
 __decorate([
     (0, common_1.Get)("summary"),
     __param(0, (0, common_1.Request)()),
