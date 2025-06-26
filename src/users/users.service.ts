@@ -44,9 +44,15 @@ export class UsersService {
     return this.toUserDto(updatedUser);
   }
 
-  // NEW: Profile methods for AppNavigator
+  // ✅ FIXED: Profile methods for AppNavigator - NOW INCLUDES PAY SCHEDULE
   async getUserProfile(id: string): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
     income?: number;
+    incomeFrequency?: string;
+    nextPayDate?: string;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
   }> {
@@ -56,7 +62,17 @@ export class UsersService {
     }
 
     return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       income: user.income ? Number(user.income) : undefined,
+      incomeFrequency: user.incomeFrequency
+        ? user.incomeFrequency.toLowerCase()
+        : undefined, // Convert MONTHLY -> monthly
+      nextPayDate: user.nextPayDate
+        ? user.nextPayDate.toISOString()
+        : undefined,
       setupComplete: user.setupComplete,
       hasSeenWelcome: user.hasSeenWelcome,
     };
@@ -66,7 +82,13 @@ export class UsersService {
     id: string,
     profileData: UpdateUserProfileDto
   ): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
     income?: number;
+    incomeFrequency?: string;
+    nextPayDate?: string;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
   }> {
@@ -81,7 +103,17 @@ export class UsersService {
     );
 
     return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
       income: updatedUser.income ? Number(updatedUser.income) : undefined,
+      incomeFrequency: updatedUser.incomeFrequency
+        ? updatedUser.incomeFrequency.toLowerCase()
+        : undefined,
+      nextPayDate: updatedUser.nextPayDate
+        ? updatedUser.nextPayDate.toISOString()
+        : undefined,
       setupComplete: updatedUser.setupComplete,
       hasSeenWelcome: updatedUser.hasSeenWelcome,
     };

@@ -50,7 +50,17 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException("User not found");
         }
         return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
             income: user.income ? Number(user.income) : undefined,
+            incomeFrequency: user.incomeFrequency
+                ? user.incomeFrequency.toLowerCase()
+                : undefined,
+            nextPayDate: user.nextPayDate
+                ? user.nextPayDate.toISOString()
+                : undefined,
             setupComplete: user.setupComplete,
             hasSeenWelcome: user.hasSeenWelcome,
         };
@@ -62,7 +72,17 @@ let UsersService = class UsersService {
         }
         const updatedUser = await this.usersRepository.updateProfile(id, profileData);
         return {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
             income: updatedUser.income ? Number(updatedUser.income) : undefined,
+            incomeFrequency: updatedUser.incomeFrequency
+                ? updatedUser.incomeFrequency.toLowerCase()
+                : undefined,
+            nextPayDate: updatedUser.nextPayDate
+                ? updatedUser.nextPayDate.toISOString()
+                : undefined,
             setupComplete: updatedUser.setupComplete,
             hasSeenWelcome: updatedUser.hasSeenWelcome,
         };

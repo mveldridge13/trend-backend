@@ -9,12 +9,24 @@ export declare class UsersService {
     findByEmail(email: string): Promise<UserDto | null>;
     updateProfile(id: string, updateData: UpdateUserDto): Promise<UserDto>;
     getUserProfile(id: string): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
         income?: number;
+        incomeFrequency?: string;
+        nextPayDate?: string;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
     }>;
     updateUserProfile(id: string, profileData: UpdateUserProfileDto): Promise<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
         income?: number;
+        incomeFrequency?: string;
+        nextPayDate?: string;
         setupComplete: boolean;
         hasSeenWelcome: boolean;
     }>;
