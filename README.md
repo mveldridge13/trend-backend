@@ -84,6 +84,7 @@ The API will be available at `http://localhost:3001`
 | **[Database Schema](./DATABASE_DOCUMENTATION.md)** | Comprehensive database models, relationships, and design patterns |
 | **[Authentication Guide](./AUTHENTICATION_DOCUMENTATION.md)** | Security implementation, JWT flow, and auth endpoints |
 | **[Deployment Guide](./DEPLOYMENT_DOCUMENTATION.md)** | Environment setup, deployment strategies, and configuration |
+| **[Day-Time Patterns Guide](./DAY_TIME_PATTERNS_DOCUMENTATION.md)** | Comprehensive guide to spending pattern analysis and behavioral insights |
 
 ---
 
@@ -171,6 +172,7 @@ GET  /transactions                        # List with filtering
 POST /transactions                        # Create transaction
 GET  /transactions/analytics              # Financial analytics
 GET  /transactions/discretionary-breakdown # Discretionary spending analysis
+GET  /transactions/day-time-patterns      # Day/time spending pattern analysis
 GET  /transactions/summary                # Transaction summary
 ```
 
