@@ -5,6 +5,60 @@ All notable changes to the Trend Backend API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-06-26
+
+### Added
+
+#### 📊 Enhanced Analytics Features
+- **Day-Time Spending Patterns** ⭐ NEW
+  - Comprehensive spending analysis by day of week and time of day
+  - Weekday vs. weekend spending breakdown with percentage analysis
+  - Time period analysis (Morning, Afternoon, Evening, Night)
+  - Hourly spending breakdown for detailed insights
+  - Peak spending time identification and behavioral insights
+  - Impulse purchase indicators based on evening/weekend spending
+  - Previous period comparison with key changes tracking
+  - Spending pattern insights with actionable recommendations
+
+#### 👤 User Experience Improvements
+- **Enhanced User Profile Management**
+  - Pay schedule integration for mobile app navigation
+  - Improved profile data structure for better mobile compatibility
+  - Enhanced income frequency tracking display
+
+### Changed
+
+#### 🔧 API Improvements
+- **New Transaction Endpoint**: `GET /transactions/day-time-patterns`
+  - Comprehensive day and time-based spending analysis
+  - Support for all existing transaction filters
+  - Detailed behavioral insights and spending recommendations
+  - Previous period comparison capabilities
+
+#### 📚 Documentation Updates
+- **API Documentation**: Added comprehensive day-time-patterns endpoint documentation
+- **README**: Updated with new endpoint references
+- **Feature Coverage**: Enhanced documentation for all recent analytics features
+
+### Technical Specifications
+
+#### New DTOs and Interfaces
+- `DayTimePatternsResponseDto`: Complete response structure for day-time analysis
+- `WeekdayVsWeekendBreakdown`: Weekend vs weekday spending comparison
+- `DayOfWeekBreakdown`: Individual day analysis structure
+- `TimeOfDayBreakdown`: Time period analysis structure
+- `HourlyBreakdown`: Hour-by-hour spending breakdown
+- `SpendingPatternInsight`: Behavioral insights and recommendations
+- `DayTimePatternSummary`: Comprehensive analysis summary
+
+#### Analytics Enhancements
+- Smart spending pattern detection algorithms
+- Behavioral insight generation based on time/day patterns
+- Impulse purchase identification logic
+- Comparative analysis with previous periods
+
+---
+
 ## [1.0.0] - 2025-01-25
 
 ### Added

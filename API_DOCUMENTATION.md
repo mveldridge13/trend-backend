@@ -465,6 +465,193 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
 }
 ```
 
+#### Get Day-Time Spending Patterns
+- **Endpoint:** `GET /transactions/day-time-patterns`
+- **Description:** Get comprehensive analysis of spending patterns by day of week and time of day, including behavioral insights
+- **Authentication:** Required
+- **Query Parameters:** Same as transaction filtering (startDate, endDate, categoryId, subcategoryId, type, includePreviousPeriod)
+- **Response:** `200 OK`
+```json
+{
+  "selectedPeriod": "weekly",
+  "startDate": "2025-01-15T00:00:00.000Z",
+  "endDate": "2025-01-22T00:00:00.000Z",
+  "weekdayVsWeekend": {
+    "weekdays": {
+      "amount": 750.00,
+      "averagePerDay": 150.00,
+      "transactionCount": 25,
+      "percentage": 75.0
+    },
+    "weekends": {
+      "amount": 250.00,
+      "averagePerDay": 125.00,
+      "transactionCount": 10,
+      "percentage": 25.0
+    }
+  },
+  "dayOfWeekBreakdown": [
+    {
+      "day": "Monday",
+      "dayIndex": 1,
+      "amount": 180.00,
+      "transactionCount": 6,
+      "averageTransaction": 30.00,
+      "percentage": 18.0
+    },
+    {
+      "day": "Sunday",
+      "dayIndex": 0,
+      "amount": 150.00,
+      "transactionCount": 5,
+      "averageTransaction": 30.00,
+      "percentage": 15.0
+    }
+  ],
+  "timeOfDayBreakdown": [
+    {
+      "period": "Morning",
+      "hours": "6:00 AM - 12:00 PM",
+      "startHour": 6,
+      "endHour": 12,
+      "amount": 200.00,
+      "transactionCount": 8,
+      "averageTransaction": 25.00,
+      "percentage": 20.0
+    },
+    {
+      "period": "Afternoon",
+      "hours": "12:00 PM - 6:00 PM",
+      "startHour": 12,
+      "endHour": 18,
+      "amount": 400.00,
+      "transactionCount": 15,
+      "averageTransaction": 26.67,
+      "percentage": 40.0
+    },
+    {
+      "period": "Evening",
+      "hours": "6:00 PM - 10:00 PM",
+      "startHour": 18,
+      "endHour": 22,
+      "amount": 350.00,
+      "transactionCount": 10,
+      "averageTransaction": 35.00,
+      "percentage": 35.0
+    },
+    {
+      "period": "Night",
+      "hours": "10:00 PM - 6:00 AM",
+      "startHour": 22,
+      "endHour": 6,
+      "amount": 50.00,
+      "transactionCount": 2,
+      "averageTransaction": 25.00,
+      "percentage": 5.0
+    }
+  ],
+  "hourlyBreakdown": [
+    {
+      "hour": 9,
+      "amount": 45.00,
+      "transactionCount": 2,
+      "averageTransaction": 22.50
+    },
+    {
+      "hour": 12,
+      "amount": 85.00,
+      "transactionCount": 3,
+      "averageTransaction": 28.33
+    }
+  ],
+  "transactions": [
+    {
+      "id": "transaction_id",
+      "date": "2025-01-15T09:30:00.000Z",
+      "amount": 45.00,
+      "description": "Coffee and pastry",
+      "merchantName": "Local Café",
+      "categoryId": "category_id",
+      "categoryName": "Food",
+      "subcategoryId": "subcategory_id",
+      "subcategoryName": "Coffee"
+    }
+  ],
+  "summary": {
+    "totalAmount": 1000.00,
+    "totalTransactions": 35,
+    "averageTransaction": 28.57,
+    "mostActiveDay": {
+      "day": "Monday",
+      "amount": 180.00,
+      "transactionCount": 6
+    },
+    "mostActivePeriod": {
+      "period": "Afternoon",
+      "amount": 400.00,
+      "transactionCount": 15
+    },
+    "peakSpendingHour": {
+      "hour": 12,
+      "hourFormatted": "12:00 PM",
+      "amount": 85.00,
+      "transactionCount": 3
+    },
+    "weekdayVsWeekendPreference": "weekdays",
+    "impulsePurchaseIndicator": {
+      "eveningSpendingPercentage": 35.0,
+      "weekendSpendingPercentage": 25.0,
+      "isHighImpulse": false
+    }
+  },
+  "insights": [
+    {
+      "type": "info",
+      "title": "Peak Spending Time",
+      "message": "Your highest spending occurs during afternoon hours (12-6 PM)",
+      "suggestion": "Consider setting spending alerts during your peak spending times",
+      "amount": 400.00,
+      "dayOrTime": "Afternoon"
+    },
+    {
+      "type": "tip",
+      "title": "Weekday Focus",
+      "message": "75% of your spending happens on weekdays",
+      "suggestion": "Plan weekend activities that align with your spending patterns",
+      "amount": 750.00,
+      "dayOrTime": "Weekdays"
+    },
+    {
+      "type": "warning",
+      "title": "Evening Spending Alert",
+      "message": "35% of spending occurs in evening hours, which may indicate impulse purchases",
+      "suggestion": "Review evening transactions for discretionary spending opportunities",
+      "amount": 350.00,
+      "dayOrTime": "Evening"
+    }
+  ],
+  "previousPeriod": {
+    "startDate": "2025-01-08T00:00:00.000Z",
+    "endDate": "2025-01-15T00:00:00.000Z",
+    "totalAmount": 900.00,
+    "totalTransactions": 30,
+    "weekdayVsWeekendChange": {
+      "weekdaysChange": 11.1,
+      "weekendsChange": -10.7
+    },
+    "mostActiveDay": {
+      "day": "Tuesday",
+      "amount": 160.00
+    },
+    "keyChanges": [
+      "Increased weekday spending by 11.1%",
+      "Reduced weekend spending by 10.7%",
+      "Most active day shifted from Tuesday to Monday"
+    ]
+  }
+}
+```
+
 #### Get Recent Transactions
 - **Endpoint:** `GET /transactions/recent`
 - **Description:** Get 10 most recent transactions
