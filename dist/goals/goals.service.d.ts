@@ -1,0 +1,33 @@
+import { GoalsRepository } from "./repositories/goals.repository";
+import { CreateGoalDto } from "./dto/create-goal.dto";
+import { UpdateGoalDto } from "./dto/update-goal.dto";
+import { GoalFiltersDto } from "./dto/goal-filters.dto";
+import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
+import { GoalResponseDto, GoalsListResponseDto, GoalAnalyticsDto, GoalContributionResponseDto } from "./dto/goal-response.dto";
+import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
+export declare class GoalsService {
+    private readonly goalsRepository;
+    constructor(goalsRepository: GoalsRepository);
+    createGoal(userId: string, createGoalDto: CreateGoalDto): Promise<GoalResponseDto>;
+    getGoals(userId: string, filters: GoalFiltersDto): Promise<GoalsListResponseDto>;
+    getGoalById(userId: string, goalId: string): Promise<GoalResponseDto>;
+    updateGoal(userId: string, goalId: string, updateGoalDto: UpdateGoalDto): Promise<GoalResponseDto>;
+    deleteGoal(userId: string, goalId: string): Promise<void>;
+    addContribution(userId: string, goalId: string, createContributionDto: CreateGoalContributionDto): Promise<GoalContributionResponseDto>;
+    getGoalContributions(userId: string, goalId: string, startDate?: string, endDate?: string): Promise<GoalContributionResponseDto[]>;
+    getGoalAnalytics(userId: string, goalId: string): Promise<GoalAnalyticsDto>;
+    generateSmartSuggestions(userId: string): Promise<GoalSuggestionsResponseDto>;
+    private getGoalIncludes;
+    private buildGoalFilters;
+    private buildOrderBy;
+    private transformGoalToResponse;
+    private getGoalsSummary;
+    private calculateMonthlyProgress;
+    private calculateAverageMonthlyContribution;
+    private calculateProjectedCompletion;
+    private calculateContributionSources;
+    private calculateMilestones;
+    private generateEmergencyFundSuggestion;
+    private generateSpendingLimitSuggestions;
+    private calculateAverageMonthlyExpenses;
+}
