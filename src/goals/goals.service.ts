@@ -720,7 +720,7 @@ export class GoalsService {
             description: `Monthly spending limit for ${categoryName} category`,
             targetAmount: suggestedLimit,
             category: GoalCategory.OTHER,
-            type: GoalType.SPENDING_LIMIT,
+            type: GoalType.SPENDING, // Changed from GoalType.SPENDING_LIMIT
             monthlyTarget: suggestedLimit,
           },
         });

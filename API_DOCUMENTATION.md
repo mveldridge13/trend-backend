@@ -1042,6 +1042,433 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
 
 ---
 
+### Goals Endpoints
+
+#### Create Goal
+- **Endpoint:** `POST /goals`
+- **Description:** Create a new financial goal
+- **Authentication:** Required
+- **Request Body:**
+```json
+{
+  "name": "Emergency Fund",
+  "description": "Build an emergency fund for unexpected expenses", // optional
+  "targetAmount": 10000.00,
+  "currency": "USD", // optional, defaults to USD
+  "targetDate": "2025-12-31T23:59:59.999Z", // optional
+  "category": "EMERGENCY_FUND", // EMERGENCY_FUND, VACATION, HOME_PURCHASE, CAR_PURCHASE, DEBT_PAYOFF, EDUCATION, RETIREMENT, INVESTMENT, GENERAL_SAVINGS
+  "type": "SAVINGS", // SAVINGS, SPENDING_LIMIT, DEBT_PAYOFF, INVESTMENT
+  "priority": "HIGH", // LOW, MEDIUM, HIGH, CRITICAL
+  "autoContribute": false, // optional, defaults to false
+  "monthlyTarget": 833.33, // optional
+  "isCompleted": false // optional, defaults to false
+}
+```
+- **Validation:**
+  - `name`: Required, 1-100 characters
+  - `description`: Optional, max 500 characters
+  - `targetAmount`: Required, 0.01-999999999.99
+  - `currency`: Optional, 3 characters
+  - `targetDate`: Optional, valid ISO date string
+  - `category`: Required, must be valid GoalCategory enum
+  - `type`: Required, must be valid GoalType enum
+  - `priority`: Required, must be valid GoalPriority enum
+  - `monthlyTarget`: Optional, must be >= 0
+- **Response:** `201 Created` - Returns created goal with analytics
+
+#### Get All Goals
+- **Endpoint:** `GET /goals`
+- **Description:** Get paginated list of user's goals with filtering and analytics
+- **Authentication:** Required
+- **Query Parameters:**
+  - `category` (optional): Filter by goal category
+  - `type` (optional): Filter by goal type
+  - `priority` (optional): Filter by priority level
+  - `isCompleted` (optional): "true" or "false" to filter by completion status
+  - `startDate` (optional): Filter goals created after this date
+  - `endDate` (optional): Filter goals created before this date
+  - `targetDateStart` (optional): Filter goals with target date after this date
+  - `targetDateEnd` (optional): Filter goals with target date before this date
+  - `search` (optional): Search in goal names and descriptions
+  - `sortBy` (optional): Sort field - "name", "targetAmount", "progress", "createdAt", "targetDate"
+  - `sortOrder` (optional): "asc" or "desc", default "desc"
+  - `page` (optional): Page number >= 1, default 1
+  - `limit` (optional): Items per page 1-50, default 10
+- **Response:** `200 OK`
+```json
+{
+  "goals": [
+    {
+      "id": "goal_id",
+      "name": "Emergency Fund",
+      "description": "Build an emergency fund for unexpected expenses",
+      "targetAmount": 10000.00,
+      "currentAmount": 2500.00,
+      "currency": "USD",
+      "targetDate": "2025-12-31T23:59:59.999Z",
+      "category": "EMERGENCY_FUND",
+      "type": "SAVINGS",
+      "priority": "HIGH",
+      "autoContribute": false,
+      "monthlyTarget": 833.33,
+      "isCompleted": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-15T10:30:00.000Z",
+      "progressPercentage": 25.0,
+      "remainingAmount": 7500.00,
+      "daysToTarget": 350,
+      "monthlyProgressNeeded": 625.00,
+      "isOnTrack": false,
+      "contributionCount": 5,
+      "lastContributionDate": "2025-01-10T00:00:00.000Z",
+      "projectedCompletionDate": "2026-02-15T00:00:00.000Z"
+    }
+  ],
+  "summary": {
+    "totalGoals": 5,
+    "completedGoals": 1,
+    "activeGoals": 4,
+    "totalTargetAmount": 50000.00,
+    "totalCurrentAmount": 12500.00,
+    "overallProgress": 25.0
+  },
+  "pagination": {
+    "total": 5,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
+```
+
+#### Get Goal by ID
+- **Endpoint:** `GET /goals/:id`
+- **Description:** Get detailed information for a specific goal
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Response:** `200 OK` - Returns detailed goal information with analytics and recent contributions
+
+#### Update Goal
+- **Endpoint:** `PUT /goals/:id`
+- **Description:** Update a specific goal
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Request Body:** All fields are optional (same as create goal)
+- **Response:** `200 OK` - Returns updated goal with analytics
+
+#### Delete Goal
+- **Endpoint:** `DELETE /goals/:id`
+- **Description:** Delete a specific goal and all its contributions
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Response:** `204 No Content`
+
+#### Add Goal Contribution
+- **Endpoint:** `POST /goals/:id/contribute`
+- **Description:** Add a contribution to a specific goal
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Request Body:**
+```json
+{
+  "amount": 500.00,
+  "currency": "USD", // optional, defaults to goal currency
+  "date": "2025-01-15T10:30:00.000Z", // optional, defaults to current date
+  "description": "Monthly contribution", // optional
+  "type": "MANUAL", // MANUAL, AUTOMATIC, TRANSFER, INTEREST
+  "transactionId": "transaction_id" // optional, link to related transaction
+}
+```
+- **Validation:**
+  - `amount`: Required, 0.01-999999999.99
+  - `currency`: Optional, must match goal currency or be convertible
+  - `date`: Optional, valid ISO date string
+  - `description`: Optional, max 200 characters
+  - `type`: Required, must be valid ContributionType enum
+- **Response:** `201 Created` - Returns created contribution and updated goal analytics
+
+#### Get Goal Contributions
+- **Endpoint:** `GET /goals/:id/contributions`
+- **Description:** Get paginated list of contributions for a specific goal
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Query Parameters:**
+  - `startDate` (optional): Filter contributions after this date
+  - `endDate` (optional): Filter contributions before this date
+  - `type` (optional): Filter by contribution type
+  - `page` (optional): Page number >= 1, default 1
+  - `limit` (optional): Items per page 1-50, default 20
+- **Response:** `200 OK` - Returns paginated list of contributions with analytics
+
+#### Get Goal Analytics
+- **Endpoint:** `GET /goals/:id/analytics`
+- **Description:** Get detailed analytics for a specific goal
+- **Authentication:** Required
+- **Path Parameters:**
+  - `id`: Goal ID
+- **Response:** `200 OK`
+```json
+{
+  "goalId": "goal_id",
+  "goalName": "Emergency Fund",
+  "targetAmount": 10000.00,
+  "currentAmount": 2500.00,
+  "progressPercentage": 25.0,
+  "remainingAmount": 7500.00,
+  "monthlyTarget": 833.33,
+  "actualMonthlyAverage": 416.67,
+  "isOnTrack": false,
+  "daysToTarget": 350,
+  "projectedCompletionDate": "2026-02-15T00:00:00.000Z",
+  "contributionAnalytics": {
+    "totalContributions": 5,
+    "averageContribution": 500.00,
+    "largestContribution": 1000.00,
+    "smallestContribution": 100.00,
+    "lastContributionDate": "2025-01-10T00:00:00.000Z",
+    "contributionFrequency": "MONTHLY"
+  },
+  "monthlyProgress": [
+    {
+      "month": "2025-01",
+      "contributionAmount": 1500.00,
+      "contributionCount": 3,
+      "targetAmount": 833.33,
+      "progressMade": 15.0
+    },
+    {
+      "month": "2024-12",
+      "contributionAmount": 1000.00,
+      "contributionCount": 2,
+      "targetAmount": 833.33,
+      "progressMade": 10.0
+    }
+  ],
+  "contributionSources": [
+    {
+      "type": "MANUAL",
+      "amount": 2000.00,
+      "percentage": 80.0,
+      "count": 4
+    },
+    {
+      "type": "TRANSFER",
+      "amount": 500.00,
+      "percentage": 20.0,
+      "count": 1
+    }
+  ],
+  "timeToCompletion": {
+    "atCurrentRate": {
+      "months": 18,
+      "projectedDate": "2026-07-15T00:00:00.000Z"
+    },
+    "atTargetRate": {
+      "months": 9,
+      "projectedDate": "2025-10-15T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### Get Goal Suggestions
+- **Endpoint:** `GET /goals/suggestions`
+- **Description:** Get AI-powered goal suggestions based on user's financial data
+- **Authentication:** Required
+- **Query Parameters:**
+  - `includeEmergencyFund` (optional): "true" or "false", default true
+  - `analyzePeriodMonths` (optional): Number of months to analyze, 1-12, default 6
+- **Response:** `200 OK`
+```json
+{
+  "suggestions": [
+    {
+      "id": "suggestion_1",
+      "name": "Emergency Fund",
+      "description": "Build 6 months of expenses as emergency fund",
+      "category": "EMERGENCY_FUND",
+      "type": "SAVINGS",
+      "priority": "CRITICAL",
+      "suggestedAmount": 15000.00,
+      "suggestedMonthlyContribution": 625.00,
+      "suggestedTargetDate": "2026-12-31T23:59:59.999Z",
+      "reasoning": "Based on your average monthly expenses of $2,500, we recommend saving 6 months of expenses",
+      "confidence": 0.95,
+      "basedOnData": {
+        "averageMonthlyExpenses": 2500.00,
+        "monthsOfExpensesRecommended": 6,
+        "currentEmergencyFund": 1000.00
+      }
+    },
+    {
+      "id": "suggestion_2",
+      "name": "Vacation Fund",
+      "description": "Save for your next vacation",
+      "category": "VACATION",
+      "type": "SAVINGS",
+      "priority": "MEDIUM",
+      "suggestedAmount": 3000.00,
+      "suggestedMonthlyContribution": 250.00,
+      "suggestedTargetDate": "2025-12-31T23:59:59.999Z",
+      "reasoning": "Based on your discretionary spending patterns, you can comfortably save for a vacation",
+      "confidence": 0.75,
+      "basedOnData": {
+        "averageDiscretionarySpending": 800.00,
+        "recommendedVacationBudget": 3000.00,
+        "availableForSaving": 300.00
+      }
+    }
+  ],
+  "spendingAnalysis": {
+    "averageMonthlyIncome": 5000.00,
+    "averageMonthlyExpenses": 3500.00,
+    "averageDiscretionarySpending": 800.00,
+    "savingsCapacity": 700.00,
+    "recommendedSavingsRate": 0.20,
+    "currentSavingsRate": 0.14,
+    "topSpendingCategories": [
+      {
+        "categoryName": "Food",
+        "monthlyAverage": 600.00,
+        "percentage": 17.14
+      },
+      {
+        "categoryName": "Transportation",
+        "monthlyAverage": 400.00,
+        "percentage": 11.43
+      }
+    ]
+  },
+  "emergencyFundAnalysis": {
+    "currentAmount": 1000.00,
+    "recommendedAmount": 15000.00,
+    "monthsOfExpensesCovered": 0.4,
+    "recommendedMonths": 6,
+    "urgency": "HIGH"
+  }
+}
+```
+
+#### Get Goals Analytics Summary
+- **Endpoint:** `GET /goals/analytics`
+- **Description:** Get comprehensive analytics across all user goals
+- **Authentication:** Required
+- **Query Parameters:**
+  - `period` (optional): "month", "quarter", "year", "all", default "all"
+  - `category` (optional): Filter analytics by goal category
+- **Response:** `200 OK`
+```json
+{
+  "overview": {
+    "totalGoals": 8,
+    "activeGoals": 6,
+    "completedGoals": 2,
+    "totalTargetAmount": 75000.00,
+    "totalCurrentAmount": 18500.00,
+    "overallProgress": 24.67,
+    "totalContributions": 42,
+    "totalContributionAmount": 18500.00
+  },
+  "goalsByCategory": [
+    {
+      "category": "EMERGENCY_FUND",
+      "goalCount": 1,
+      "totalTarget": 15000.00,
+      "totalCurrent": 5000.00,
+      "progress": 33.33,
+      "priorityDistribution": {
+        "CRITICAL": 1,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0
+      }
+    },
+    {
+      "category": "VACATION",
+      "goalCount": 2,
+      "totalTarget": 8000.00,
+      "totalCurrent": 3500.00,
+      "progress": 43.75,
+      "priorityDistribution": {
+        "CRITICAL": 0,
+        "HIGH": 1,
+        "MEDIUM": 1,
+        "LOW": 0
+      }
+    }
+  ],
+  "goalsByType": [
+    {
+      "type": "SAVINGS",
+      "goalCount": 6,
+      "totalTarget": 65000.00,
+      "totalCurrent": 16000.00,
+      "progress": 24.62
+    },
+    {
+      "type": "DEBT_PAYOFF",
+      "goalCount": 2,
+      "totalTarget": 10000.00,
+      "totalCurrent": 2500.00,
+      "progress": 25.0
+    }
+  ],
+  "monthlyContributionTrends": [
+    {
+      "month": "2025-01",
+      "totalContributions": 2500.00,
+      "contributionCount": 8,
+      "goalsContributedTo": 5
+    },
+    {
+      "month": "2024-12",
+      "totalContributions": 3000.00,
+      "contributionCount": 12,
+      "goalsContributedTo": 6
+    }
+  ],
+  "topPerformingGoals": [
+    {
+      "goalId": "goal_1",
+      "goalName": "Vacation Fund",
+      "progress": 75.0,
+      "monthlyProgress": 12.5,
+      "isOnTrack": true
+    },
+    {
+      "goalId": "goal_2",
+      "goalName": "Car Down Payment",
+      "progress": 45.0,
+      "monthlyProgress": 8.3,
+      "isOnTrack": true
+    }
+  ],
+  "insights": [
+    {
+      "type": "success",
+      "title": "Strong Emergency Fund Progress",
+      "message": "Your emergency fund is 33% complete, putting you ahead of schedule",
+      "goalId": "goal_emergency",
+      "amount": 5000.00
+    },
+    {
+      "type": "warning",
+      "title": "Goal Behind Schedule",
+      "message": "Your home down payment goal needs $1,200/month to stay on track",
+      "goalId": "goal_home",
+      "amount": 1200.00
+    }
+  ]
+}
+```
+
+---
+
 ### Health Check Endpoints
 
 #### Health Check
@@ -1098,6 +1525,35 @@ Tokens are obtained through the `/auth/login` or `/auth/register` endpoints and 
 - `EXPENSE`: Expense transactions
 - `TRANSFER`: Transfer transactions
 - `REFUND`: Refund transactions
+
+#### GoalCategory
+- `EMERGENCY_FUND`: Emergency fund goals
+- `VACATION`: Vacation and travel goals
+- `HOME_PURCHASE`: Home purchase and real estate goals
+- `CAR_PURCHASE`: Vehicle purchase goals
+- `DEBT_PAYOFF`: Debt payoff goals
+- `EDUCATION`: Education and learning goals
+- `RETIREMENT`: Retirement savings goals
+- `INVESTMENT`: Investment and portfolio goals
+- `GENERAL_SAVINGS`: General savings goals
+
+#### GoalType
+- `SAVINGS`: Savings accumulation goals
+- `SPENDING_LIMIT`: Spending limit goals
+- `DEBT_PAYOFF`: Debt reduction goals
+- `INVESTMENT`: Investment growth goals
+
+#### GoalPriority
+- `LOW`: Low priority goals
+- `MEDIUM`: Medium priority goals
+- `HIGH`: High priority goals
+- `CRITICAL`: Critical priority goals
+
+#### ContributionType
+- `MANUAL`: Manual contributions
+- `AUTOMATIC`: Automatic contributions
+- `TRANSFER`: Transfer contributions
+- `INTEREST`: Interest earnings contributions
 
 ### Supported Currencies
 - `USD`: US Dollar
