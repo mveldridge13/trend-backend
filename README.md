@@ -11,6 +11,7 @@ A comprehensive financial management backend that provides sophisticated transac
 ### 💰 **Financial Management**
 - **Transaction Tracking**: Complete CRUD operations with advanced filtering and analytics
 - **Budget Management**: Create, track, and analyze budgets with real-time performance metrics
+- **Goals System**: Comprehensive goal tracking with smart suggestions, progress analytics, and automated contributions
 - **Category System**: Hierarchical categories (30+ predefined subcategories across 8 main categories)
 - **Multi-Currency Support**: USD with extensible currency framework
 - **AI-Ready**: Prepared for AI categorization with confidence tracking
@@ -134,6 +135,7 @@ src/
 ├── users/             # User management (profiles, onboarding)
 ├── transactions/      # Transaction CRUD and analytics
 ├── budgets/           # Budget management and tracking
+├── goals/             # Goals system with smart suggestions and analytics
 ├── categories/        # Hierarchical category system
 ├── database/          # Prisma service and base repository
 └── health/            # Application health monitoring
@@ -144,6 +146,7 @@ src/
 - **Users Module**: Profile management, onboarding flow
 - **Transactions Module**: Financial transaction CRUD with analytics
 - **Budgets Module**: Budget lifecycle management
+- **Goals Module**: Financial goal tracking with AI-powered suggestions and progress analytics
 - **Categories Module**: Hierarchical expense categorization
 - **Database Module**: Prisma ORM with custom repository pattern
 
@@ -183,6 +186,16 @@ POST /budgets           # Create budget
 GET  /budgets/:id/analytics # Budget performance
 ```
 
+#### Goals
+```bash
+GET  /goals             # List user goals with filtering
+POST /goals             # Create new goal
+GET  /goals/:id         # Get specific goal details
+POST /goals/:id/contribute # Add contribution to goal
+GET  /goals/suggestions # Get AI-powered goal suggestions
+GET  /goals/analytics   # Goals progress analytics
+```
+
 #### Categories
 ```bash
 GET  /categories        # List categories
@@ -198,6 +211,7 @@ GET  /categories/:id/analytics # Category analytics
 - **User**: Authentication, profile, onboarding status
 - **Transaction**: Financial transactions with rich metadata
 - **Budget**: Budget management with status tracking
+- **Goal**: Financial goals with progress tracking, contributions, and reminders
 - **Category**: Hierarchical categorization (system + user-defined)
 
 ### Key Features
@@ -346,6 +360,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - **Enhanced AI Categorization**: Machine learning transaction categorization (foundation already implemented)
 - **Recurring Transactions**: Automated recurring expense tracking (basic recurrence field implemented)
 - **Budget Alerts**: Spending limit notifications and velocity warnings
+- **Goal Reminders**: Automated goal reminder notifications (foundation implemented)
 - **Export Features**: CSV/PDF financial reports
 - **Multi-Currency**: Enhanced currency conversion support (basic multi-currency already supported)
 

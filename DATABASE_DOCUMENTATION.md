@@ -50,6 +50,7 @@ model User {
   // Relations
   budgets        Budget[]
   categories     Category[]
+  goals          Goal[]
   transactions   Transaction[]
 
   @@map("users")
@@ -180,11 +181,115 @@ model Transaction {
 - **Rich Data**: Notes, location, merchant information
 - **Performance Optimized**: Strategic indexing for common queries
 
+### Goal Model
+
+Financial goal tracking with progress analytics, contributions, and automated suggestions.
+
+```prisma
+model Goal {
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  description    String?
+  targetAmount   Decimal     @db.Decimal(12, 2)
+  currentAmount  Decimal     @default(0) @db.Decimal(12, 2)
+  currency       String      @default("USD")
+  targetDate     DateTime?
+  category       GoalCategory
+  type           GoalType
+  priority       GoalPriority
+  autoContribute Boolean     @default(false)
+  monthlyTarget  Decimal?    @db.Decimal(12, 2)
+  isCompleted    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  // Relations
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contributions  GoalContribution[]
+  reminders      GoalReminder[]
+
+  @@index([userId, category])
+  @@index([userId, isCompleted])
+  @@map("goals")
+}
+```
+
+#### Key Features:
+- **Smart Categorization**: Pre-defined goal categories for common financial objectives
+- **Progress Tracking**: Automatic calculation of completion percentage and remaining amounts
+- **Flexible Timeline**: Optional target dates with progress projection
+- **Priority System**: Four-tier priority system for goal management
+- **Auto-Contribution**: Support for automated contribution scheduling
+- **Multi-Currency**: Per-goal currency support
+
+### GoalContribution Model
+
+Tracks individual contributions made toward financial goals with detailed metadata.
+
+```prisma
+model GoalContribution {
+  id            String           @id @default(cuid())
+  goalId        String
+  amount        Decimal          @db.Decimal(12, 2)
+  currency      String
+  date          DateTime         @default(now())
+  description   String?
+  type          ContributionType
+  transactionId String?
+  createdAt     DateTime         @default(now())
+  
+  // Relations
+  goal          Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, date])
+  @@map("goal_contributions")
+}
+```
+
+#### Key Features:
+- **Detailed Tracking**: Amount, date, description, and type for each contribution
+- **Transaction Linking**: Optional connection to related transactions
+- **Contribution Types**: Manual, automatic, transfer, and interest contributions
+- **Performance Optimized**: Indexed for goal-based queries and date filtering
+
+### GoalReminder Model
+
+Manages automated reminders and notifications for goal progress and contributions.
+
+```prisma
+model GoalReminder {
+  id         String            @id @default(cuid())
+  goalId     String
+  type       ReminderType
+  frequency  ReminderFrequency
+  message    String?
+  isActive   Boolean           @default(true)
+  lastSent   DateTime?
+  nextSend   DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  
+  // Relations
+  goal       Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, isActive])
+  @@map("goal_reminders")
+}
+```
+
+#### Key Features:
+- **Flexible Scheduling**: Multiple frequency options for reminder delivery
+- **Reminder Types**: Contribution reminders, progress updates, and deadline alerts
+- **Smart Timing**: Automatic calculation of next reminder dates
+- **Status Management**: Active/inactive control for reminder management
+
 ## Relationships
 
 ### User Relationships
 - **One-to-Many**: User → Budgets
 - **One-to-Many**: User → Categories (user-defined)
+- **One-to-Many**: User → Goals
 - **One-to-Many**: User → Transactions
 
 ### Category Relationships
@@ -195,6 +300,17 @@ model Transaction {
 ### Budget Relationships
 - **Many-to-One**: Budget → User
 - **One-to-Many**: Budget → Transactions
+
+### Goal Relationships
+- **Many-to-One**: Goal → User
+- **One-to-Many**: Goal → GoalContributions
+- **One-to-Many**: Goal → GoalReminders
+
+### GoalContribution Relationships
+- **Many-to-One**: GoalContribution → Goal
+
+### GoalReminder Relationships
+- **Many-to-One**: GoalReminder → Goal
 
 ### Transaction Relationships
 - **Many-to-One**: Transaction → User
@@ -244,6 +360,71 @@ enum IncomeFrequency {
 }
 ```
 
+### GoalCategory
+```prisma
+enum GoalCategory {
+  EMERGENCY_FUND  // Emergency fund goals
+  VACATION        // Vacation and travel goals
+  HOME_PURCHASE   // Home purchase and real estate goals
+  CAR_PURCHASE    // Vehicle purchase goals
+  DEBT_PAYOFF     // Debt payoff goals
+  EDUCATION       // Education and learning goals
+  RETIREMENT      // Retirement savings goals
+  INVESTMENT      // Investment and portfolio goals
+  GENERAL_SAVINGS // General savings goals
+}
+```
+
+### GoalType
+```prisma
+enum GoalType {
+  SAVINGS        // Savings accumulation goals
+  SPENDING_LIMIT // Spending limit goals
+  DEBT_PAYOFF    // Debt reduction goals
+  INVESTMENT     // Investment growth goals
+}
+```
+
+### GoalPriority
+```prisma
+enum GoalPriority {
+  LOW      // Low priority goals
+  MEDIUM   // Medium priority goals
+  HIGH     // High priority goals
+  CRITICAL // Critical priority goals
+}
+```
+
+### ContributionType
+```prisma
+enum ContributionType {
+  MANUAL    // Manual contributions
+  AUTOMATIC // Automatic contributions
+  TRANSFER  // Transfer contributions
+  INTEREST  // Interest earnings contributions
+}
+```
+
+### ReminderType
+```prisma
+enum ReminderType {
+  CONTRIBUTION_DUE // Contribution reminder
+  PROGRESS_UPDATE  // Progress milestone reminder
+  DEADLINE_ALERT   // Target date approaching reminder
+  GOAL_ACHIEVED    // Goal completion notification
+}
+```
+
+### ReminderFrequency
+```prisma
+enum ReminderFrequency {
+  DAILY    // Daily reminders
+  WEEKLY   // Weekly reminders
+  MONTHLY  // Monthly reminders
+  CUSTOM   // Custom frequency
+}
+```
+
 ## Indexes and Performance
 
 ### Primary Indexes
@@ -257,13 +438,25 @@ enum IncomeFrequency {
 @@index([userId, date])    // User transaction queries by date
 @@index([categoryId])      // Category-based filtering
 @@index([subcategoryId])   // Subcategory-based filtering
+
+// Goal performance indexes
+@@index([userId, category])   // User goal queries by category
+@@index([userId, isCompleted]) // User goal filtering by completion status
+
+// Goal contribution performance indexes
+@@index([goalId, date])    // Goal contribution queries by date
+
+// Goal reminder performance indexes
+@@index([goalId, isActive]) // Active reminder queries
 ```
 
 ### Query Optimization Patterns
 - **User Isolation**: All queries filtered by userId for security
-- **Date Range Queries**: Optimized for transaction date filtering
+- **Date Range Queries**: Optimized for transaction and contribution date filtering
 - **Category Analytics**: Fast category and subcategory aggregations
 - **Budget Tracking**: Efficient budget-transaction associations
+- **Goal Analytics**: Optimized goal progress calculations and contribution tracking
+- **Reminder Management**: Efficient active reminder queries and scheduling
 
 ## Data Types and Constraints
 
