@@ -32,6 +32,18 @@ import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
 
+  // Helper method to extract userId from request
+  private extractUserId(req: any): string {
+    // Your JWT strategy uses 'id' instead of 'sub'
+    const userId = req.user?.id || req.user?.userId || req.user?.sub;
+
+    if (!userId) {
+      throw new Error("User ID not found in request");
+    }
+
+    return userId;
+  }
+
   // Goal CRUD Operations
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -39,7 +51,8 @@ export class GoalsController {
     @Request() req: any,
     @Body(ValidationPipe) createGoalDto: CreateGoalDto
   ): Promise<GoalResponseDto> {
-    return this.goalsService.createGoal(req.user.sub, createGoalDto);
+    const userId = this.extractUserId(req);
+    return this.goalsService.createGoal(userId, createGoalDto);
   }
 
   @Get()
@@ -47,14 +60,16 @@ export class GoalsController {
     @Request() req: any,
     @Query(ValidationPipe) filters: GoalFiltersDto
   ): Promise<GoalsListResponseDto> {
-    return this.goalsService.getGoals(req.user.sub, filters);
+    const userId = this.extractUserId(req);
+    return this.goalsService.getGoals(userId, filters);
   }
 
   @Get("suggestions")
   async getGoalSuggestions(
     @Request() req: any
   ): Promise<GoalSuggestionsResponseDto> {
-    return this.goalsService.generateSmartSuggestions(req.user.sub);
+    const userId = this.extractUserId(req);
+    return this.goalsService.generateSmartSuggestions(userId);
   }
 
   @Get(":id")
@@ -62,7 +77,8 @@ export class GoalsController {
     @Request() req: any,
     @Param("id") goalId: string
   ): Promise<GoalResponseDto> {
-    return this.goalsService.getGoalById(req.user.sub, goalId);
+    const userId = this.extractUserId(req);
+    return this.goalsService.getGoalById(userId, goalId);
   }
 
   @Put(":id")
@@ -71,7 +87,8 @@ export class GoalsController {
     @Param("id") goalId: string,
     @Body(ValidationPipe) updateGoalDto: UpdateGoalDto
   ): Promise<GoalResponseDto> {
-    return this.goalsService.updateGoal(req.user.sub, goalId, updateGoalDto);
+    const userId = this.extractUserId(req);
+    return this.goalsService.updateGoal(userId, goalId, updateGoalDto);
   }
 
   @Delete(":id")
@@ -80,7 +97,8 @@ export class GoalsController {
     @Request() req: any,
     @Param("id") goalId: string
   ): Promise<void> {
-    return this.goalsService.deleteGoal(req.user.sub, goalId);
+    const userId = this.extractUserId(req);
+    return this.goalsService.deleteGoal(userId, goalId);
   }
 
   @Get(":id/analytics")
@@ -88,7 +106,8 @@ export class GoalsController {
     @Request() req: any,
     @Param("id") goalId: string
   ): Promise<GoalAnalyticsDto> {
-    return this.goalsService.getGoalAnalytics(req.user.sub, goalId);
+    const userId = this.extractUserId(req);
+    return this.goalsService.getGoalAnalytics(userId, goalId);
   }
 
   // Goal Contributions
@@ -99,8 +118,9 @@ export class GoalsController {
     @Param("id") goalId: string,
     @Body(ValidationPipe) createContributionDto: CreateGoalContributionDto
   ): Promise<GoalContributionResponseDto> {
+    const userId = this.extractUserId(req);
     return this.goalsService.addContribution(
-      req.user.sub,
+      userId,
       goalId,
       createContributionDto
     );
@@ -113,8 +133,9 @@ export class GoalsController {
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string
   ): Promise<GoalContributionResponseDto[]> {
+    const userId = this.extractUserId(req);
     return this.goalsService.getGoalContributions(
-      req.user.sub,
+      userId,
       goalId,
       startDate,
       endDate

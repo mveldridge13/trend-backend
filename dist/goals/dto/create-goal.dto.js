@@ -36,7 +36,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateGoalDto.prototype, "description", void 0);
 __decorate([
-    (0, class_validator_1.IsDecimal)({ decimal_digits: "0,2" }),
+    (0, class_validator_1.IsNumber)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)
@@ -74,7 +74,7 @@ __decorate([
 ], CreateGoalDto.prototype, "autoContribute", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDecimal)({ decimal_digits: "0,2" }),
+    (0, class_validator_1.IsNumber)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)

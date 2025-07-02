@@ -69,11 +69,18 @@ let GoalsRepository = class GoalsRepository {
         });
     }
     async findByUserId(userId) {
+        if (!userId) {
+            throw new Error("User ID is required for findByUserId");
+        }
         return this.prisma.goal.findMany({
             where: { userId },
         });
     }
     async findActiveByUserId(userId) {
+        if (!userId) {
+            throw new Error("User ID is required for findActiveByUserId");
+        }
+        console.log("🔍 Debug: findActiveByUserId called with userId:", userId);
         return this.prisma.goal.findMany({
             where: {
                 userId,
@@ -140,6 +147,9 @@ let GoalsRepository = class GoalsRepository {
         });
     }
     async getGoalsSummaryByUserId(userId) {
+        if (!userId) {
+            throw new Error("User ID is required for getGoalsSummaryByUserId");
+        }
         const goals = await this.prisma.goal.findMany({
             where: { userId, isActive: true },
             select: {
@@ -162,32 +172,72 @@ let GoalsRepository = class GoalsRepository {
         };
     }
     async getRecentTransactionsByUserId(userId, daysBack = 90) {
+        if (!userId) {
+            throw new Error("User ID is required for getRecentTransactionsByUserId");
+        }
+        console.log("🔍 Debug: getRecentTransactionsByUserId called with userId:", userId, "daysBack:", daysBack);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - daysBack);
-        return this.prisma.transaction.findMany({
-            where: {
-                userId,
-                date: {
-                    gte: startDate,
+        try {
+            const transactions = await this.prisma.transaction.findMany({
+                where: {
+                    userId,
+                    date: {
+                        gte: startDate,
+                    },
                 },
-            },
-            include: {
-                category: true,
-                subcategory: true,
-            },
-            orderBy: { date: "desc" },
-        });
+                include: {
+                    category: true,
+                    subcategory: true,
+                },
+                orderBy: { date: "desc" },
+            });
+            console.log("🔍 Debug: Found transactions:", transactions.length);
+            return transactions;
+        }
+        catch (error) {
+            console.error("❌ Error in getRecentTransactionsByUserId:", error);
+            throw error;
+        }
     }
     async getUserWithIncome(userId) {
-        return this.prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                income: true,
-                incomeFrequency: true,
-                currency: true,
-            },
-        });
+        console.log("🔍 Debug: getUserWithIncome called with userId:", userId);
+        console.log("🔍 Debug: userId type:", typeof userId);
+        console.log("🔍 Debug: userId length:", userId?.length);
+        if (!userId) {
+            throw new Error("User ID is required for getUserWithIncome");
+        }
+        if (typeof userId !== "string") {
+            throw new Error(`User ID must be a string, received: ${typeof userId}`);
+        }
+        if (userId.trim() === "") {
+            throw new Error("User ID cannot be empty");
+        }
+        try {
+            console.log("🔍 Debug: Executing Prisma query for user:", userId);
+            const user = await this.prisma.user.findUnique({
+                where: {
+                    id: userId.trim(),
+                },
+                select: {
+                    id: true,
+                    income: true,
+                    incomeFrequency: true,
+                    currency: true,
+                },
+            });
+            console.log("🔍 Debug: User query result:", user ? "Found user" : "User not found");
+            return user;
+        }
+        catch (error) {
+            console.error("❌ Error in getUserWithIncome:", error);
+            console.error("❌ Error details:", {
+                message: error.message,
+                code: error.code,
+                userId: userId,
+            });
+            throw error;
+        }
     }
     async getGoalWithContributions(goalId) {
         return this.prisma.goal.findUnique({
@@ -205,6 +255,9 @@ let GoalsRepository = class GoalsRepository {
         });
     }
     async getGoalsWithLatestContribution(userId) {
+        if (!userId) {
+            throw new Error("User ID is required for getGoalsWithLatestContribution");
+        }
         return this.prisma.goal.findMany({
             where: { userId },
             include: {

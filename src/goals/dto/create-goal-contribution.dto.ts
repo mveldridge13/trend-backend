@@ -7,12 +7,13 @@ import {
   IsDateString,
   MaxLength,
   Min,
+  IsNumber,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ContributionType } from "@prisma/client";
 
 export class CreateGoalContributionDto {
-  @IsDecimal({ decimal_digits: "0,2" })
+  @IsNumber()
   @Type(() => Number)
   @Min(0.01)
   amount: number;
