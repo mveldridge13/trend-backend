@@ -21,7 +21,7 @@ class CreateGoalContributionDto {
 }
 exports.CreateGoalContributionDto = CreateGoalContributionDto;
 __decorate([
-    (0, class_validator_1.IsDecimal)({ decimal_digits: "0,2" }),
+    (0, class_validator_1.IsNumber)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)

@@ -9,6 +9,7 @@ import {
   MinLength,
   MaxLength,
   Min,
+  IsNumber,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
 import { GoalCategory, GoalType, GoalPriority } from "@prisma/client";
@@ -25,7 +26,7 @@ export class CreateGoalDto {
   @MaxLength(500)
   description?: string;
 
-  @IsDecimal({ decimal_digits: "0,2" })
+  @IsNumber()
   @Type(() => Number)
   @Min(0.01)
   targetAmount: number;
@@ -56,7 +57,7 @@ export class CreateGoalDto {
   autoContribute?: boolean = false;
 
   @IsOptional()
-  @IsDecimal({ decimal_digits: "0,2" })
+  @IsNumber()
   @Type(() => Number)
   @Min(0.01)
   monthlyTarget?: number;

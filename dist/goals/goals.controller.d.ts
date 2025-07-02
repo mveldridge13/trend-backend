@@ -8,6 +8,7 @@ import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
 export declare class GoalsController {
     private readonly goalsService;
     constructor(goalsService: GoalsService);
+    private extractUserId;
     createGoal(req: any, createGoalDto: CreateGoalDto): Promise<GoalResponseDto>;
     getGoals(req: any, filters: GoalFiltersDto): Promise<GoalsListResponseDto>;
     getGoalSuggestions(req: any): Promise<GoalSuggestionsResponseDto>;
