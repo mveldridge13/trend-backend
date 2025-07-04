@@ -6,6 +6,7 @@ export declare class CreateGoalDto {
     currency?: string;
     targetDate?: string;
     category: GoalCategory;
+    originalCategory?: string;
     type?: GoalType;
     priority?: GoalPriority;
     autoContribute?: boolean;

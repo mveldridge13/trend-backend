@@ -8,6 +8,7 @@ export declare class GoalResponseDto {
     currency: string;
     targetDate?: Date;
     category: GoalCategory;
+    originalCategory?: string;
     type: GoalType;
     priority: GoalPriority;
     isActive: boolean;

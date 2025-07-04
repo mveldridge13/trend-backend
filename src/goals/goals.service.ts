@@ -479,6 +479,7 @@ export class GoalsService {
       currency: goal.currency,
       targetDate: goal.targetDate,
       category: goal.category,
+      originalCategory: goal.originalCategory,
       type: goal.type,
       priority: goal.priority,
       isActive: goal.isActive,

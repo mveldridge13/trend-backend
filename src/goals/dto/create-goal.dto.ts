@@ -44,6 +44,10 @@ export class CreateGoalDto {
   category: GoalCategory;
 
   @IsOptional()
+  @IsString()
+  originalCategory?: string;
+
+  @IsOptional()
   @IsEnum(GoalType)
   type?: GoalType = GoalType.SAVINGS;
 

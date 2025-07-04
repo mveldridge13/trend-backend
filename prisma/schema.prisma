@@ -126,6 +126,7 @@ model Goal {
   currency        String      @default("USD")
   targetDate      DateTime?
   category        GoalCategory
+  originalCategory String?  
   type            GoalType    @default(SAVINGS)
   isActive        Boolean     @default(true)
   isCompleted     Boolean     @default(false)
