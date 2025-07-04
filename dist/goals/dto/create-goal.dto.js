@@ -58,6 +58,11 @@ __decorate([
 ], CreateGoalDto.prototype, "category", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateGoalDto.prototype, "originalCategory", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(client_1.GoalType),
     __metadata("design:type", String)
 ], CreateGoalDto.prototype, "type", void 0);

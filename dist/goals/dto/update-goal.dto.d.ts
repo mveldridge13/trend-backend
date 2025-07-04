@@ -1,8 +1,17 @@
-import { CreateGoalDto } from "./create-goal.dto";
-declare const UpdateGoalDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateGoalDto>>;
-export declare class UpdateGoalDto extends UpdateGoalDto_base {
+import { GoalCategory, GoalPriority } from "@prisma/client";
+export declare class UpdateGoalDto {
+    name?: string;
+    description?: string;
+    targetAmount?: number;
+    currentAmount?: number;
+    currency?: string;
+    targetDate?: string;
+    category?: GoalCategory;
+    originalCategory?: string;
+    priority?: GoalPriority;
+    autoContribute?: boolean;
+    monthlyTarget?: number;
     isActive?: boolean;
     isCompleted?: boolean;
     completedAt?: string;
 }
-export {};
