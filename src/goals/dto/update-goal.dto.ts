@@ -1,4 +1,14 @@
-import { IsOptional, IsBoolean, IsDateString, IsString, IsNumber, IsEnum, MaxLength, MinLength, Min } from "class-validator";
+import {
+  IsOptional,
+  IsBoolean,
+  IsDateString,
+  IsString,
+  IsNumber,
+  IsEnum,
+  MaxLength,
+  MinLength,
+  Min,
+} from "class-validator";
 import { Transform, Type } from "class-transformer";
 import { GoalCategory, GoalPriority } from "@prisma/client";
 
