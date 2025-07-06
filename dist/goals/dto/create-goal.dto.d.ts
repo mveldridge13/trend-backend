@@ -11,4 +11,5 @@ export declare class CreateGoalDto {
     priority?: GoalPriority;
     autoContribute?: boolean;
     monthlyTarget?: number;
+    currentAmount?: number;
 }

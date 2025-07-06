@@ -39,8 +39,18 @@ export class GoalsService {
     userId: string,
     createGoalDto: CreateGoalDto
   ): Promise<GoalResponseDto> {
+    // For debt goals, initialize currentAmount to targetAmount (debt owed)
+    // For savings goals, initialize currentAmount to provided value or 0
+    let initialCurrentAmount = createGoalDto.currentAmount || 0;
+    
+    if (createGoalDto.type === 'DEBT_PAYOFF' && createGoalDto.currentAmount === undefined) {
+      // If no currentAmount specified for debt goal, use targetAmount (total debt)
+      initialCurrentAmount = createGoalDto.targetAmount;
+    }
+
     const goalData = {
       ...createGoalDto,
+      currentAmount: initialCurrentAmount,
       targetDate: createGoalDto.targetDate
         ? new Date(createGoalDto.targetDate)
         : null,
@@ -130,9 +140,41 @@ export class GoalsService {
         : undefined,
     };
 
+    // Handle completion logic based on goal type
     if (updateGoalDto.isCompleted && !existingGoal.isCompleted) {
       updateData.completedAt = new Date();
-      updateData.currentAmount = existingGoal.targetAmount; // Auto-complete the goal
+
+      // For debt goals, completion means currentAmount = 0
+      if (existingGoal.type === "DEBT_PAYOFF") {
+        updateData.currentAmount = 0;
+      } else {
+        // For savings/other goals, completion means currentAmount = targetAmount
+        updateData.currentAmount = existingGoal.targetAmount;
+      }
+    } else if (
+      existingGoal.type === "DEBT_PAYOFF" &&
+      updateGoalDto.currentAmount !== undefined
+    ) {
+      // For debt goals, check if automatically completed when currentAmount reaches 0
+      const newCurrentAmount = updateGoalDto.currentAmount;
+      if (newCurrentAmount <= 0 && !existingGoal.isCompleted) {
+        updateData.isCompleted = true;
+        updateData.completedAt = new Date();
+        updateData.currentAmount = 0; // Ensure it's exactly 0
+      }
+    } else if (
+      existingGoal.type !== "DEBT_PAYOFF" &&
+      updateGoalDto.currentAmount !== undefined
+    ) {
+      // For savings goals, check if automatically completed when currentAmount reaches targetAmount
+      const newCurrentAmount = updateGoalDto.currentAmount;
+      if (
+        newCurrentAmount >= existingGoal.targetAmount.toNumber() &&
+        !existingGoal.isCompleted
+      ) {
+        updateData.isCompleted = true;
+        updateData.completedAt = new Date();
+      }
     }
 
     const goal = await this.goalsRepository.updateWithIncludes(
@@ -194,10 +236,23 @@ export class GoalsService {
     const contribution =
       await this.goalsRepository.createContribution(contributionData);
 
-    // Update goal current amount
-    const newCurrentAmount =
-      goal.currentAmount.toNumber() + createContributionDto.amount;
-    const isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+    // Update goal current amount based on goal type
+    let newCurrentAmount: number;
+    let isNowCompleted: boolean;
+    
+    if (goal.type === 'DEBT_PAYOFF') {
+      // For debt goals, subtract the payment from current debt
+      newCurrentAmount = goal.currentAmount.toNumber() - createContributionDto.amount;
+      isNowCompleted = newCurrentAmount <= 0;
+      // Ensure debt doesn't go negative
+      if (newCurrentAmount < 0) {
+        newCurrentAmount = 0;
+      }
+    } else {
+      // For savings goals, add the contribution to current amount
+      newCurrentAmount = goal.currentAmount.toNumber() + createContributionDto.amount;
+      isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+    }
 
     await this.goalsRepository.update(goalId, {
       currentAmount: newCurrentAmount,
