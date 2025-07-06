@@ -65,4 +65,10 @@ export class CreateGoalDto {
   @Type(() => Number)
   @Min(0.01)
   monthlyTarget?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  currentAmount?: number;
 }

@@ -19,8 +19,13 @@ let GoalsService = class GoalsService {
         this.goalsRepository = goalsRepository;
     }
     async createGoal(userId, createGoalDto) {
+        let initialCurrentAmount = createGoalDto.currentAmount || 0;
+        if (createGoalDto.type === 'DEBT_PAYOFF' && createGoalDto.currentAmount === undefined) {
+            initialCurrentAmount = createGoalDto.targetAmount;
+        }
         const goalData = {
             ...createGoalDto,
+            currentAmount: initialCurrentAmount,
             targetDate: createGoalDto.targetDate
                 ? new Date(createGoalDto.targetDate)
                 : null,
@@ -73,7 +78,30 @@ let GoalsService = class GoalsService {
         };
         if (updateGoalDto.isCompleted && !existingGoal.isCompleted) {
             updateData.completedAt = new Date();
-            updateData.currentAmount = existingGoal.targetAmount;
+            if (existingGoal.type === "DEBT_PAYOFF") {
+                updateData.currentAmount = 0;
+            }
+            else {
+                updateData.currentAmount = existingGoal.targetAmount;
+            }
+        }
+        else if (existingGoal.type === "DEBT_PAYOFF" &&
+            updateGoalDto.currentAmount !== undefined) {
+            const newCurrentAmount = updateGoalDto.currentAmount;
+            if (newCurrentAmount <= 0 && !existingGoal.isCompleted) {
+                updateData.isCompleted = true;
+                updateData.completedAt = new Date();
+                updateData.currentAmount = 0;
+            }
+        }
+        else if (existingGoal.type !== "DEBT_PAYOFF" &&
+            updateGoalDto.currentAmount !== undefined) {
+            const newCurrentAmount = updateGoalDto.currentAmount;
+            if (newCurrentAmount >= existingGoal.targetAmount.toNumber() &&
+                !existingGoal.isCompleted) {
+                updateData.isCompleted = true;
+                updateData.completedAt = new Date();
+            }
         }
         const goal = await this.goalsRepository.updateWithIncludes(goalId, updateData, this.getGoalIncludes());
         return this.transformGoalToResponse(goal);
@@ -111,8 +139,19 @@ let GoalsService = class GoalsService {
                 : undefined,
         };
         const contribution = await this.goalsRepository.createContribution(contributionData);
-        const newCurrentAmount = goal.currentAmount.toNumber() + createContributionDto.amount;
-        const isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+        let newCurrentAmount;
+        let isNowCompleted;
+        if (goal.type === 'DEBT_PAYOFF') {
+            newCurrentAmount = goal.currentAmount.toNumber() - createContributionDto.amount;
+            isNowCompleted = newCurrentAmount <= 0;
+            if (newCurrentAmount < 0) {
+                newCurrentAmount = 0;
+            }
+        }
+        else {
+            newCurrentAmount = goal.currentAmount.toNumber() + createContributionDto.amount;
+            isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+        }
         await this.goalsRepository.update(goalId, {
             currentAmount: newCurrentAmount,
             isCompleted: isNowCompleted,
