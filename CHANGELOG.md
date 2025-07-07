@@ -5,6 +5,81 @@ All notable changes to the Trend Backend API will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-07
+
+### Added
+
+#### 🎯 Goals System & Debt Payment Integration ⭐ NEW
+- **Complete Goals Management System**
+  - Financial goal creation with multiple categories (Emergency Fund, Savings, Debt Payoff, Investment, etc.)
+  - Goal progress tracking with real-time analytics
+  - Automated goal completion detection
+  - Goal priority management (High, Medium, Low)
+  - Target date tracking and progress projections
+  - Multi-currency goal support
+  
+- **Debt Payment Functionality**
+  - Specialized debt payoff goal type with reverse progress tracking
+  - Debt reduction analytics and payment history
+  - Monthly payment tracking and analysis
+  - Debt payoff projections and timelines
+  - Integration with transaction categorization
+  
+- **Goal Contributions System**
+  - Multiple contribution types (Manual, Automatic, Bonus, Interest)
+  - Contribution history tracking and analytics
+  - Transaction linking for automatic categorization
+  - Batch contribution support
+  
+- **AI-Powered Goal Suggestions**
+  - Smart goal recommendations based on spending patterns
+  - Personalized savings targets based on income analysis
+  - Debt payoff strategy suggestions
+  - Emergency fund recommendations
+  
+- **Goal Analytics & Insights**
+  - Progress analytics with completion predictions
+  - Monthly contribution analysis
+  - Goal performance metrics
+  - Comparative goal analysis
+  
+- **Goal Reminders System**
+  - Automated reminder notifications
+  - Customizable reminder frequencies
+  - Goal milestone notifications
+  - Payment due date reminders
+
+#### 📚 Documentation Enhancements
+- **Goals System Documentation**: Complete guide to financial goals and debt payoff tracking
+- **API Documentation**: Comprehensive goals endpoints with debt payment support
+- **Database Documentation**: Goals-related models and relationships
+- **README Updates**: Goals system integration and feature overview
+
+### Changed
+
+#### 🔧 API Improvements
+- **New Goals Endpoints**: Complete CRUD operations for goals management
+  - `GET /goals` - List goals with filtering and pagination
+  - `POST /goals` - Create new financial goals
+  - `GET /goals/:id` - Get specific goal details
+  - `PUT /goals/:id` - Update goal information
+  - `DELETE /goals/:id` - Delete goals
+  - `POST /goals/:id/contribute` - Add contributions to goals
+  - `GET /goals/:id/contributions` - List goal contributions
+  - `GET /goals/:id/analytics` - Goal-specific analytics
+  - `GET /goals/suggestions` - AI-powered goal suggestions
+  - `GET /goals/analytics` - Overall goals analytics
+
+#### 🗃️ Database Enhancements
+- **Goals System Models**: Complete database schema for goals functionality
+  - `Goal` model with comprehensive fields for all goal types
+  - `GoalContribution` model for tracking payments and contributions
+  - `GoalReminder` model for automated notifications
+  - Goal-related enums (GoalType, GoalCategory, ContributionType, etc.)
+  - Optimized indexes for goal queries and analytics
+
+---
+
 ## [1.1.0] - 2025-06-26
 
 ### Added
