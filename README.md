@@ -86,6 +86,7 @@ The API will be available at `http://localhost:3001`
 | **[Authentication Guide](./AUTHENTICATION_DOCUMENTATION.md)** | Security implementation, JWT flow, and auth endpoints |
 | **[Deployment Guide](./DEPLOYMENT_DOCUMENTATION.md)** | Environment setup, deployment strategies, and configuration |
 | **[Day-Time Patterns Guide](./DAY_TIME_PATTERNS_DOCUMENTATION.md)** | Comprehensive guide to spending pattern analysis and behavioral insights |
+| **[Goals System Guide](./GOALS_SYSTEM_DOCUMENTATION.md)** | Complete guide to financial goals, debt payoff tracking, and AI-powered suggestions |
 
 ---
 
