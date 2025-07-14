@@ -97,6 +97,7 @@ model Transaction {
   date            DateTime
   dueDate         DateTime?
   type            TransactionType
+  status          PaymentStatus?
   recurrence      String?
   isAICategorized Boolean         @default(false)
   aiConfidence    Float?
@@ -266,4 +267,10 @@ enum ReminderFrequency {
   WEEKLY
   MONTHLY
   QUARTERLY
+}
+
+enum PaymentStatus {
+  UPCOMING
+  PAID
+  OVERDUE
 }

@@ -1,4 +1,4 @@
-import { TransactionType } from "@prisma/client";
+import { TransactionType, PaymentStatus } from "@prisma/client";
 export declare class CreateTransactionDto {
     description: string;
     amount: number;
@@ -6,6 +6,7 @@ export declare class CreateTransactionDto {
     date: string;
     dueDate?: string;
     type: TransactionType;
+    status?: PaymentStatus;
     budgetId?: string;
     categoryId?: string;
     subcategoryId?: string;

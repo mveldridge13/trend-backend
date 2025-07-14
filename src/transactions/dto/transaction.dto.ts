@@ -1,4 +1,4 @@
-import { TransactionType } from "@prisma/client";
+import { TransactionType, PaymentStatus } from "@prisma/client";
 
 export class TransactionDto {
   id: string;
@@ -12,6 +12,7 @@ export class TransactionDto {
   date: Date;
   dueDate?: Date;
   type: TransactionType;
+  status?: PaymentStatus;
   recurrence: string;
   isAICategorized: boolean;
   aiConfidence?: number;

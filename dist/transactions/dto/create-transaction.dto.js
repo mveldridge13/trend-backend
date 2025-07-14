@@ -50,6 +50,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "type", void 0);
 __decorate([
+    (0, class_validator_1.IsEnum)(client_1.PaymentStatus),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTransactionDto.prototype, "status", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

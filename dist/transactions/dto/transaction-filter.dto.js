@@ -54,6 +54,11 @@ __decorate([
 ], TransactionFilterDto.prototype, "type", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.PaymentStatus),
+    __metadata("design:type", String)
+], TransactionFilterDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TransactionFilterDto.prototype, "recurrence", void 0);
