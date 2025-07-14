@@ -22,6 +22,7 @@ export class TransactionsRepository {
         date: new Date(data.date),
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         type: data.type,
+        status: data.status,
         budgetId: data.budgetId,
         categoryId: data.categoryId,
         subcategoryId: data.subcategoryId, // ✅ Include subcategoryId

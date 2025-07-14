@@ -1330,6 +1330,7 @@ export class TransactionsService {
       date: transaction.date,
       dueDate: transaction.dueDate,
       type: transaction.type,
+      status: transaction.status,
       recurrence: transaction.recurrence || "none",
       isAICategorized: transaction.isAICategorized,
       aiConfidence: transaction.aiConfidence,

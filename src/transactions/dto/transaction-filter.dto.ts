@@ -8,7 +8,7 @@ import {
   Max,
 } from "class-validator";
 import { Transform } from "class-transformer";
-import { TransactionType } from "@prisma/client";
+import { TransactionType, PaymentStatus } from "@prisma/client";
 
 export class TransactionFilterDto {
   @IsOptional()
@@ -34,6 +34,10 @@ export class TransactionFilterDto {
   @IsOptional()
   @IsEnum(TransactionType)
   type?: TransactionType;
+
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  status?: PaymentStatus;
 
   @IsOptional()
   @IsString()

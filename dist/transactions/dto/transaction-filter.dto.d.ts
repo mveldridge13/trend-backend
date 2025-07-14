@@ -1,4 +1,4 @@
-import { TransactionType } from "@prisma/client";
+import { TransactionType, PaymentStatus } from "@prisma/client";
 export declare class TransactionFilterDto {
     startDate?: string;
     endDate?: string;
@@ -6,6 +6,7 @@ export declare class TransactionFilterDto {
     subcategoryId?: string;
     budgetId?: string;
     type?: TransactionType;
+    status?: PaymentStatus;
     recurrence?: string;
     search?: string;
     limit?: number;

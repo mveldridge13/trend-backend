@@ -9,7 +9,7 @@ import {
   Max,
 } from "class-validator";
 import { Transform } from "class-transformer";
-import { TransactionType } from "@prisma/client";
+import { TransactionType, PaymentStatus } from "@prisma/client";
 
 export class CreateTransactionDto {
   @IsString()
@@ -35,6 +35,10 @@ export class CreateTransactionDto {
 
   @IsEnum(TransactionType)
   type: TransactionType;
+
+  @IsEnum(PaymentStatus)
+  @IsOptional()
+  status?: PaymentStatus;
 
   @IsString()
   @IsOptional()
