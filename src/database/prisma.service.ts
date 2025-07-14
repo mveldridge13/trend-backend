@@ -58,10 +58,9 @@ export class PrismaService
       if (tablename !== "_prisma_migrations") {
         try {
           await this.$executeRawUnsafe(
-            `TRUNCATE TABLE "public"."${tablename}" CASCADE;`
+            `TRUNCATE TABLE "public"."${tablename}" CASCADE;`,
           );
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     }
   }

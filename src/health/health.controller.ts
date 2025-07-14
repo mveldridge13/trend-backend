@@ -1,7 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
-import { HealthService } from './health.service';
+import { Controller, Get } from "@nestjs/common";
+import { HealthService } from "./health.service";
 
-@Controller('health')
+@Controller("health")
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
@@ -10,10 +10,10 @@ export class HealthController {
     return this.healthService.getHealthStatus();
   }
 
-  @Get('ping')
+  @Get("ping")
   ping() {
     return {
-      message: 'pong',
+      message: "pong",
       timestamp: new Date().toISOString(),
     };
   }

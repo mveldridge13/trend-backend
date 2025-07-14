@@ -25,6 +25,7 @@ let TransactionsRepository = class TransactionsRepository {
                 amount: new client_1.Prisma.Decimal(data.amount),
                 currency: data.currency || "USD",
                 date: new Date(data.date),
+                dueDate: data.dueDate ? new Date(data.dueDate) : null,
                 type: data.type,
                 budgetId: data.budgetId,
                 categoryId: data.categoryId,
@@ -116,6 +117,9 @@ let TransactionsRepository = class TransactionsRepository {
         }
         if (data.date !== undefined) {
             updateData.date = new Date(data.date);
+        }
+        if (data.dueDate !== undefined) {
+            updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
         }
         const result = await this.prisma.transaction.update({
             where: {

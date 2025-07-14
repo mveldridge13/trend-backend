@@ -9,7 +9,7 @@ import { AuthResponseDto } from "./auth/dto/auth-response.dto";
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
   ) {}
 
   @Get()

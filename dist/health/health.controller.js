@@ -21,7 +21,7 @@ let HealthController = class HealthController {
     }
     ping() {
         return {
-            message: 'pong',
+            message: "pong",
             timestamp: new Date().toISOString(),
         };
     }
@@ -34,13 +34,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], HealthController.prototype, "getHealth", null);
 __decorate([
-    (0, common_1.Get)('ping'),
+    (0, common_1.Get)("ping"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], HealthController.prototype, "ping", null);
 exports.HealthController = HealthController = __decorate([
-    (0, common_1.Controller)('health'),
+    (0, common_1.Controller)("health"),
     __metadata("design:paramtypes", [health_service_1.HealthService])
 ], HealthController);
 //# sourceMappingURL=health.controller.js.map

@@ -43,16 +43,16 @@ export class CategoriesService {
 
   async create(
     userId: string,
-    createCategoryDto: CreateCategoryDto
+    createCategoryDto: CreateCategoryDto,
   ): Promise<CategoryDto> {
     // Check if category name already exists for this user
     const existingCategories = await this.categoriesRepository.findManyByUser(
       userId,
-      { search: createCategoryDto.name }
+      { search: createCategoryDto.name },
     );
 
     const nameExists = existingCategories.categories.some(
-      (cat) => cat.name.toLowerCase() === createCategoryDto.name.toLowerCase()
+      (cat) => cat.name.toLowerCase() === createCategoryDto.name.toLowerCase(),
     );
 
     if (nameExists) {
@@ -63,7 +63,7 @@ export class CategoriesService {
     if (createCategoryDto.parentId) {
       const parentCategory = await this.categoriesRepository.findById(
         createCategoryDto.parentId,
-        userId
+        userId,
       );
       if (!parentCategory) {
         throw new NotFoundException("Parent category not found");
@@ -96,7 +96,7 @@ export class CategoriesService {
       includeArchived?: boolean;
     } = {},
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<{
     categories: CategoryDto[];
     total: number;
@@ -129,11 +129,11 @@ export class CategoriesService {
   async update(
     userId: string,
     id: string,
-    updateCategoryDto: UpdateCategoryDto
+    updateCategoryDto: UpdateCategoryDto,
   ): Promise<CategoryDto> {
     const existingCategory = await this.categoriesRepository.findById(
       id,
-      userId
+      userId,
     );
     if (!existingCategory) {
       throw new NotFoundException("Category not found");
@@ -149,13 +149,13 @@ export class CategoriesService {
     ) {
       const existingCategories = await this.categoriesRepository.findManyByUser(
         userId,
-        { search: updateCategoryDto.name }
+        { search: updateCategoryDto.name },
       );
 
       const nameExists = existingCategories.categories.some(
         (cat) =>
           cat.name.toLowerCase() === updateCategoryDto.name.toLowerCase() &&
-          cat.id !== id
+          cat.id !== id,
       );
 
       if (nameExists) {
@@ -166,7 +166,7 @@ export class CategoriesService {
     if (updateCategoryDto.parentId) {
       const parentCategory = await this.categoriesRepository.findById(
         updateCategoryDto.parentId,
-        userId
+        userId,
       );
       if (!parentCategory) {
         throw new NotFoundException("Parent category not found");
@@ -180,7 +180,7 @@ export class CategoriesService {
     const updatedCategory = await this.categoriesRepository.update(
       id,
       userId,
-      updateCategoryDto
+      updateCategoryDto,
     );
     return this.mapToDto(updatedCategory);
   }
@@ -188,7 +188,7 @@ export class CategoriesService {
   async remove(
     userId: string,
     id: string,
-    options: DeleteOptions = {}
+    options: DeleteOptions = {},
   ): Promise<DeleteResult> {
     const category = await this.categoriesRepository.findById(id, userId);
     if (!category) {
@@ -251,7 +251,7 @@ export class CategoriesService {
   async restore(userId: string, id: string): Promise<RestoreResult> {
     const category = await this.categoriesRepository.findArchivedById(
       id,
-      userId
+      userId,
     );
     if (!category) {
       throw new NotFoundException("Archived category not found");
@@ -259,7 +259,7 @@ export class CategoriesService {
 
     const restoredCount = await this.categoriesRepository.restoreWithChildren(
       id,
-      userId
+      userId,
     );
 
     return {
@@ -283,7 +283,7 @@ export class CategoriesService {
     userId: string,
     categoryId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<CategoryAnalyticsDto> {
     const defaultEndDate = endDate || new Date();
     const defaultStartDate =
@@ -293,7 +293,7 @@ export class CategoriesService {
     const analytics = await this.categoriesRepository.getCategoryAnalytics(
       categoryId,
       userId,
-      { startDate: defaultStartDate, endDate: defaultEndDate }
+      { startDate: defaultStartDate, endDate: defaultEndDate },
     );
 
     if (!analytics) {
@@ -331,11 +331,11 @@ export class CategoriesService {
 
   async getMostUsedCategories(
     userId: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<CategoryDto[]> {
     const categories = await this.categoriesRepository.getMostUsedCategories(
       userId,
-      limit
+      limit,
     );
     return categories.map((cat) => this.mapToDto(cat));
   }
@@ -355,7 +355,7 @@ export class CategoriesService {
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
       subcategories: (category as any).subcategories?.map((sub: any) =>
-        this.mapToDto(sub)
+        this.mapToDto(sub),
       ),
       parent: category.parent ? this.mapToDto(category.parent) : undefined,
       transactionCount: category._count?.transactions || 0,

@@ -30,7 +30,7 @@ export class BudgetsController {
   @HttpCode(HttpStatus.CREATED)
   async createBudget(
     @Request() req,
-    @Body() createBudgetDto: CreateBudgetDto
+    @Body() createBudgetDto: CreateBudgetDto,
   ): Promise<BudgetDto> {
     return this.budgetsService.createBudget(req.user.id, createBudgetDto);
   }
@@ -39,7 +39,7 @@ export class BudgetsController {
   async getUserBudgets(
     @Request() req,
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number
+    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     // Validate pagination parameters
     const validPage = Math.max(1, page);
@@ -48,14 +48,14 @@ export class BudgetsController {
     return this.budgetsService.getUserBudgets(
       req.user.id,
       validPage,
-      validLimit
+      validLimit,
     );
   }
 
   @Get(":id")
   async getBudgetById(
     @Request() req,
-    @Param("id") id: string
+    @Param("id") id: string,
   ): Promise<BudgetDto> {
     return this.budgetsService.getBudgetById(id, req.user.id);
   }
@@ -64,7 +64,7 @@ export class BudgetsController {
   async updateBudget(
     @Request() req,
     @Param("id") id: string,
-    @Body() updateBudgetDto: UpdateBudgetDto
+    @Body() updateBudgetDto: UpdateBudgetDto,
   ): Promise<BudgetDto> {
     return this.budgetsService.updateBudget(id, req.user.id, updateBudgetDto);
   }
@@ -78,7 +78,7 @@ export class BudgetsController {
   @Get(":id/analytics")
   async getBudgetAnalytics(
     @Request() req,
-    @Param("id") id: string
+    @Param("id") id: string,
   ): Promise<BudgetAnalyticsDto> {
     return this.budgetsService.getBudgetAnalytics(id, req.user.id);
   }

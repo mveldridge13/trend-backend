@@ -4,6 +4,7 @@ export declare class CreateTransactionDto {
     amount: number;
     currency?: string;
     date: string;
+    dueDate?: string;
     type: TransactionType;
     budgetId?: string;
     categoryId?: string;
