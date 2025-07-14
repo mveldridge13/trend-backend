@@ -20,7 +20,7 @@ export class GoalsRepository {
 
   async findByIdWithIncludes(
     id: string,
-    include?: Prisma.GoalInclude
+    include?: Prisma.GoalInclude,
   ): Promise<any> {
     return this.prisma.goal.findUnique({
       where: { id },
@@ -30,7 +30,7 @@ export class GoalsRepository {
 
   async findByUserIdWithIncludes(
     userId: string,
-    include?: Prisma.GoalInclude
+    include?: Prisma.GoalInclude,
   ): Promise<any[]> {
     return this.prisma.goal.findMany({
       where: { userId },
@@ -45,7 +45,7 @@ export class GoalsRepository {
       | Prisma.GoalOrderByWithRelationInput
       | Prisma.GoalOrderByWithRelationInput[],
     skip?: number,
-    take?: number
+    take?: number,
   ): Promise<any[]> {
     return this.prisma.goal.findMany({
       where,
@@ -70,7 +70,7 @@ export class GoalsRepository {
   async updateWithIncludes(
     id: string,
     data: Prisma.GoalUpdateInput,
-    include?: Prisma.GoalInclude
+    include?: Prisma.GoalInclude,
   ): Promise<any> {
     return this.prisma.goal.update({
       where: { id },
@@ -114,7 +114,7 @@ export class GoalsRepository {
 
   async findByUserAndGoalId(
     userId: string,
-    goalId: string
+    goalId: string,
   ): Promise<Goal | null> {
     return this.prisma.goal.findFirst({
       where: {
@@ -126,7 +126,7 @@ export class GoalsRepository {
 
   // Goal Contribution operations
   async createContribution(
-    data: Prisma.GoalContributionCreateInput
+    data: Prisma.GoalContributionCreateInput,
   ): Promise<GoalContribution> {
     return this.prisma.goalContribution.create({
       data,
@@ -139,7 +139,7 @@ export class GoalsRepository {
     endDate?: Date,
     orderBy?:
       | Prisma.GoalContributionOrderByWithRelationInput
-      | Prisma.GoalContributionOrderByWithRelationInput[]
+      | Prisma.GoalContributionOrderByWithRelationInput[],
   ): Promise<GoalContribution[]> {
     const where: Prisma.GoalContributionWhereInput = { goalId };
 
@@ -158,7 +158,7 @@ export class GoalsRepository {
   async findContributionsByUserId(
     userId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<GoalContribution[]> {
     const where: Prisma.GoalContributionWhereInput = { userId };
 
@@ -178,7 +178,7 @@ export class GoalsRepository {
     userId: string,
     goalId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<GoalContribution[]> {
     const where: Prisma.GoalContributionWhereInput = {
       userId,
@@ -224,11 +224,11 @@ export class GoalsRepository {
     const completedGoals = goals.filter((g) => g.isCompleted).length;
     const totalTargetAmount = goals.reduce(
       (sum, g) => sum + g.targetAmount.toNumber(),
-      0
+      0,
     );
     const totalCurrentAmount = goals.reduce(
       (sum, g) => sum + g.currentAmount.toNumber(),
-      0
+      0,
     );
 
     return {
@@ -243,7 +243,7 @@ export class GoalsRepository {
   // Transaction-related queries (for suggestions)
   async getRecentTransactionsByUserId(
     userId: string,
-    daysBack: number = 90
+    daysBack: number = 90,
   ): Promise<any[]> {
     // ✅ ADDED: Validation and debugging
     if (!userId) {
@@ -254,7 +254,7 @@ export class GoalsRepository {
       "🔍 Debug: getRecentTransactionsByUserId called with userId:",
       userId,
       "daysBack:",
-      daysBack
+      daysBack,
     );
 
     const startDate = new Date();
@@ -319,7 +319,7 @@ export class GoalsRepository {
 
       console.log(
         "🔍 Debug: User query result:",
-        user ? "Found user" : "User not found"
+        user ? "Found user" : "User not found",
       );
 
       return user;

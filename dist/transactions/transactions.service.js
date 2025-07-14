@@ -844,6 +844,7 @@ let TransactionsService = class TransactionsService {
             amount: Number(transaction.amount),
             currency: transaction.currency,
             date: transaction.date,
+            dueDate: transaction.dueDate,
             type: transaction.type,
             recurrence: transaction.recurrence || "none",
             isAICategorized: transaction.isAICategorized,

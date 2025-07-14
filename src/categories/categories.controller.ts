@@ -37,7 +37,7 @@ export class CategoriesController {
     @Query("search") search?: string,
     @Query("includeArchived") includeArchived?: string,
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
-    @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number = 50
+    @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number = 50,
   ) {
     const filters = {
       ...(type && { type }),
@@ -53,7 +53,7 @@ export class CategoriesController {
       req.user.userId,
       filters,
       page,
-      limit
+      limit,
     );
   }
 
@@ -65,7 +65,7 @@ export class CategoriesController {
   @Get("popular")
   async getMostUsedCategories(
     @Request() req,
-    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number = 10
+    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
   ) {
     return this.categoriesService.getMostUsedCategories(req.user.userId, limit);
   }
@@ -85,7 +85,7 @@ export class CategoriesController {
     @Request() req,
     @Param("id") id: string,
     @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string
+    @Query("endDate") endDate?: string,
   ) {
     const start = startDate ? new Date(startDate) : undefined;
     const end = endDate ? new Date(endDate) : undefined;
@@ -94,7 +94,7 @@ export class CategoriesController {
       req.user.userId,
       id,
       start,
-      end
+      end,
     );
   }
 
@@ -102,12 +102,12 @@ export class CategoriesController {
   async update(
     @Request() req,
     @Param("id") id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto
+    @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoriesService.update(
       req.user.userId,
       id,
-      updateCategoryDto
+      updateCategoryDto,
     );
   }
 
@@ -116,7 +116,7 @@ export class CategoriesController {
     @Request() req,
     @Param("id") id: string,
     @Query("permanent") permanent?: string,
-    @Query("force") force?: string
+    @Query("force") force?: string,
   ) {
     const options = {
       permanent: permanent === "true",

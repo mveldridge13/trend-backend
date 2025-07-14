@@ -20,7 +20,8 @@ let GoalsService = class GoalsService {
     }
     async createGoal(userId, createGoalDto) {
         let initialCurrentAmount = createGoalDto.currentAmount || 0;
-        if (createGoalDto.type === 'DEBT_PAYOFF' && createGoalDto.currentAmount === undefined) {
+        if (createGoalDto.type === "DEBT_PAYOFF" &&
+            createGoalDto.currentAmount === undefined) {
             initialCurrentAmount = createGoalDto.targetAmount;
         }
         const goalData = {
@@ -141,15 +142,17 @@ let GoalsService = class GoalsService {
         const contribution = await this.goalsRepository.createContribution(contributionData);
         let newCurrentAmount;
         let isNowCompleted;
-        if (goal.type === 'DEBT_PAYOFF') {
-            newCurrentAmount = goal.currentAmount.toNumber() - createContributionDto.amount;
+        if (goal.type === "DEBT_PAYOFF") {
+            newCurrentAmount =
+                goal.currentAmount.toNumber() - createContributionDto.amount;
             isNowCompleted = newCurrentAmount <= 0;
             if (newCurrentAmount < 0) {
                 newCurrentAmount = 0;
             }
         }
         else {
-            newCurrentAmount = goal.currentAmount.toNumber() + createContributionDto.amount;
+            newCurrentAmount =
+                goal.currentAmount.toNumber() + createContributionDto.amount;
             isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
         }
         await this.goalsRepository.update(goalId, {

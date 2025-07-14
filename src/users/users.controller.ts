@@ -35,7 +35,7 @@ export class UsersController {
   @Put("profile")
   async updateProfile(
     @Request() req,
-    @Body() updateUserDto: UpdateUserDto
+    @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserDto> {
     const userId = req.user.id;
     return this.usersService.updateProfile(userId, updateUserDto);
@@ -44,7 +44,7 @@ export class UsersController {
   @Patch("onboarding")
   async updateOnboarding(
     @Request() req,
-    @Body() updateOnboardingDto: UpdateUserProfileDto
+    @Body() updateOnboardingDto: UpdateUserProfileDto,
   ): Promise<UserDto> {
     const userId = req.user.id;
     return this.usersService.updateProfile(userId, updateOnboardingDto);

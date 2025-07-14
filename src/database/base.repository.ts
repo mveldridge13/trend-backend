@@ -41,7 +41,7 @@ export abstract class BaseRepository<T> {
     data: T[],
     total: number,
     page: number,
-    limit: number
+    limit: number,
   ): PaginationResult<T> {
     const totalPages = Math.ceil(total / limit);
 
@@ -58,7 +58,6 @@ export abstract class BaseRepository<T> {
 
   // Common error handling
   protected handleDatabaseError(error: any): never {
-
     if (error.code === "P2002") {
       throw new Error("Unique constraint violation");
     }

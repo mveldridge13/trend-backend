@@ -41,6 +41,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "date", void 0);
 __decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTransactionDto.prototype, "dueDate", void 0);
+__decorate([
     (0, class_validator_1.IsEnum)(client_1.TransactionType),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "type", void 0);

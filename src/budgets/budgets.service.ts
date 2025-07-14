@@ -17,9 +17,8 @@ export class BudgetsService {
 
   async createBudget(
     userId: string,
-    createBudgetDto: CreateBudgetDto
+    createBudgetDto: CreateBudgetDto,
   ): Promise<BudgetDto> {
-
     // Validate date range
     const startDate = new Date(createBudgetDto.startDate);
     const endDate = createBudgetDto.endDate
@@ -38,11 +37,11 @@ export class BudgetsService {
     const result = await this.budgetsRepository.findByUserId(
       userId,
       page,
-      limit
+      limit,
     );
 
     const enrichedBudgets = await Promise.all(
-      result.data.map((budget) => this.enrichBudgetWithAnalytics(budget))
+      result.data.map((budget) => this.enrichBudgetWithAnalytics(budget)),
     );
 
     return {
@@ -64,12 +63,12 @@ export class BudgetsService {
   async updateBudget(
     id: string,
     userId: string,
-    updateBudgetDto: UpdateBudgetDto
+    updateBudgetDto: UpdateBudgetDto,
   ): Promise<BudgetDto> {
     // Check if budget exists and belongs to user
     const existingBudget = await this.budgetsRepository.findByIdAndUserId(
       id,
-      userId
+      userId,
     );
     if (!existingBudget) {
       throw new NotFoundException("Budget not found");
@@ -92,7 +91,7 @@ export class BudgetsService {
     const updatedBudget = await this.budgetsRepository.update(
       id,
       userId,
-      updateBudgetDto
+      updateBudgetDto,
     );
     return this.enrichBudgetWithAnalytics(updatedBudget);
   }
@@ -107,7 +106,7 @@ export class BudgetsService {
     // Check if budget has transactions
     if (budget._count.transactions > 0) {
       throw new BadRequestException(
-        "Cannot delete budget with existing transactions. Archive it instead."
+        "Cannot delete budget with existing transactions. Archive it instead.",
       );
     }
 
@@ -116,11 +115,11 @@ export class BudgetsService {
 
   async getBudgetAnalytics(
     id: string,
-    userId: string
+    userId: string,
   ): Promise<BudgetAnalyticsDto> {
     const analyticsData = await this.budgetsRepository.getBudgetAnalytics(
       id,
-      userId
+      userId,
     );
 
     if (!analyticsData) {
@@ -142,14 +141,14 @@ export class BudgetsService {
     const endDate = budget.endDate || now;
 
     const totalDays = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     const elapsedDays = Math.ceil(
-      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     const remainingDays = Math.max(
       0,
-      Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
     );
 
     const dailyBudget = totalDays > 0 ? totalAmount / totalDays : 0;
@@ -190,7 +189,7 @@ export class BudgetsService {
       budget.transactions?.filter((t) => t.type === "EXPENSE") || [];
     const spentAmount = expenseTransactions.reduce(
       (sum, t) => sum + parseFloat(t.amount.toString()),
-      0
+      0,
     );
 
     const totalAmount = parseFloat(budget.totalAmount.toString());
@@ -204,7 +203,9 @@ export class BudgetsService {
     const daysRemaining = endDate
       ? Math.max(
           0,
-          Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          Math.ceil(
+            (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          ),
         )
       : null;
 

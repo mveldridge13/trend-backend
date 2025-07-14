@@ -11,7 +11,7 @@ export class TransactionsRepository {
 
   async create(
     userId: string,
-    data: CreateTransactionDto
+    data: CreateTransactionDto,
   ): Promise<Transaction> {
     return this.prisma.transaction.create({
       data: {
@@ -20,6 +20,7 @@ export class TransactionsRepository {
         amount: new Prisma.Decimal(data.amount),
         currency: data.currency || "USD",
         date: new Date(data.date),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
         type: data.type,
         budgetId: data.budgetId,
         categoryId: data.categoryId,
@@ -42,7 +43,7 @@ export class TransactionsRepository {
 
   async findMany(
     userId: string,
-    filters: TransactionFilterDto
+    filters: TransactionFilterDto,
   ): Promise<Transaction[]> {
     const where: Prisma.TransactionWhereInput = {
       userId,
@@ -122,9 +123,8 @@ export class TransactionsRepository {
   async update(
     id: string,
     userId: string,
-    data: UpdateTransactionDto
+    data: UpdateTransactionDto,
   ): Promise<Transaction> {
-
     const updateData: any = { ...data };
 
     if (data.amount !== undefined) {
@@ -134,8 +134,9 @@ export class TransactionsRepository {
     if (data.date !== undefined) {
       updateData.date = new Date(data.date);
     }
-
-
+    if (data.dueDate !== undefined) {
+      updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+    }
 
     const result = await this.prisma.transaction.update({
       where: {
@@ -170,7 +171,7 @@ export class TransactionsRepository {
 
   async count(
     userId: string,
-    filters: Partial<TransactionFilterDto> = {}
+    filters: Partial<TransactionFilterDto> = {},
   ): Promise<number> {
     const where: Prisma.TransactionWhereInput = {
       userId,

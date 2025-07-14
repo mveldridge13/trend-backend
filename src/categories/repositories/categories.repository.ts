@@ -46,7 +46,7 @@ export class CategoriesRepository {
       search?: string;
       includeArchived?: boolean;
     } = {},
-    pagination: { skip: number; take: number } = { skip: 0, take: 50 }
+    pagination: { skip: number; take: number } = { skip: 0, take: 50 },
   ): Promise<{ categories: Category[]; total: number }> {
     const where: any = {
       OR: [{ userId: userId }, { isSystem: true }],
@@ -90,7 +90,7 @@ export class CategoriesRepository {
   async update(
     id: string,
     userId: string,
-    data: Prisma.CategoryUpdateInput
+    data: Prisma.CategoryUpdateInput,
   ): Promise<Category> {
     return this.prisma.category.update({
       where: {
@@ -124,7 +124,7 @@ export class CategoriesRepository {
 
   async countActiveSubcategories(
     parentId: string,
-    userId: string
+    userId: string,
   ): Promise<number> {
     return this.prisma.category.count({
       where: {
@@ -268,7 +268,7 @@ export class CategoriesRepository {
   async getCategoryAnalytics(
     categoryId: string,
     userId: string,
-    dateRange: { startDate: Date; endDate: Date }
+    dateRange: { startDate: Date; endDate: Date },
   ): Promise<any> {
     const { startDate, endDate } = dateRange;
 
@@ -313,7 +313,7 @@ export class CategoriesRepository {
     const transactions = categoryWithStats.transactions;
     const totalSpent = transactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0
+      0,
     );
     const averageTransaction =
       transactions.length > 0 ? totalSpent / transactions.length : 0;
@@ -324,7 +324,7 @@ export class CategoriesRepository {
         acc[month] = (acc[month] || 0) + Number(transaction.amount);
         return acc;
       },
-      {} as Record<string, number>
+      {} as Record<string, number>,
     );
 
     return {
@@ -346,14 +346,14 @@ export class CategoriesRepository {
         ([month, amount]) => ({
           month,
           amount,
-        })
+        }),
       ),
     };
   }
 
   async getMostUsedCategories(
     userId: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<Category[]> {
     return this.prisma.category.findMany({
       where: {

@@ -16,14 +16,13 @@ import { IncomeFrequency } from "@prisma/client";
 export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-
     // Check if user already exists
     const existingUser = await this.usersRepository.findByEmail(
-      registerDto.email
+      registerDto.email,
     );
     if (existingUser) {
       throw new ConflictException("User with this email already exists");
@@ -32,7 +31,7 @@ export class AuthService {
     // Check if username is taken (if provided)
     if (registerDto.username) {
       const userWithUsername = await this.usersRepository.findByUsername(
-        registerDto.username
+        registerDto.username,
       );
       if (userWithUsername) {
         throw new ConflictException("Username already taken");
@@ -56,7 +55,6 @@ export class AuthService {
       username: user.username,
     };
     const access_token = this.jwtService.sign(payload);
-
 
     return {
       access_token,
@@ -82,10 +80,8 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-
     // Find user
     const user = await this.usersRepository.findByEmail(loginDto.email);
-
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException("Invalid credentials");
@@ -95,13 +91,12 @@ export class AuthService {
 
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
-      user.passwordHash || ""
+      user.passwordHash || "",
     );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException("Invalid credentials");
     }
-
 
     // Update last login
     await this.usersRepository.updateLastLogin(user.id);
@@ -113,7 +108,6 @@ export class AuthService {
       username: user.username,
     };
     const access_token = this.jwtService.sign(payload);
-
 
     return {
       access_token,
@@ -202,7 +196,7 @@ export class AuthService {
 
   async updateUserProfile(
     id: string,
-    profileData: UpdateUserProfileDto
+    profileData: UpdateUserProfileDto,
   ): Promise<{
     id: string;
     email: string;
@@ -224,7 +218,6 @@ export class AuthService {
     hasSeenAddTransactionTour: boolean;
     hasSeenTransactionSwipeTour: boolean;
   }> {
-
     const user = await this.usersRepository.findById(id);
 
     if (!user || !user.isActive) {
@@ -233,9 +226,8 @@ export class AuthService {
 
     const updatedUser = await this.usersRepository.updateProfile(
       id,
-      profileData
+      profileData,
     );
-
 
     const result = {
       id: updatedUser.id,
@@ -261,7 +253,6 @@ export class AuthService {
       hasSeenTransactionSwipeTour:
         updatedUser.hasSeenTransactionSwipeTour ?? false,
     };
-
 
     return result;
   }

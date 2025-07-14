@@ -29,6 +29,10 @@ export class CreateTransactionDto {
   @IsDateString()
   date: string;
 
+  @IsDateString()
+  @IsOptional()
+  dueDate?: string;
+
   @IsEnum(TransactionType)
   type: TransactionType;
 

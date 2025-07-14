@@ -33,7 +33,7 @@ export class UsersService {
     // Check if username is already taken (if updating username)
     if (updateData.username && updateData.username !== existingUser.username) {
       const userWithUsername = await this.usersRepository.findByUsername(
-        updateData.username
+        updateData.username,
       );
       if (userWithUsername) {
         throw new Error("Username already taken");
@@ -80,7 +80,7 @@ export class UsersService {
 
   async updateUserProfile(
     id: string,
-    profileData: UpdateUserProfileDto
+    profileData: UpdateUserProfileDto,
   ): Promise<{
     id: string;
     email: string;
@@ -99,7 +99,7 @@ export class UsersService {
 
     const updatedUser = await this.usersRepository.updateProfile(
       id,
-      profileData
+      profileData,
     );
 
     return {

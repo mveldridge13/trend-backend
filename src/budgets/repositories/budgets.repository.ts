@@ -20,7 +20,6 @@ export class BudgetsRepository extends BaseRepository<any> {
       throw new Error(`Invalid totalAmount: ${data.totalAmount}`);
     }
 
-
     return this.prisma.budget.create({
       data: {
         name: data.name,
@@ -156,11 +155,11 @@ export class BudgetsRepository extends BaseRepository<any> {
 
     // Calculate spending analytics
     const expenseTransactions = budget.transactions.filter(
-      (t) => t.type === "EXPENSE"
+      (t) => t.type === "EXPENSE",
     );
     const spentAmount = expenseTransactions.reduce(
       (sum, t) => sum + parseFloat(t.amount.toString()),
-      0
+      0,
     );
 
     // Category breakdown
@@ -222,7 +221,7 @@ export class BudgetsRepository extends BaseRepository<any> {
           date: string;
           dailySpent: number;
           cumulativeSpent: number;
-        }>
+        }>,
       );
 
     return {

@@ -10,6 +10,7 @@ export class TransactionDto {
   amount: number;
   currency: string;
   date: Date;
+  dueDate?: Date;
   type: TransactionType;
   recurrence: string;
   isAICategorized: boolean;
