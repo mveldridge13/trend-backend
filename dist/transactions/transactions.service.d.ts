@@ -109,6 +109,7 @@ export declare class TransactionsService {
     remove(id: string, userId: string): Promise<void>;
     getAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<TransactionAnalyticsDto>;
     getDiscretionaryBreakdown(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DiscretionaryBreakdownDto>;
+    getBillsAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<any>;
     getDayTimePatterns(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DayTimePatternsResponseDto>;
     private calculateWeekdayVsWeekendBreakdown;
     private calculateDayOfWeekBreakdown;

@@ -135,6 +135,213 @@ let TransactionsService = class TransactionsService {
             summary,
         };
     }
+    async getBillsAnalytics(userId, filters = {}) {
+        try {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            let startDate;
+            let endDate;
+            if (filters.startDate && filters.endDate) {
+                startDate = new Date(filters.startDate);
+                endDate = new Date(filters.endDate);
+                if (startDate > endDate) {
+                    throw new common_1.BadRequestException('Start date cannot be after end date');
+                }
+                const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+                if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
+                    throw new common_1.BadRequestException('Date range cannot exceed one year');
+                }
+            }
+            else {
+                startDate = new Date(currentYear, currentMonth, 1);
+                endDate = new Date(currentYear, currentMonth + 1, 0);
+            }
+            const allBills = await this.transactionsRepository.findMany(userId, {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                limit: 10000,
+                offset: 0,
+                sortBy: "dueDate",
+                sortOrder: "asc",
+            });
+            const bills = allBills.filter((t) => {
+                return t.dueDate !== null || (t.recurrence && t.recurrence !== 'none');
+            });
+            if (bills.length === 0) {
+                return {
+                    totalBills: 0,
+                    paidBills: 0,
+                    unpaidBills: 0,
+                    overdueBills: 0,
+                    totalAmount: 0,
+                    paidAmount: 0,
+                    unpaidAmount: 0,
+                    overdueAmount: 0,
+                    progress: 0,
+                    upcomingBills: [],
+                    paidBillsList: [],
+                    unpaidBillsList: [],
+                    overdueBillsList: []
+                };
+            }
+            const totalBills = bills.length;
+            const paidBills = bills.filter(t => t.status === 'PAID').length;
+            const unpaidBills = bills.filter(t => t.status === 'UPCOMING').length;
+            const overdueBills = bills.filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now).length;
+            const totalAmount = bills.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const paidAmount = bills
+                .filter(t => t.status === 'PAID')
+                .reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const unpaidAmount = bills
+                .filter(t => t.status === 'UPCOMING')
+                .reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const overdueAmount = bills
+                .filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now)
+                .reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const progress = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+            const mapToBill = (t) => {
+                try {
+                    return {
+                        id: t.id,
+                        description: t.description || 'Unknown',
+                        amount: Number(t.amount) || 0,
+                        dueDate: t.dueDate,
+                        status: t.status || 'UPCOMING',
+                        category: t.category ? { name: t.category.name || 'Unknown' } : null,
+                        recurrence: t.recurrence || 'none'
+                    };
+                }
+                catch (error) {
+                    console.warn('Error mapping bill:', error);
+                    return {
+                        id: t.id || 'unknown',
+                        description: 'Error loading bill details',
+                        amount: 0,
+                        dueDate: null,
+                        status: 'UPCOMING',
+                        category: null,
+                        recurrence: 'none'
+                    };
+                }
+            };
+            const upcomingBills = bills
+                .filter(t => {
+                try {
+                    return t.status === 'UPCOMING' &&
+                        t.dueDate &&
+                        new Date(t.dueDate) >= now &&
+                        new Date(t.dueDate) <= oneWeekFromNow;
+                }
+                catch {
+                    return false;
+                }
+            })
+                .sort((a, b) => {
+                try {
+                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                }
+                catch {
+                    return 0;
+                }
+            })
+                .map(mapToBill);
+            const paidBillsList = bills
+                .filter(t => t.status === 'PAID')
+                .sort((a, b) => {
+                try {
+                    const dateA = new Date(b.dueDate || b.date);
+                    const dateB = new Date(a.dueDate || a.date);
+                    return dateA.getTime() - dateB.getTime();
+                }
+                catch {
+                    return 0;
+                }
+            })
+                .map(mapToBill);
+            const unpaidBillsList = bills
+                .filter(t => t.status === 'UPCOMING')
+                .sort((a, b) => {
+                try {
+                    const dateA = new Date(a.dueDate || a.date);
+                    const dateB = new Date(b.dueDate || b.date);
+                    return dateA.getTime() - dateB.getTime();
+                }
+                catch {
+                    return 0;
+                }
+            })
+                .map(mapToBill);
+            const overdueBillsList = bills
+                .filter(t => {
+                try {
+                    return t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now;
+                }
+                catch {
+                    return false;
+                }
+            })
+                .sort((a, b) => {
+                try {
+                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                }
+                catch {
+                    return 0;
+                }
+            })
+                .map(mapToBill);
+            return {
+                totalBills,
+                paidBills,
+                unpaidBills,
+                overdueBills,
+                totalAmount: Math.round(totalAmount * 100) / 100,
+                paidAmount: Math.round(paidAmount * 100) / 100,
+                unpaidAmount: Math.round(unpaidAmount * 100) / 100,
+                overdueAmount: Math.round(overdueAmount * 100) / 100,
+                progress,
+                upcomingBills,
+                paidBillsList,
+                unpaidBillsList,
+                overdueBillsList
+            };
+        }
+        catch (error) {
+            console.error('Error in getBillsAnalytics:', error);
+            if (error instanceof common_1.BadRequestException) {
+                throw error;
+            }
+            return {
+                totalBills: 0,
+                paidBills: 0,
+                unpaidBills: 0,
+                overdueBills: 0,
+                totalAmount: 0,
+                paidAmount: 0,
+                unpaidAmount: 0,
+                overdueAmount: 0,
+                progress: 0,
+                upcomingBills: [],
+                paidBillsList: [],
+                unpaidBillsList: [],
+                overdueBillsList: [],
+                error: 'Failed to load bills analytics'
+            };
+        }
+    }
     async getDayTimePatterns(userId, filters = {}) {
         const now = new Date();
         const defaultStartDate = new Date();
