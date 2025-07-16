@@ -61,6 +61,14 @@ export class TransactionsController {
     return this.transactionsService.getDayTimePatterns(req.user.id, filters);
   }
 
+  @Get("bills-analytics")
+  async getBillsAnalytics(
+    @Request() req,
+    @Query() filters: TransactionFilterDto,
+  ): Promise<any> {
+    return this.transactionsService.getBillsAnalytics(req.user.id, filters);
+  }
+
   @Get("summary")
   async getSummary(@Request() req, @Query() filters: TransactionFilterDto) {
     const analytics = await this.transactionsService.getAnalytics(
