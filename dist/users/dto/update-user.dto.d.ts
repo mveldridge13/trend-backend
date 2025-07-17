@@ -1,3 +1,4 @@
+import { IncomeFrequency } from "@prisma/client";
 export declare class UpdateUserDto {
     firstName?: string;
     lastName?: string;
@@ -6,6 +7,9 @@ export declare class UpdateUserDto {
     timezone?: string;
     isActive?: boolean;
     income?: number;
+    incomeFrequency?: IncomeFrequency;
+    nextPayDate?: string;
+    fixedExpenses?: number;
     setupComplete?: boolean;
     hasSeenWelcome?: boolean;
     hasSeenBalanceCardTour?: boolean;

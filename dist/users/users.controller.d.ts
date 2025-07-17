@@ -7,6 +7,8 @@ export declare class UsersController {
     constructor(usersService: UsersService);
     getProfile(req: any): Promise<UserDto>;
     updateProfile(req: any, updateUserDto: UpdateUserDto): Promise<UserDto>;
+    getIncome(req: any): Promise<any>;
+    updateIncome(req: any, incomeData: UpdateUserDto): Promise<any>;
     updateOnboarding(req: any, updateOnboardingDto: UpdateUserProfileDto): Promise<UserDto>;
     deactivateAccount(req: any): Promise<void>;
 }
