@@ -4,10 +4,13 @@ import {
   IsEmail,
   IsBoolean,
   IsNumber,
+  IsDateString,
   Length,
   IsIn,
+  IsEnum,
   Min,
 } from "class-validator";
+import { IncomeFrequency } from "@prisma/client";
 
 export class UpdateUserDto {
   @IsOptional()
@@ -38,11 +41,27 @@ export class UpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  // User setup fields
+  // ============================================================================
+  // INCOME SETUP FIELDS - ENHANCED
+  // ============================================================================
+
   @IsOptional()
   @IsNumber()
   @Min(0)
   income?: number;
+
+  @IsOptional()
+  @IsEnum(IncomeFrequency)
+  incomeFrequency?: IncomeFrequency;
+
+  @IsOptional()
+  @IsDateString()
+  nextPayDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fixedExpenses?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -52,7 +71,10 @@ export class UpdateUserDto {
   @IsBoolean()
   hasSeenWelcome?: boolean;
 
-  // Tutorial onboarding fields
+  // ============================================================================
+  // TUTORIAL ONBOARDING FIELDS
+  // ============================================================================
+
   @IsOptional()
   @IsBoolean()
   hasSeenBalanceCardTour?: boolean;

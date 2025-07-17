@@ -34,6 +34,40 @@ let UsersController = class UsersController {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateUserDto);
     }
+    async getIncome(req) {
+        const userId = req.user.id;
+        const user = await this.usersService.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        return {
+            income: user.income,
+            incomeFrequency: user.incomeFrequency,
+            nextPayDate: user.nextPayDate,
+            setupComplete: user.setupComplete,
+        };
+    }
+    async updateIncome(req, incomeData) {
+        const userId = req.user.id;
+        console.log("💰 Backend: Received income data:", incomeData);
+        try {
+            const updatedUser = await this.usersService.updateProfile(userId, incomeData);
+            console.log("💰 Backend: User updated successfully");
+            return {
+                success: true,
+                income: {
+                    income: updatedUser.income,
+                    incomeFrequency: updatedUser.incomeFrequency,
+                    nextPayDate: updatedUser.nextPayDate,
+                    setupComplete: updatedUser.setupComplete,
+                },
+            };
+        }
+        catch (error) {
+            console.error("💰 Backend: Error updating income:", error);
+            throw error;
+        }
+    }
     async updateOnboarding(req, updateOnboardingDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateOnboardingDto);
@@ -59,6 +93,21 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Get)("income"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getIncome", null);
+__decorate([
+    (0, common_1.Put)("income"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateIncome", null);
 __decorate([
     (0, common_1.Patch)("onboarding"),
     __param(0, (0, common_1.Request)()),
