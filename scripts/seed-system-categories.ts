@@ -79,7 +79,7 @@ const hierarchicalCategories = [
       },
       {
         name: "Parking",
-        description: "Parking fees, tolls, permits",
+        description: "Parking fees, permits",
         type: CategoryType.EXPENSE,
         icon: "location-outline",
         color: "#4ECDC4",
@@ -96,6 +96,13 @@ const hierarchicalCategories = [
         description: "Vehicle registration, license fees",
         type: CategoryType.EXPENSE,
         icon: "document-text-outline",
+        color: "#4ECDC4",
+      },
+      {
+        name: "Toll Fees",
+        description: "Highway tolls, bridge tolls, toll road charges",
+        type: CategoryType.EXPENSE,
+        icon: "card-outline",
         color: "#4ECDC4",
       },
     ],
