@@ -1811,7 +1811,6 @@ let TransactionsService = class TransactionsService {
                     consistencyScore: 0,
                     growthTrend: "stable",
                     primaryIncomeSource: "Unknown",
-                    diversificationScore: 0,
                     savingsPotential: 0,
                 },
                 error: "Failed to load income analytics",
@@ -1866,13 +1865,11 @@ let TransactionsService = class TransactionsService {
         else if (changePercentage < -5)
             growthTrend = "declining";
         const primaryIncomeSource = incomeBySource.length > 0 ? incomeBySource[0].categoryName : "Unknown";
-        const diversificationScore = Math.min(100, sourceCount * 20 + (incomeBySource.length > 2 ? 20 : 0));
         const savingsPotential = Math.min(30, Math.max(0, consistencyScore > 80 ? 20 : 10));
         return {
             consistencyScore: Math.round(consistencyScore),
             growthTrend,
             primaryIncomeSource,
-            diversificationScore: Math.round(diversificationScore),
             savingsPotential: Math.round(savingsPotential),
         };
     }

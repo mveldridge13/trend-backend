@@ -2642,7 +2642,6 @@ export class TransactionsService {
           consistencyScore: 0,
           growthTrend: "stable",
           primaryIncomeSource: "Unknown",
-          diversificationScore: 0,
           savingsPotential: 0,
         },
         error: "Failed to load income analytics",
@@ -2733,12 +2732,6 @@ export class TransactionsService {
     const primaryIncomeSource =
       incomeBySource.length > 0 ? incomeBySource[0].categoryName : "Unknown";
 
-    // Diversification score (higher is better)
-    const diversificationScore = Math.min(
-      100,
-      sourceCount * 20 + (incomeBySource.length > 2 ? 20 : 0)
-    );
-
     // Savings potential (simplified calculation)
     const savingsPotential = Math.min(
       30,
@@ -2749,7 +2742,6 @@ export class TransactionsService {
       consistencyScore: Math.round(consistencyScore),
       growthTrend,
       primaryIncomeSource,
-      diversificationScore: Math.round(diversificationScore),
       savingsPotential: Math.round(savingsPotential),
     };
   }
