@@ -15,7 +15,7 @@ const class_transformer_1 = require("class-transformer");
 const client_1 = require("@prisma/client");
 class TransactionFilterDto {
     constructor() {
-        this.limit = 20;
+        this.limit = 1000;
         this.offset = 0;
         this.sortBy = "date";
         this.sortOrder = "desc";
@@ -71,7 +71,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(1),
-    (0, class_validator_1.Max)(100),
+    (0, class_validator_1.Max)(10000),
     (0, class_transformer_1.Transform)(({ value }) => parseInt(value)),
     __metadata("design:type", Number)
 ], TransactionFilterDto.prototype, "limit", void 0);

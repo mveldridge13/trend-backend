@@ -147,11 +147,11 @@ let TransactionsService = class TransactionsService {
                 startDate = new Date(filters.startDate);
                 endDate = new Date(filters.endDate);
                 if (startDate > endDate) {
-                    throw new common_1.BadRequestException('Start date cannot be after end date');
+                    throw new common_1.BadRequestException("Start date cannot be after end date");
                 }
                 const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
                 if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
-                    throw new common_1.BadRequestException('Date range cannot exceed one year');
+                    throw new common_1.BadRequestException("Date range cannot exceed one year");
                 }
             }
             else {
@@ -167,7 +167,7 @@ let TransactionsService = class TransactionsService {
                 sortOrder: "asc",
             });
             const bills = allBills.filter((t) => {
-                return t.dueDate !== null || (t.recurrence && t.recurrence !== 'none');
+                return t.dueDate !== null || (t.recurrence && t.recurrence !== "none");
             });
             if (bills.length === 0) {
                 return {
@@ -183,31 +183,31 @@ let TransactionsService = class TransactionsService {
                     upcomingBills: [],
                     paidBillsList: [],
                     unpaidBillsList: [],
-                    overdueBillsList: []
+                    overdueBillsList: [],
                 };
             }
             const totalBills = bills.length;
-            const paidBills = bills.filter(t => t.status === 'PAID').length;
-            const unpaidBills = bills.filter(t => t.status === 'UPCOMING').length;
-            const overdueBills = bills.filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now).length;
+            const paidBills = bills.filter((t) => t.status === "PAID").length;
+            const unpaidBills = bills.filter((t) => t.status === "UPCOMING").length;
+            const overdueBills = bills.filter((t) => t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now).length;
             const totalAmount = bills.reduce((sum, t) => {
                 const amount = Number(t.amount);
                 return sum + (isNaN(amount) ? 0 : Math.abs(amount));
             }, 0);
             const paidAmount = bills
-                .filter(t => t.status === 'PAID')
+                .filter((t) => t.status === "PAID")
                 .reduce((sum, t) => {
                 const amount = Number(t.amount);
                 return sum + (isNaN(amount) ? 0 : Math.abs(amount));
             }, 0);
             const unpaidAmount = bills
-                .filter(t => t.status === 'UPCOMING')
+                .filter((t) => t.status === "UPCOMING")
                 .reduce((sum, t) => {
                 const amount = Number(t.amount);
                 return sum + (isNaN(amount) ? 0 : Math.abs(amount));
             }, 0);
             const overdueAmount = bills
-                .filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now)
+                .filter((t) => t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now)
                 .reduce((sum, t) => {
                 const amount = Number(t.amount);
                 return sum + (isNaN(amount) ? 0 : Math.abs(amount));
@@ -217,34 +217,36 @@ let TransactionsService = class TransactionsService {
                 try {
                     return {
                         id: t.id,
-                        description: t.description || 'Unknown',
+                        description: t.description || "Unknown",
                         amount: Number(t.amount) || 0,
                         dueDate: t.dueDate,
-                        status: t.status || 'UPCOMING',
-                        category: t.category ? { name: t.category.name || 'Unknown' } : null,
-                        recurrence: t.recurrence || 'none'
+                        status: t.status || "UPCOMING",
+                        category: t.category
+                            ? { name: t.category.name || "Unknown" }
+                            : null,
+                        recurrence: t.recurrence || "none",
                     };
                 }
                 catch (error) {
-                    console.warn('Error mapping bill:', error);
+                    console.warn("Error mapping bill:", error);
                     return {
-                        id: t.id || 'unknown',
-                        description: 'Error loading bill details',
+                        id: t.id || "unknown",
+                        description: "Error loading bill details",
                         amount: 0,
                         dueDate: null,
-                        status: 'UPCOMING',
+                        status: "UPCOMING",
                         category: null,
-                        recurrence: 'none'
+                        recurrence: "none",
                     };
                 }
             };
             const upcomingBills = bills
-                .filter(t => {
+                .filter((t) => {
                 try {
-                    return t.status === 'UPCOMING' &&
+                    return (t.status === "UPCOMING" &&
                         t.dueDate &&
                         new Date(t.dueDate) >= now &&
-                        new Date(t.dueDate) <= oneWeekFromNow;
+                        new Date(t.dueDate) <= oneWeekFromNow);
                 }
                 catch {
                     return false;
@@ -252,7 +254,7 @@ let TransactionsService = class TransactionsService {
             })
                 .sort((a, b) => {
                 try {
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    return (new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
                 }
                 catch {
                     return 0;
@@ -260,7 +262,7 @@ let TransactionsService = class TransactionsService {
             })
                 .map(mapToBill);
             const paidBillsList = bills
-                .filter(t => t.status === 'PAID')
+                .filter((t) => t.status === "PAID")
                 .sort((a, b) => {
                 try {
                     const dateA = new Date(b.dueDate || b.date);
@@ -273,7 +275,7 @@ let TransactionsService = class TransactionsService {
             })
                 .map(mapToBill);
             const unpaidBillsList = bills
-                .filter(t => t.status === 'UPCOMING')
+                .filter((t) => t.status === "UPCOMING")
                 .sort((a, b) => {
                 try {
                     const dateA = new Date(a.dueDate || a.date);
@@ -286,9 +288,9 @@ let TransactionsService = class TransactionsService {
             })
                 .map(mapToBill);
             const overdueBillsList = bills
-                .filter(t => {
+                .filter((t) => {
                 try {
-                    return t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now;
+                    return (t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now);
                 }
                 catch {
                     return false;
@@ -296,7 +298,7 @@ let TransactionsService = class TransactionsService {
             })
                 .sort((a, b) => {
                 try {
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    return (new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
                 }
                 catch {
                     return 0;
@@ -316,11 +318,11 @@ let TransactionsService = class TransactionsService {
                 upcomingBills,
                 paidBillsList,
                 unpaidBillsList,
-                overdueBillsList
+                overdueBillsList,
             };
         }
         catch (error) {
-            console.error('Error in getBillsAnalytics:', error);
+            console.error("Error in getBillsAnalytics:", error);
             if (error instanceof common_1.BadRequestException) {
                 throw error;
             }
@@ -338,7 +340,7 @@ let TransactionsService = class TransactionsService {
                 paidBillsList: [],
                 unpaidBillsList: [],
                 overdueBillsList: [],
-                error: 'Failed to load bills analytics'
+                error: "Failed to load bills analytics",
             };
         }
     }
@@ -1575,6 +1577,323 @@ let TransactionsService = class TransactionsService {
             },
             budgetPerformance: [],
         };
+    }
+    async getIncomeAnalytics(userId, filters = {}) {
+        try {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const userProfile = await this.usersRepository.findById(userId);
+            if (!userProfile) {
+                throw new common_1.NotFoundException("User not found");
+            }
+            let startDate;
+            let endDate;
+            if (filters.startDate && filters.endDate) {
+                startDate = new Date(filters.startDate);
+                endDate = new Date(filters.endDate);
+                if (startDate > endDate) {
+                    throw new common_1.BadRequestException("Start date cannot be after end date");
+                }
+                const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+                if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
+                    throw new common_1.BadRequestException("Date range cannot exceed one year");
+                }
+            }
+            else {
+                startDate = new Date(currentYear, currentMonth, 1);
+                endDate = new Date(currentYear, currentMonth + 1, 0);
+            }
+            const prevMonthStart = new Date(currentYear, currentMonth - 1, 1);
+            const prevMonthEnd = new Date(currentYear, currentMonth, 0);
+            const currentIncomeTransactions = await this.transactionsRepository.findMany(userId, {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                type: client_1.TransactionType.INCOME,
+                limit: 10000,
+                offset: 0,
+                sortBy: "date",
+                sortOrder: "desc",
+            });
+            const previousIncomeTransactions = await this.transactionsRepository.findMany(userId, {
+                startDate: prevMonthStart.toISOString(),
+                endDate: prevMonthEnd.toISOString(),
+                type: client_1.TransactionType.INCOME,
+                limit: 10000,
+                offset: 0,
+            });
+            const transactionIncomeThisMonth = currentIncomeTransactions.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const transactionIncomePreviousMonth = previousIncomeTransactions.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            let projectedMonthlyIncome = 0;
+            if (userProfile.income && userProfile.incomeFrequency) {
+                const profileIncome = Number(userProfile.income);
+                switch (userProfile.incomeFrequency) {
+                    case client_1.IncomeFrequency.WEEKLY:
+                        projectedMonthlyIncome = (profileIncome * 52) / 12;
+                        break;
+                    case client_1.IncomeFrequency.FORTNIGHTLY:
+                        projectedMonthlyIncome = (profileIncome * 26) / 12;
+                        break;
+                    case client_1.IncomeFrequency.MONTHLY:
+                        projectedMonthlyIncome = profileIncome;
+                        break;
+                }
+            }
+            const totalIncomeThisMonth = transactionIncomeThisMonth + projectedMonthlyIncome;
+            const previousMonthIncome = transactionIncomePreviousMonth + projectedMonthlyIncome;
+            const monthChangePercentage = previousMonthIncome > 0
+                ? ((totalIncomeThisMonth - previousMonthIncome) /
+                    previousMonthIncome) *
+                    100
+                : 0;
+            let totalIncomeThisPayPeriod = 0;
+            let totalIncomeThisWeek = 0;
+            if (userProfile.nextPayDate && userProfile.incomeFrequency) {
+                const nextPayDate = new Date(userProfile.nextPayDate);
+                let currentPeriodStart;
+                switch (userProfile.incomeFrequency) {
+                    case client_1.IncomeFrequency.WEEKLY:
+                        currentPeriodStart = new Date(nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case client_1.IncomeFrequency.FORTNIGHTLY:
+                        currentPeriodStart = new Date(nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+                        break;
+                    case client_1.IncomeFrequency.MONTHLY:
+                        currentPeriodStart = new Date(nextPayDate.getFullYear(), nextPayDate.getMonth() - 1, nextPayDate.getDate());
+                        break;
+                    default:
+                        currentPeriodStart = startDate;
+                }
+                const payPeriodTransactions = currentIncomeTransactions.filter((t) => {
+                    const transactionDate = new Date(t.date);
+                    return (transactionDate >= currentPeriodStart &&
+                        transactionDate <= nextPayDate);
+                });
+                totalIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
+                    const amount = Number(t.amount);
+                    return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+                }, 0);
+            }
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const thisWeekTransactions = currentIncomeTransactions.filter((t) => {
+                const transactionDate = new Date(t.date);
+                return transactionDate >= oneWeekAgo;
+            });
+            totalIncomeThisWeek = thisWeekTransactions.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            const incomeBySourceMap = new Map();
+            currentIncomeTransactions.forEach((t) => {
+                const categoryId = t.categoryId || "uncategorized";
+                const categoryName = t.category?.name || "Uncategorized";
+                const amount = Math.abs(Number(t.amount)) || 0;
+                if (incomeBySourceMap.has(categoryId)) {
+                    const existing = incomeBySourceMap.get(categoryId);
+                    existing.totalAmount += amount;
+                    existing.transactionCount += 1;
+                }
+                else {
+                    incomeBySourceMap.set(categoryId, {
+                        source: categoryName,
+                        categoryId,
+                        categoryName,
+                        totalAmount: amount,
+                        percentage: 0,
+                        color: this.generateCategoryColor(categoryName),
+                        transactionCount: 1,
+                    });
+                }
+            });
+            if (projectedMonthlyIncome > 0) {
+                incomeBySourceMap.set("profile_income", {
+                    source: "Primary Income",
+                    categoryId: "profile_income",
+                    categoryName: "Primary Income",
+                    totalAmount: projectedMonthlyIncome,
+                    percentage: 0,
+                    color: this.generateCategoryColor("Primary Income"),
+                    transactionCount: 0,
+                });
+            }
+            const incomeBySource = Array.from(incomeBySourceMap.values())
+                .map((item) => ({
+                ...item,
+                percentage: totalIncomeThisMonth > 0
+                    ? (item.totalAmount / totalIncomeThisMonth) * 100
+                    : 0,
+                totalAmount: Math.round(item.totalAmount * 100) / 100,
+            }))
+                .sort((a, b) => b.totalAmount - a.totalAmount);
+            const recurringIncome = currentIncomeTransactions.filter((t) => t.recurrence && t.recurrence !== "none");
+            const adhocIncome = currentIncomeTransactions.filter((t) => !t.recurrence || t.recurrence === "none");
+            let recurringAmount = recurringIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            let adhocAmount = adhocIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            if (projectedMonthlyIncome > 0) {
+                recurringAmount += projectedMonthlyIncome;
+            }
+            const incomeBreakdown = {
+                recurring: {
+                    amount: Math.round(recurringAmount * 100) / 100,
+                    percentage: totalIncomeThisMonth > 0
+                        ? (recurringAmount / totalIncomeThisMonth) * 100
+                        : 0,
+                    transactionCount: recurringIncome.length,
+                },
+                adhoc: {
+                    amount: Math.round(adhocAmount * 100) / 100,
+                    percentage: totalIncomeThisMonth > 0
+                        ? (adhocAmount / totalIncomeThisMonth) * 100
+                        : 0,
+                    transactionCount: adhocIncome.length,
+                },
+            };
+            const recentIncomeEntries = currentIncomeTransactions
+                .slice(0, 10)
+                .map((t) => ({
+                id: t.id,
+                description: t.description || "Income",
+                categoryName: t.category?.name || "Uncategorized",
+                amount: Math.abs(Number(t.amount)) || 0,
+                date: t.date,
+                isRecurring: Boolean(t.recurrence && t.recurrence !== "none"),
+            }));
+            const payPeriodInfo = this.calculatePayPeriodInfo(userProfile);
+            const insights = this.generateIncomeInsights(currentIncomeTransactions, monthChangePercentage, incomeBySource, incomeBreakdown, projectedMonthlyIncome > 0);
+            return {
+                totalIncomeThisMonth: Math.round(totalIncomeThisMonth * 100) / 100,
+                totalIncomeThisPayPeriod: Math.round(totalIncomeThisPayPeriod * 100) / 100,
+                totalIncomeThisWeek: Math.round(totalIncomeThisWeek * 100) / 100,
+                previousMonthIncome: Math.round(previousMonthIncome * 100) / 100,
+                monthChangePercentage: Math.round(monthChangePercentage * 100) / 100,
+                incomeBySource,
+                incomeBreakdown,
+                recentIncomeEntries,
+                payPeriodInfo,
+                insights,
+                dataSource: transactionIncomeThisMonth > 0 && projectedMonthlyIncome > 0
+                    ? "hybrid"
+                    : transactionIncomeThisMonth > 0
+                        ? "transactions"
+                        : projectedMonthlyIncome > 0
+                            ? "profile"
+                            : "none",
+                hasTransactionData: transactionIncomeThisMonth > 0,
+                hasProfileData: projectedMonthlyIncome > 0,
+            };
+        }
+        catch (error) {
+            console.error("Error in getIncomeAnalytics:", error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException) {
+                throw error;
+            }
+            return {
+                totalIncomeThisMonth: 0,
+                totalIncomeThisPayPeriod: 0,
+                totalIncomeThisWeek: 0,
+                previousMonthIncome: 0,
+                monthChangePercentage: 0,
+                incomeBySource: [],
+                incomeBreakdown: {
+                    recurring: { amount: 0, percentage: 0, transactionCount: 0 },
+                    adhoc: { amount: 0, percentage: 0, transactionCount: 0 },
+                },
+                recentIncomeEntries: [],
+                payPeriodInfo: null,
+                insights: {
+                    consistencyScore: 0,
+                    growthTrend: "stable",
+                    primaryIncomeSource: "Unknown",
+                    diversificationScore: 0,
+                    savingsPotential: 0,
+                },
+                error: "Failed to load income analytics",
+            };
+        }
+    }
+    calculatePayPeriodInfo(userProfile) {
+        if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
+            return null;
+        }
+        const nextPayDate = new Date(userProfile.nextPayDate);
+        const now = new Date();
+        const daysUntilNextPay = Math.ceil((nextPayDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        let currentPeriodStart;
+        let frequency;
+        switch (userProfile.incomeFrequency) {
+            case client_1.IncomeFrequency.WEEKLY:
+                currentPeriodStart = new Date(nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+                frequency = "weekly";
+                break;
+            case client_1.IncomeFrequency.FORTNIGHTLY:
+                currentPeriodStart = new Date(nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+                frequency = "fortnightly";
+                break;
+            case client_1.IncomeFrequency.MONTHLY:
+                currentPeriodStart = new Date(nextPayDate.getFullYear(), nextPayDate.getMonth() - 1, nextPayDate.getDate());
+                frequency = "monthly";
+                break;
+            default:
+                return null;
+        }
+        return {
+            frequency,
+            nextPayDate: nextPayDate.toISOString(),
+            daysUntilNextPay: Math.max(0, daysUntilNextPay),
+            currentPeriodStart: currentPeriodStart.toISOString(),
+            currentPeriodEnd: nextPayDate.toISOString(),
+        };
+    }
+    generateIncomeInsights(transactions, changePercentage, incomeBySource, incomeBreakdown, hasProfileData = false) {
+        const transactionCount = transactions.length;
+        const sourceCount = incomeBySource.length;
+        let consistencyScore = Math.min(95, Math.max(0, incomeBreakdown.recurring.percentage +
+            (transactionCount > 0 ? 20 : 0) +
+            (sourceCount > 1 ? 10 : 0)));
+        if (hasProfileData) {
+            consistencyScore = Math.min(95, consistencyScore + 25);
+        }
+        let growthTrend = "stable";
+        if (changePercentage > 5)
+            growthTrend = "growing";
+        else if (changePercentage < -5)
+            growthTrend = "declining";
+        const primaryIncomeSource = incomeBySource.length > 0 ? incomeBySource[0].categoryName : "Unknown";
+        const diversificationScore = Math.min(100, sourceCount * 20 + (incomeBySource.length > 2 ? 20 : 0));
+        const savingsPotential = Math.min(30, Math.max(0, consistencyScore > 80 ? 20 : 10));
+        return {
+            consistencyScore: Math.round(consistencyScore),
+            growthTrend,
+            primaryIncomeSource,
+            diversificationScore: Math.round(diversificationScore),
+            savingsPotential: Math.round(savingsPotential),
+        };
+    }
+    generateCategoryColor(categoryName) {
+        const colors = [
+            "#6366F1",
+            "#10B981",
+            "#F59E0B",
+            "#EF4444",
+            "#8B5CF6",
+            "#06B6D4",
+            "#84CC16",
+            "#F97316",
+            "#EC4899",
+            "#14B8A6",
+        ];
+        let hash = 0;
+        for (let i = 0; i < categoryName.length; i++) {
+            hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
     }
 };
 exports.TransactionsService = TransactionsService;
