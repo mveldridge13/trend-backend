@@ -50,9 +50,9 @@ export class TransactionFilterDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
-  @Max(100)
+  @Max(10000)
   @Transform(({ value }) => parseInt(value))
-  limit?: number = 20;
+  limit?: number = 1000;
 
   @IsOptional()
   @IsNumber()

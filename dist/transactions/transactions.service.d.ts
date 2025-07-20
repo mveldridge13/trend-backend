@@ -134,5 +134,9 @@ export declare class TransactionsService {
     private calculateSpendingVelocity;
     private calculateTrends;
     private calculateAnalytics;
+    getIncomeAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<any>;
+    private calculatePayPeriodInfo;
+    private generateIncomeInsights;
+    private generateCategoryColor;
 }
 export {};

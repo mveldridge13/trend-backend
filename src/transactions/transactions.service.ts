@@ -121,26 +121,26 @@ interface DiscretionaryBreakdownDto {
 export class TransactionsService {
   constructor(
     private readonly transactionsRepository: TransactionsRepository,
-    private readonly usersRepository: UsersRepository,
+    private readonly usersRepository: UsersRepository
   ) {}
 
   async create(
     userId: string,
-    createTransactionDto: CreateTransactionDto,
+    createTransactionDto: CreateTransactionDto
   ): Promise<TransactionDto> {
     this.validateTransactionAmount(createTransactionDto.amount);
     this.validateTransactionDate(createTransactionDto.date);
 
     const transaction = await this.transactionsRepository.create(
       userId,
-      createTransactionDto,
+      createTransactionDto
     );
     return this.mapToDto(transaction);
   }
 
   async findAll(
     userId: string,
-    filters: TransactionFilterDto,
+    filters: TransactionFilterDto
   ): Promise<{
     transactions: TransactionDto[];
     total: number;
@@ -176,11 +176,11 @@ export class TransactionsService {
   async update(
     id: string,
     userId: string,
-    updateTransactionDto: UpdateTransactionDto,
+    updateTransactionDto: UpdateTransactionDto
   ): Promise<TransactionDto> {
     const existingTransaction = await this.transactionsRepository.findById(
       id,
-      userId,
+      userId
     );
     if (!existingTransaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
@@ -204,7 +204,7 @@ export class TransactionsService {
     const updatedTransaction = await this.transactionsRepository.update(
       id,
       userId,
-      updateTransactionDto,
+      updateTransactionDto
     );
 
     return this.mapToDto(updatedTransaction);
@@ -220,7 +220,7 @@ export class TransactionsService {
 
   async getAnalytics(
     userId: string,
-    filters: Partial<TransactionFilterDto> = {},
+    filters: Partial<TransactionFilterDto> = {}
   ): Promise<TransactionAnalyticsDto> {
     const userProfile = await this.usersRepository.findById(userId);
     const transactions = await this.transactionsRepository.findMany(userId, {
@@ -237,7 +237,7 @@ export class TransactionsService {
   // ✅ FIXED: Get discretionary breakdown for daily spending analysis
   async getDiscretionaryBreakdown(
     userId: string,
-    filters: Partial<TransactionFilterDto> = {},
+    filters: Partial<TransactionFilterDto> = {}
   ): Promise<DiscretionaryBreakdownDto> {
     const now = new Date();
     const defaultStartDate = new Date();
@@ -265,17 +265,17 @@ export class TransactionsService {
     const targetTransactions = this.filterTransactionsForPeriod(
       discretionaryTransactions,
       selectedDate,
-      selectedPeriod,
+      selectedPeriod
     );
 
     const totalDiscretionaryAmount = targetTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
 
     const categoryBreakdown = this.calculateCategoryBreakdown(
       targetTransactions,
-      totalDiscretionaryAmount,
+      totalDiscretionaryAmount
     );
 
     const mappedTransactions = targetTransactions.map((t) => ({
@@ -293,19 +293,19 @@ export class TransactionsService {
     const previousPeriod = this.calculatePreviousPeriodComparison(
       discretionaryTransactions,
       selectedDate,
-      selectedPeriod,
+      selectedPeriod
     );
 
     const insights = this.generateDiscretionaryInsights(
       categoryBreakdown,
       totalDiscretionaryAmount,
       previousPeriod,
-      selectedPeriod,
+      selectedPeriod
     );
 
     const summary = this.calculateDiscretionarySummary(
       targetTransactions,
-      categoryBreakdown,
+      categoryBreakdown
     );
 
     return {
@@ -323,7 +323,7 @@ export class TransactionsService {
   // ✅ NEW: Get bills analytics
   async getBillsAnalytics(
     userId: string,
-    filters: Partial<TransactionFilterDto> = {},
+    filters: Partial<TransactionFilterDto> = {}
   ): Promise<any> {
     try {
       const now = new Date();
@@ -338,23 +338,23 @@ export class TransactionsService {
       if (filters.startDate && filters.endDate) {
         startDate = new Date(filters.startDate);
         endDate = new Date(filters.endDate);
-        
+
         // Validate date range
         if (startDate > endDate) {
-          throw new BadRequestException('Start date cannot be after end date');
+          throw new BadRequestException("Start date cannot be after end date");
         }
-        
+
         // Limit to reasonable range (max 1 year)
         const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
         if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
-          throw new BadRequestException('Date range cannot exceed one year');
+          throw new BadRequestException("Date range cannot exceed one year");
         }
       } else {
         // Default to current month
         startDate = new Date(currentYear, currentMonth, 1);
         endDate = new Date(currentYear, currentMonth + 1, 0);
       }
-      
+
       const allBills = await this.transactionsRepository.findMany(userId, {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -366,7 +366,7 @@ export class TransactionsService {
 
       // Filter to only include bills (transactions with dueDate OR recurrence)
       const bills = allBills.filter((t) => {
-        return t.dueDate !== null || (t.recurrence && t.recurrence !== 'none');
+        return t.dueDate !== null || (t.recurrence && t.recurrence !== "none");
       });
 
       // Early return for no bills found
@@ -384,87 +384,98 @@ export class TransactionsService {
           upcomingBills: [],
           paidBillsList: [],
           unpaidBillsList: [],
-          overdueBillsList: []
+          overdueBillsList: [],
         };
       }
 
       // Calculate summary counts and amounts
       const totalBills = bills.length;
-      const paidBills = bills.filter(t => t.status === 'PAID').length;
-      const unpaidBills = bills.filter(t => t.status === 'UPCOMING').length;
-      const overdueBills = bills.filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now).length;
+      const paidBills = bills.filter((t) => t.status === "PAID").length;
+      const unpaidBills = bills.filter((t) => t.status === "UPCOMING").length;
+      const overdueBills = bills.filter(
+        (t) => t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now
+      ).length;
 
       // Calculate financial totals (use absolute amounts as bills are typically negative)
       const totalAmount = bills.reduce((sum, t) => {
         const amount = Number(t.amount);
         return sum + (isNaN(amount) ? 0 : Math.abs(amount));
       }, 0);
-      
+
       const paidAmount = bills
-        .filter(t => t.status === 'PAID')
+        .filter((t) => t.status === "PAID")
         .reduce((sum, t) => {
           const amount = Number(t.amount);
           return sum + (isNaN(amount) ? 0 : Math.abs(amount));
         }, 0);
-        
+
       const unpaidAmount = bills
-        .filter(t => t.status === 'UPCOMING')
+        .filter((t) => t.status === "UPCOMING")
         .reduce((sum, t) => {
           const amount = Number(t.amount);
           return sum + (isNaN(amount) ? 0 : Math.abs(amount));
         }, 0);
-        
+
       const overdueAmount = bills
-        .filter(t => t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now)
+        .filter(
+          (t) => t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now
+        )
         .reduce((sum, t) => {
           const amount = Number(t.amount);
           return sum + (isNaN(amount) ? 0 : Math.abs(amount));
         }, 0);
 
       // Calculate progress percentage
-      const progress = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+      const progress =
+        totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
 
       // Helper function to map transaction to bill format with error handling
       const mapToBill = (t: any) => {
         try {
           return {
             id: t.id,
-            description: t.description || 'Unknown',
+            description: t.description || "Unknown",
             amount: Number(t.amount) || 0,
             dueDate: t.dueDate,
-            status: t.status || 'UPCOMING',
-            category: t.category ? { name: t.category.name || 'Unknown' } : null,
-            recurrence: t.recurrence || 'none'
+            status: t.status || "UPCOMING",
+            category: t.category
+              ? { name: t.category.name || "Unknown" }
+              : null,
+            recurrence: t.recurrence || "none",
           };
         } catch (error) {
-          console.warn('Error mapping bill:', error);
+          console.warn("Error mapping bill:", error);
           return {
-            id: t.id || 'unknown',
-            description: 'Error loading bill details',
+            id: t.id || "unknown",
+            description: "Error loading bill details",
             amount: 0,
             dueDate: null,
-            status: 'UPCOMING',
+            status: "UPCOMING",
             category: null,
-            recurrence: 'none'
+            recurrence: "none",
           };
         }
       };
 
       // Categorized bill lists with proper sorting and error handling
       const upcomingBills = bills
-        .filter(t => {
+        .filter((t) => {
           try {
-            return t.status === 'UPCOMING' && 
-                   t.dueDate && 
-                   new Date(t.dueDate) >= now && 
-                   new Date(t.dueDate) <= oneWeekFromNow;
+            return (
+              t.status === "UPCOMING" &&
+              t.dueDate &&
+              new Date(t.dueDate) >= now &&
+              new Date(t.dueDate) <= oneWeekFromNow
+            );
           } catch {
             return false;
           }
         })
         .sort((a, b) => {
           try {
-            return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
+            return (
+              new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()
+            );
           } catch {
             return 0;
           }
@@ -472,7 +483,7 @@ export class TransactionsService {
         .map(mapToBill);
 
       const paidBillsList = bills
-        .filter(t => t.status === 'PAID')
+        .filter((t) => t.status === "PAID")
         .sort((a, b) => {
           try {
             const dateA = new Date(b.dueDate || b.date);
@@ -485,7 +496,7 @@ export class TransactionsService {
         .map(mapToBill);
 
       const unpaidBillsList = bills
-        .filter(t => t.status === 'UPCOMING')
+        .filter((t) => t.status === "UPCOMING")
         .sort((a, b) => {
           try {
             const dateA = new Date(a.dueDate || a.date);
@@ -498,16 +509,20 @@ export class TransactionsService {
         .map(mapToBill);
 
       const overdueBillsList = bills
-        .filter(t => {
+        .filter((t) => {
           try {
-            return t.status !== 'PAID' && t.dueDate && new Date(t.dueDate) < now;
+            return (
+              t.status !== "PAID" && t.dueDate && new Date(t.dueDate) < now
+            );
           } catch {
             return false;
           }
         })
         .sort((a, b) => {
           try {
-            return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
+            return (
+              new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()
+            );
           } catch {
             return 0;
           }
@@ -534,17 +549,17 @@ export class TransactionsService {
         upcomingBills,
         paidBillsList,
         unpaidBillsList,
-        overdueBillsList
+        overdueBillsList,
       };
     } catch (error) {
       // Log error for debugging
-      console.error('Error in getBillsAnalytics:', error);
-      
+      console.error("Error in getBillsAnalytics:", error);
+
       // Return empty structure with error indication
       if (error instanceof BadRequestException) {
         throw error; // Re-throw validation errors
       }
-      
+
       // For other errors, return empty structure
       return {
         totalBills: 0,
@@ -560,7 +575,7 @@ export class TransactionsService {
         paidBillsList: [],
         unpaidBillsList: [],
         overdueBillsList: [],
-        error: 'Failed to load bills analytics'
+        error: "Failed to load bills analytics",
       };
     }
   }
@@ -568,7 +583,7 @@ export class TransactionsService {
   // ✅ NEW: Get day/time spending patterns analysis
   async getDayTimePatterns(
     userId: string,
-    filters: Partial<TransactionFilterDto> = {},
+    filters: Partial<TransactionFilterDto> = {}
   ): Promise<DayTimePatternsResponseDto> {
     const now = new Date();
     const defaultStartDate = new Date();
@@ -621,13 +636,13 @@ export class TransactionsService {
       weekdayVsWeekend,
       dayOfWeekBreakdown,
       timeOfDayBreakdown,
-      hourlyBreakdown,
+      hourlyBreakdown
     );
     const insights = this.generateDayTimePatternInsights(
       weekdayVsWeekend,
       dayOfWeekBreakdown,
       timeOfDayBreakdown,
-      summary,
+      summary
     );
 
     // Calculate previous period comparison by default
@@ -637,7 +652,7 @@ export class TransactionsService {
         userId,
         startDate,
         endDate,
-        selectedPeriod,
+        selectedPeriod
       );
     } catch (error) {
       console.warn("Failed to calculate previous period comparison:", error);
@@ -662,7 +677,7 @@ export class TransactionsService {
   // ✅ Helper methods for day/time patterns analysis
 
   private calculateWeekdayVsWeekendBreakdown(
-    transactions: DayTimePatternTransaction[],
+    transactions: DayTimePatternTransaction[]
   ): WeekdayVsWeekendBreakdown {
     let weekdayAmount = 0;
     let weekendAmount = 0;
@@ -711,7 +726,7 @@ export class TransactionsService {
   }
 
   private calculateDayOfWeekBreakdown(
-    transactions: DayTimePatternTransaction[],
+    transactions: DayTimePatternTransaction[]
   ): DayOfWeekBreakdown[] {
     const dayTotals = new Map<number, { amount: number; count: number }>();
 
@@ -740,7 +755,7 @@ export class TransactionsService {
   }
 
   private calculateTimeOfDayBreakdown(
-    transactions: DayTimePatternTransaction[],
+    transactions: DayTimePatternTransaction[]
   ): TimeOfDayBreakdown[] {
     const periodTotals = new Map<string, { amount: number; count: number }>();
 
@@ -775,7 +790,7 @@ export class TransactionsService {
   }
 
   private calculateHourlyBreakdown(
-    transactions: DayTimePatternTransaction[],
+    transactions: DayTimePatternTransaction[]
   ): HourlyBreakdown[] {
     const hourlyTotals = new Map<number, { amount: number; count: number }>();
 
@@ -804,7 +819,7 @@ export class TransactionsService {
     weekdayVsWeekend: WeekdayVsWeekendBreakdown,
     dayOfWeekBreakdown: DayOfWeekBreakdown[],
     timeOfDayBreakdown: TimeOfDayBreakdown[],
-    hourlyBreakdown: HourlyBreakdown[],
+    hourlyBreakdown: HourlyBreakdown[]
   ): DayTimePatternSummary {
     const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
     const totalTransactions = transactions.length;
@@ -813,17 +828,17 @@ export class TransactionsService {
 
     // Find most active day
     const mostActiveDay = dayOfWeekBreakdown.reduce((max, current) =>
-      current.amount > max.amount ? current : max,
+      current.amount > max.amount ? current : max
     );
 
     // Find most active period
     const mostActivePeriod = timeOfDayBreakdown.reduce((max, current) =>
-      current.amount > max.amount ? current : max,
+      current.amount > max.amount ? current : max
     );
 
     // Find peak spending hour
     const peakHour = hourlyBreakdown.reduce((max, current) =>
-      current.amount > max.amount ? current : max,
+      current.amount > max.amount ? current : max
     );
 
     // Determine weekday vs weekend preference
@@ -841,7 +856,7 @@ export class TransactionsService {
 
     // Calculate impulse purchase indicators
     const eveningPeriod = timeOfDayBreakdown.find(
-      (p) => p.period === "Evening",
+      (p) => p.period === "Evening"
     );
     const eveningSpendingPercentage = eveningPeriod
       ? eveningPeriod.percentage
@@ -882,7 +897,7 @@ export class TransactionsService {
     weekdayVsWeekend: WeekdayVsWeekendBreakdown,
     dayOfWeekBreakdown: DayOfWeekBreakdown[],
     timeOfDayBreakdown: TimeOfDayBreakdown[],
-    summary: DayTimePatternSummary,
+    summary: DayTimePatternSummary
   ): SpendingPatternInsight[] {
     const insights: SpendingPatternInsight[] = [];
 
@@ -900,7 +915,7 @@ export class TransactionsService {
 
     // Evening spending patterns
     const eveningPeriod = timeOfDayBreakdown.find(
-      (p) => p.period === "Evening",
+      (p) => p.period === "Evening"
     );
     if (eveningPeriod && eveningPeriod.percentage > 35) {
       insights.push({
@@ -915,7 +930,7 @@ export class TransactionsService {
 
     // Peak day insights
     const peakDay = dayOfWeekBreakdown.reduce((max, current) =>
-      current.amount > max.amount ? current : max,
+      current.amount > max.amount ? current : max
     );
     if (peakDay.percentage > 25) {
       insights.push({
@@ -958,12 +973,12 @@ export class TransactionsService {
     userId: string,
     startDate: string,
     endDate: string,
-    selectedPeriod: string,
+    selectedPeriod: string
   ) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const daysDiff = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     // Calculate previous period dates
@@ -983,7 +998,7 @@ export class TransactionsService {
         offset: 0,
         sortBy: "date",
         sortOrder: "desc",
-      } as TransactionFilterDto,
+      } as TransactionFilterDto
     );
 
     const previousMapped: DayTimePatternTransaction[] =
@@ -1005,11 +1020,11 @@ export class TransactionsService {
     const previousTotal = previousMapped.reduce((sum, t) => sum + t.amount, 0);
     const currentTotal = previousTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
 
     const mostActiveDay = previousDayOfWeek.reduce((max, current) =>
-      current.amount > max.amount ? current : max,
+      current.amount > max.amount ? current : max
     );
 
     // Calculate key changes
@@ -1021,7 +1036,7 @@ export class TransactionsService {
           ? "weekdays"
           : "weekends";
       keyChanges.push(
-        `Previous period showed ${preference} spending preference`,
+        `Previous period showed ${preference} spending preference`
       );
     }
 
@@ -1044,12 +1059,12 @@ export class TransactionsService {
 
   private determinePeriodType(
     startDate: string,
-    endDate: string,
+    endDate: string
   ): "daily" | "weekly" | "monthly" {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const daysDiff = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     if (daysDiff <= 1) {
@@ -1065,7 +1080,7 @@ export class TransactionsService {
   private filterTransactionsForPeriod(
     transactions: any[],
     selectedDate: string,
-    selectedPeriod: "daily" | "weekly" | "monthly",
+    selectedPeriod: "daily" | "weekly" | "monthly"
   ): any[] {
     const targetDate = new Date(selectedDate);
 
@@ -1111,14 +1126,14 @@ export class TransactionsService {
       const monthStart = new Date(
         targetDate.getFullYear(),
         targetDate.getMonth(),
-        1,
+        1
       );
       monthStart.setHours(0, 0, 0, 0);
 
       const monthEnd = new Date(
         targetDate.getFullYear(),
         targetDate.getMonth() + 1,
-        0,
+        0
       );
       monthEnd.setHours(23, 59, 59, 999);
 
@@ -1343,7 +1358,7 @@ export class TransactionsService {
   private calculatePreviousPeriodComparison(
     allTransactions: any[],
     selectedDate: string,
-    selectedPeriod: "daily" | "weekly" | "monthly",
+    selectedPeriod: "daily" | "weekly" | "monthly"
   ) {
     const targetDate = new Date(selectedDate);
     let previousDate: Date;
@@ -1362,17 +1377,17 @@ export class TransactionsService {
     const previousTransactions = this.filterTransactionsForPeriod(
       allTransactions,
       previousDate.toISOString().split("T")[0],
-      selectedPeriod,
+      selectedPeriod
     );
 
     const previousAmount = previousTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const currentAmount = this.filterTransactionsForPeriod(
       allTransactions,
       selectedDate,
-      selectedPeriod,
+      selectedPeriod
     ).reduce((sum, t) => sum + Number(t.amount), 0);
 
     const percentageChange =
@@ -1382,7 +1397,7 @@ export class TransactionsService {
 
     const previousCategoryBreakdown = this.calculateCategoryBreakdown(
       previousTransactions,
-      previousAmount,
+      previousAmount
     );
     const topCategories = previousCategoryBreakdown.slice(0, 3).map((cat) => ({
       categoryName: cat.categoryName,
@@ -1401,7 +1416,7 @@ export class TransactionsService {
     categoryBreakdown: any[],
     totalAmount: number,
     previousPeriod: any,
-    selectedPeriod: "daily" | "weekly" | "monthly",
+    selectedPeriod: "daily" | "weekly" | "monthly"
   ) {
     const insights: any[] = [];
 
@@ -1437,7 +1452,7 @@ export class TransactionsService {
 
     const totalTransactions = categoryBreakdown.reduce(
       (sum, cat) => sum + cat.transactionCount,
-      0,
+      0
     );
     if (selectedPeriod === "daily" && totalTransactions > 5) {
       insights.push({
@@ -1465,12 +1480,12 @@ export class TransactionsService {
 
   private calculateDiscretionarySummary(
     transactions: any[],
-    categoryBreakdown: any[],
+    categoryBreakdown: any[]
   ) {
     const transactionCount = transactions.length;
     const totalAmount = transactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const averageTransactionAmount =
       transactionCount > 0 ? totalAmount / transactionCount : 0;
@@ -1481,7 +1496,7 @@ export class TransactionsService {
           ? current
           : largest;
       },
-      transactions[0] || { amount: 0, description: "", category: { name: "" } },
+      transactions[0] || { amount: 0, description: "", category: { name: "" } }
     );
 
     const topSpendingCategory = categoryBreakdown[0] || {
@@ -1533,12 +1548,12 @@ export class TransactionsService {
   private validateTransactionAmount(amount: number): void {
     if (amount <= 0) {
       throw new BadRequestException(
-        "Transaction amount must be greater than 0",
+        "Transaction amount must be greater than 0"
       );
     }
     if (amount > 999999.99) {
       throw new BadRequestException(
-        "Transaction amount cannot exceed $999,999.99",
+        "Transaction amount cannot exceed $999,999.99"
       );
     }
   }
@@ -1557,7 +1572,7 @@ export class TransactionsService {
 
     if (transactionDate < fiveYearsAgo) {
       throw new BadRequestException(
-        "Transaction date cannot be more than 5 years in the past",
+        "Transaction date cannot be more than 5 years in the past"
       );
     }
   }
@@ -1612,7 +1627,7 @@ export class TransactionsService {
 
   private calculateDailyBurnRate(
     transactions: any[],
-    userProfile: any,
+    userProfile: any
   ): {
     currentDailyBurnRate: number;
     sustainableDailyRate: number;
@@ -1640,7 +1655,7 @@ export class TransactionsService {
 
     const weeklySpending = recentTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const currentDailyBurnRate = weeklySpending / 7;
 
@@ -1686,12 +1701,12 @@ export class TransactionsService {
       const dayStart = new Date(
         day.getFullYear(),
         day.getMonth(),
-        day.getDate(),
+        day.getDate()
       );
       const dayEnd = new Date(
         day.getFullYear(),
         day.getMonth(),
-        day.getDate() + 1,
+        day.getDate() + 1
       );
 
       const daySpending = transactions
@@ -1738,7 +1753,7 @@ export class TransactionsService {
       if (currentDailyBurnRate > sustainableDailyRate) {
         const excessDailySpending = currentDailyBurnRate - sustainableDailyRate;
         const remainingDays = Math.floor(
-          monthlyIncomeCapacity / excessDailySpending,
+          monthlyIncomeCapacity / excessDailySpending
         );
         daysUntilBudgetExceeded = Math.max(0, remainingDays);
       }
@@ -1802,12 +1817,12 @@ export class TransactionsService {
     const fortnightlyMonthly =
       recurrenceGroups.fortnightly.reduce(
         (sum, t) => sum + Number(t.amount),
-        0,
+        0
       ) *
       (26 / 12);
     const monthlyMonthly = recurrenceGroups.monthly.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const sixMonthsMonthly =
       recurrenceGroups.sixmonths.reduce((sum, t) => sum + Number(t.amount), 0) /
@@ -1829,7 +1844,7 @@ export class TransactionsService {
   private calculateDiscretionaryTrends(
     transactions: any[],
     startDate?: string,
-    endDate?: string,
+    endDate?: string
   ): Array<{
     month: string;
     discretionaryExpenses: number;
@@ -1841,7 +1856,7 @@ export class TransactionsService {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const daysDiff = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     const discretionaryTransactions = transactions.filter((t) => {
@@ -1944,7 +1959,7 @@ export class TransactionsService {
 
   private calculateSpendingVelocity(
     transactions: any[],
-    userMonthlyBudget?: number,
+    userMonthlyBudget?: number
   ): {
     currentMonthSpent: number;
     daysElapsed: number;
@@ -1976,7 +1991,7 @@ export class TransactionsService {
 
     const currentMonthSpent = currentMonthTransactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const dailyAverage = daysElapsed > 0 ? currentMonthSpent / daysElapsed : 0;
     const projectedMonthlySpending = dailyAverage * daysInMonth;
@@ -2016,7 +2031,7 @@ export class TransactionsService {
 
       const lastMonthSpent = lastMonthTransactions.reduce(
         (sum, t) => sum + Number(t.amount),
-        0,
+        0
       );
 
       if (lastMonthSpent > 0) {
@@ -2058,7 +2073,7 @@ export class TransactionsService {
   private calculateTrends(
     transactions: any[],
     startDate?: string,
-    endDate?: string,
+    endDate?: string
   ): Array<{
     month: string;
     income: number;
@@ -2073,7 +2088,7 @@ export class TransactionsService {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const daysDiff = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     let periodType: "daily" | "weekly" | "monthly";
@@ -2201,7 +2216,7 @@ export class TransactionsService {
   private calculateAnalytics(
     transactions: any[],
     filters: Partial<TransactionFilterDto> = {},
-    userProfile?: any,
+    userProfile?: any
   ): TransactionAnalyticsDto {
     const income = transactions
       .filter((t) => t.type === TransactionType.INCOME)
@@ -2241,23 +2256,23 @@ export class TransactionsService {
       (category) => ({
         ...category,
         percentage: expenses > 0 ? (category.amount / expenses) * 100 : 0,
-      }),
+      })
     );
 
     const monthlyTrends = this.calculateTrends(
       transactions,
       filters.startDate,
-      filters.endDate,
+      filters.endDate
     );
     const discretionaryTrends = this.calculateDiscretionaryTrends(
       transactions,
       filters.startDate,
-      filters.endDate,
+      filters.endDate
     );
 
     const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
       const discretionaryTrend = discretionaryTrends.find(
-        (dt) => dt.month === trend.month,
+        (dt) => dt.month === trend.month
       );
 
       return {
@@ -2269,7 +2284,7 @@ export class TransactionsService {
     const spendingVelocity = this.calculateSpendingVelocity(transactions);
     const dailyBurnRate = this.calculateDailyBurnRate(
       transactions,
-      userProfile,
+      userProfile
     );
 
     return {
@@ -2291,5 +2306,473 @@ export class TransactionsService {
       },
       budgetPerformance: [],
     };
+  }
+
+  async getIncomeAnalytics(
+    userId: string,
+    filters: Partial<TransactionFilterDto> = {}
+  ): Promise<any> {
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Get user profile for income settings
+      const userProfile = await this.usersRepository.findById(userId);
+      if (!userProfile) {
+        throw new NotFoundException("User not found");
+      }
+
+      // Support custom date range from filters, default to current month
+      let startDate: Date;
+      let endDate: Date;
+
+      if (filters.startDate && filters.endDate) {
+        startDate = new Date(filters.startDate);
+        endDate = new Date(filters.endDate);
+
+        if (startDate > endDate) {
+          throw new BadRequestException("Start date cannot be after end date");
+        }
+
+        const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+        if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
+          throw new BadRequestException("Date range cannot exceed one year");
+        }
+      } else {
+        startDate = new Date(currentYear, currentMonth, 1);
+        endDate = new Date(currentYear, currentMonth + 1, 0);
+      }
+
+      // Calculate previous month for comparison
+      const prevMonthStart = new Date(currentYear, currentMonth - 1, 1);
+      const prevMonthEnd = new Date(currentYear, currentMonth, 0);
+
+      // Fetch current month income transactions
+      const currentIncomeTransactions =
+        await this.transactionsRepository.findMany(userId, {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          type: TransactionType.INCOME,
+          limit: 10000,
+          offset: 0,
+          sortBy: "date",
+          sortOrder: "desc",
+        } as TransactionFilterDto);
+
+      // Fetch previous month income for comparison
+      const previousIncomeTransactions =
+        await this.transactionsRepository.findMany(userId, {
+          startDate: prevMonthStart.toISOString(),
+          endDate: prevMonthEnd.toISOString(),
+          type: TransactionType.INCOME,
+          limit: 10000,
+          offset: 0,
+        } as TransactionFilterDto);
+
+      // Calculate total income metrics from transactions
+      const transactionIncomeThisMonth = currentIncomeTransactions.reduce(
+        (sum, t) => {
+          const amount = Number(t.amount);
+          return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+        },
+        0
+      );
+
+      const transactionIncomePreviousMonth = previousIncomeTransactions.reduce(
+        (sum, t) => {
+          const amount = Number(t.amount);
+          return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+        },
+        0
+      );
+
+      // Calculate projected income from user profile
+      let projectedMonthlyIncome = 0;
+      if (userProfile.income && userProfile.incomeFrequency) {
+        const profileIncome = Number(userProfile.income);
+        switch (userProfile.incomeFrequency) {
+          case IncomeFrequency.WEEKLY:
+            projectedMonthlyIncome = (profileIncome * 52) / 12;
+            break;
+          case IncomeFrequency.FORTNIGHTLY:
+            projectedMonthlyIncome = (profileIncome * 26) / 12;
+            break;
+          case IncomeFrequency.MONTHLY:
+            projectedMonthlyIncome = profileIncome;
+            break;
+        }
+      }
+
+      // ✅ FIX: Always include both profile and transaction income (additive)
+      const totalIncomeThisMonth =
+        transactionIncomeThisMonth + projectedMonthlyIncome;
+
+      const previousMonthIncome =
+        transactionIncomePreviousMonth + projectedMonthlyIncome;
+
+      // Calculate month change percentage
+      const monthChangePercentage =
+        previousMonthIncome > 0
+          ? ((totalIncomeThisMonth - previousMonthIncome) /
+              previousMonthIncome) *
+            100
+          : 0;
+
+      // Calculate pay period income
+      let totalIncomeThisPayPeriod = 0;
+      let totalIncomeThisWeek = 0;
+
+      if (userProfile.nextPayDate && userProfile.incomeFrequency) {
+        const nextPayDate = new Date(userProfile.nextPayDate);
+        let currentPeriodStart: Date;
+
+        switch (userProfile.incomeFrequency) {
+          case IncomeFrequency.WEEKLY:
+            currentPeriodStart = new Date(
+              nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000
+            );
+            break;
+          case IncomeFrequency.FORTNIGHTLY:
+            currentPeriodStart = new Date(
+              nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000
+            );
+            break;
+          case IncomeFrequency.MONTHLY:
+            currentPeriodStart = new Date(
+              nextPayDate.getFullYear(),
+              nextPayDate.getMonth() - 1,
+              nextPayDate.getDate()
+            );
+            break;
+          default:
+            currentPeriodStart = startDate;
+        }
+
+        const payPeriodTransactions = currentIncomeTransactions.filter((t) => {
+          const transactionDate = new Date(t.date);
+          return (
+            transactionDate >= currentPeriodStart &&
+            transactionDate <= nextPayDate
+          );
+        });
+
+        totalIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
+          const amount = Number(t.amount);
+          return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+        }, 0);
+      }
+
+      // Calculate this week's income
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thisWeekTransactions = currentIncomeTransactions.filter((t) => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= oneWeekAgo;
+      });
+
+      totalIncomeThisWeek = thisWeekTransactions.reduce((sum, t) => {
+        const amount = Number(t.amount);
+        return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+      }, 0);
+
+      // Group income by source (category) - enhanced with profile data
+      const incomeBySourceMap = new Map();
+
+      // Add transaction-based income sources
+      currentIncomeTransactions.forEach((t) => {
+        const categoryId = t.categoryId || "uncategorized";
+        const categoryName = (t as any).category?.name || "Uncategorized";
+        const amount = Math.abs(Number(t.amount)) || 0;
+
+        if (incomeBySourceMap.has(categoryId)) {
+          const existing = incomeBySourceMap.get(categoryId);
+          existing.totalAmount += amount;
+          existing.transactionCount += 1;
+        } else {
+          incomeBySourceMap.set(categoryId, {
+            source: categoryName,
+            categoryId,
+            categoryName,
+            totalAmount: amount,
+            percentage: 0,
+            color: this.generateCategoryColor(categoryName),
+            transactionCount: 1,
+          });
+        }
+      });
+
+      // ✅ FIX: Always add profile income as "Primary Income" when it exists
+      if (projectedMonthlyIncome > 0) {
+        incomeBySourceMap.set("profile_income", {
+          source: "Primary Income",
+          categoryId: "profile_income",
+          categoryName: "Primary Income",
+          totalAmount: projectedMonthlyIncome,
+          percentage: 0, // Will be calculated later based on total income
+          color: this.generateCategoryColor("Primary Income"),
+          transactionCount: 0, // Profile-based, not transactions
+        });
+      }
+
+      // Calculate percentages and convert to array
+      const incomeBySource = Array.from(incomeBySourceMap.values())
+        .map((item) => ({
+          ...item,
+          percentage:
+            totalIncomeThisMonth > 0
+              ? (item.totalAmount / totalIncomeThisMonth) * 100
+              : 0,
+          totalAmount: Math.round(item.totalAmount * 100) / 100,
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+
+      // Detect recurring vs ad-hoc income (enhanced with profile data)
+      const recurringIncome = currentIncomeTransactions.filter(
+        (t) => t.recurrence && t.recurrence !== "none"
+      );
+      const adhocIncome = currentIncomeTransactions.filter(
+        (t) => !t.recurrence || t.recurrence === "none"
+      );
+
+      let recurringAmount = recurringIncome.reduce(
+        (sum, t) => sum + Math.abs(Number(t.amount)),
+        0
+      );
+      let adhocAmount = adhocIncome.reduce(
+        (sum, t) => sum + Math.abs(Number(t.amount)),
+        0
+      );
+
+      // ✅ FIX: Always add profile income to recurring amount when it exists
+      if (projectedMonthlyIncome > 0) {
+        recurringAmount += projectedMonthlyIncome;
+      }
+
+      const incomeBreakdown = {
+        recurring: {
+          amount: Math.round(recurringAmount * 100) / 100,
+          percentage:
+            totalIncomeThisMonth > 0
+              ? (recurringAmount / totalIncomeThisMonth) * 100
+              : 0,
+          transactionCount: recurringIncome.length,
+        },
+        adhoc: {
+          amount: Math.round(adhocAmount * 100) / 100,
+          percentage:
+            totalIncomeThisMonth > 0
+              ? (adhocAmount / totalIncomeThisMonth) * 100
+              : 0,
+          transactionCount: adhocIncome.length,
+        },
+      };
+
+      // Recent income entries (last 10)
+      const recentIncomeEntries = currentIncomeTransactions
+        .slice(0, 10)
+        .map((t) => ({
+          id: t.id,
+          description: t.description || "Income",
+          categoryName: (t as any).category?.name || "Uncategorized",
+          amount: Math.abs(Number(t.amount)) || 0,
+          date: t.date,
+          isRecurring: Boolean(t.recurrence && t.recurrence !== "none"),
+        }));
+
+      // Pay period info
+      const payPeriodInfo = this.calculatePayPeriodInfo(userProfile);
+
+      // Generate insights (enhanced with profile data awareness)
+      const insights = this.generateIncomeInsights(
+        currentIncomeTransactions,
+        monthChangePercentage,
+        incomeBySource,
+        incomeBreakdown,
+        projectedMonthlyIncome > 0 // hasProfileData
+      );
+
+      return {
+        totalIncomeThisMonth: Math.round(totalIncomeThisMonth * 100) / 100,
+        totalIncomeThisPayPeriod:
+          Math.round(totalIncomeThisPayPeriod * 100) / 100,
+        totalIncomeThisWeek: Math.round(totalIncomeThisWeek * 100) / 100,
+        previousMonthIncome: Math.round(previousMonthIncome * 100) / 100,
+        monthChangePercentage: Math.round(monthChangePercentage * 100) / 100,
+        incomeBySource,
+        incomeBreakdown,
+        recentIncomeEntries,
+        payPeriodInfo,
+        insights,
+        // Enhanced: Indicate data source (updated for hybrid approach)
+        dataSource:
+          transactionIncomeThisMonth > 0 && projectedMonthlyIncome > 0
+            ? "hybrid"
+            : transactionIncomeThisMonth > 0
+              ? "transactions"
+              : projectedMonthlyIncome > 0
+                ? "profile"
+                : "none",
+        hasTransactionData: transactionIncomeThisMonth > 0,
+        hasProfileData: projectedMonthlyIncome > 0,
+      };
+    } catch (error) {
+      console.error("Error in getIncomeAnalytics:", error);
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      return {
+        totalIncomeThisMonth: 0,
+        totalIncomeThisPayPeriod: 0,
+        totalIncomeThisWeek: 0,
+        previousMonthIncome: 0,
+        monthChangePercentage: 0,
+        incomeBySource: [],
+        incomeBreakdown: {
+          recurring: { amount: 0, percentage: 0, transactionCount: 0 },
+          adhoc: { amount: 0, percentage: 0, transactionCount: 0 },
+        },
+        recentIncomeEntries: [],
+        payPeriodInfo: null,
+        insights: {
+          consistencyScore: 0,
+          growthTrend: "stable",
+          primaryIncomeSource: "Unknown",
+          diversificationScore: 0,
+          savingsPotential: 0,
+        },
+        error: "Failed to load income analytics",
+      };
+    }
+  }
+
+  private calculatePayPeriodInfo(userProfile: any) {
+    if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
+      return null;
+    }
+
+    const nextPayDate = new Date(userProfile.nextPayDate);
+    const now = new Date();
+    const daysUntilNextPay = Math.ceil(
+      (nextPayDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+    );
+
+    let currentPeriodStart: Date;
+    let frequency: string;
+
+    switch (userProfile.incomeFrequency) {
+      case IncomeFrequency.WEEKLY:
+        currentPeriodStart = new Date(
+          nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000
+        );
+        frequency = "weekly";
+        break;
+      case IncomeFrequency.FORTNIGHTLY:
+        currentPeriodStart = new Date(
+          nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000
+        );
+        frequency = "fortnightly";
+        break;
+      case IncomeFrequency.MONTHLY:
+        currentPeriodStart = new Date(
+          nextPayDate.getFullYear(),
+          nextPayDate.getMonth() - 1,
+          nextPayDate.getDate()
+        );
+        frequency = "monthly";
+        break;
+      default:
+        return null;
+    }
+
+    return {
+      frequency,
+      nextPayDate: nextPayDate.toISOString(),
+      daysUntilNextPay: Math.max(0, daysUntilNextPay),
+      currentPeriodStart: currentPeriodStart.toISOString(),
+      currentPeriodEnd: nextPayDate.toISOString(),
+    };
+  }
+
+  private generateIncomeInsights(
+    transactions: any[],
+    changePercentage: number,
+    incomeBySource: any[],
+    incomeBreakdown: any,
+    hasProfileData: boolean = false
+  ) {
+    const transactionCount = transactions.length;
+    const sourceCount = incomeBySource.length;
+
+    // Consistency score based on regularity of income (enhanced for profile data)
+    let consistencyScore = Math.min(
+      95,
+      Math.max(
+        0,
+        incomeBreakdown.recurring.percentage +
+          (transactionCount > 0 ? 20 : 0) +
+          (sourceCount > 1 ? 10 : 0)
+      )
+    );
+
+    // If using profile data, boost consistency score since it's predictable
+    if (hasProfileData) {
+      consistencyScore = Math.min(95, consistencyScore + 25);
+    }
+
+    // Growth trend analysis
+    let growthTrend = "stable";
+    if (changePercentage > 5) growthTrend = "growing";
+    else if (changePercentage < -5) growthTrend = "declining";
+
+    // Primary income source
+    const primaryIncomeSource =
+      incomeBySource.length > 0 ? incomeBySource[0].categoryName : "Unknown";
+
+    // Diversification score (higher is better)
+    const diversificationScore = Math.min(
+      100,
+      sourceCount * 20 + (incomeBySource.length > 2 ? 20 : 0)
+    );
+
+    // Savings potential (simplified calculation)
+    const savingsPotential = Math.min(
+      30,
+      Math.max(0, consistencyScore > 80 ? 20 : 10)
+    );
+
+    return {
+      consistencyScore: Math.round(consistencyScore),
+      growthTrend,
+      primaryIncomeSource,
+      diversificationScore: Math.round(diversificationScore),
+      savingsPotential: Math.round(savingsPotential),
+    };
+  }
+
+  private generateCategoryColor(categoryName: string): string {
+    const colors = [
+      "#6366F1",
+      "#10B981",
+      "#F59E0B",
+      "#EF4444",
+      "#8B5CF6",
+      "#06B6D4",
+      "#84CC16",
+      "#F97316",
+      "#EC4899",
+      "#14B8A6",
+    ];
+
+    let hash = 0;
+    for (let i = 0; i < categoryName.length; i++) {
+      hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    return colors[Math.abs(hash) % colors.length];
   }
 }

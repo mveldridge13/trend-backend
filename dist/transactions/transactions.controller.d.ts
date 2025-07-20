@@ -17,6 +17,7 @@ export declare class TransactionsController {
     getDiscretionaryBreakdown(req: any, filters: TransactionFilterDto): Promise<any>;
     getDayTimePatterns(req: any, filters: TransactionFilterDto): Promise<any>;
     getBillsAnalytics(req: any, filters: TransactionFilterDto): Promise<any>;
+    getIncomeAnalytics(req: any, filters: TransactionFilterDto): Promise<any>;
     getSummary(req: any, filters: TransactionFilterDto): Promise<{
         totalIncome: number;
         totalExpenses: number;
