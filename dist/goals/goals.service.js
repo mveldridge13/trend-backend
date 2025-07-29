@@ -151,9 +151,19 @@ let GoalsService = class GoalsService {
             }
         }
         else {
-            newCurrentAmount =
-                goal.currentAmount.toNumber() + createContributionDto.amount;
-            isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+            if (createContributionDto.type === client_1.ContributionType.WITHDRAWAL) {
+                newCurrentAmount =
+                    goal.currentAmount.toNumber() - createContributionDto.amount;
+                if (newCurrentAmount < 0) {
+                    newCurrentAmount = 0;
+                }
+                isNowCompleted = false;
+            }
+            else {
+                newCurrentAmount =
+                    goal.currentAmount.toNumber() + createContributionDto.amount;
+                isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+            }
         }
         await this.goalsRepository.update(goalId, {
             currentAmount: newCurrentAmount,
