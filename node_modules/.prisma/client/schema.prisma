@@ -253,6 +253,7 @@ enum ContributionType {
   TRANSACTION
   INTEREST
   WINDFALL
+  WITHDRAWAL
 }
 
 enum ReminderType {
