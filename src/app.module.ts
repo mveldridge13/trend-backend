@@ -12,6 +12,7 @@ import { BudgetsModule } from "./budgets/budgets.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { GoalsModule } from "./goals/goals.module";
+import { PokerModule } from "./poker/poker.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GoalsModule } from "./goals/goals.module";
     CategoriesModule,
     TransactionsModule,
     GoalsModule,
+    PokerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

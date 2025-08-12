@@ -8,37 +8,34 @@ datasource db {
 }
 
 model User {
-  id             String        @id @default(cuid())
-  email          String        @unique
-  username       String?       @unique
-  firstName      String
-  lastName       String
-  passwordHash   String?
-  currency       String        @default("USD")
-  timezone       String        @default("UTC")
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  isActive       Boolean       @default(true)
-  
-  // User setup fields for AppNavigator - Enhanced with income frequency
-  income              Decimal?         @db.Decimal(12, 2)
-  incomeFrequency     IncomeFrequency?
-  nextPayDate         DateTime?
-  fixedExpenses       Decimal?         @db.Decimal(12, 2)
-  setupComplete       Boolean          @default(false)
-  hasSeenWelcome      Boolean          @default(false)
-  
-  // Tutorial onboarding fields
-  hasSeenBalanceCardTour     Boolean @default(false)
-  hasSeenAddTransactionTour   Boolean @default(false)
-  hasSeenTransactionSwipeTour Boolean @default(false)
-  
-  budgets        Budget[]
-  categories     Category[]
-  transactions   Transaction[]
-  goals          Goal[]
-  goalContributions GoalContribution[]
-  goalReminders  GoalReminder[]
+  id                          String             @id @default(cuid())
+  email                       String             @unique
+  username                    String?            @unique
+  firstName                   String
+  lastName                    String
+  passwordHash                String?
+  currency                    String             @default("USD")
+  timezone                    String             @default("UTC")
+  createdAt                   DateTime           @default(now())
+  updatedAt                   DateTime           @updatedAt
+  isActive                    Boolean            @default(true)
+  hasSeenWelcome              Boolean            @default(false)
+  income                      Decimal?           @db.Decimal(12, 2)
+  setupComplete               Boolean            @default(false)
+  hasSeenAddTransactionTour   Boolean            @default(false)
+  hasSeenBalanceCardTour      Boolean            @default(false)
+  hasSeenTransactionSwipeTour Boolean            @default(false)
+  fixedExpenses               Decimal?           @db.Decimal(12, 2)
+  incomeFrequency             IncomeFrequency?
+  nextPayDate                 DateTime?
+  budgets                     Budget[]
+  categories                  Category[]
+  goalContributions           GoalContribution[]
+  goalReminders               GoalReminder[]
+  goals                       Goal[]
+  transactions                Transaction[]
+  pokerTournaments            PokerTournament[]
+  pokerTournamentEvents       PokerTournamentEvent[]
 
   @@map("users")
 }
@@ -70,11 +67,11 @@ model Category {
   icon                    String?
   color                   String?
   type                    CategoryType  @default(EXPENSE)
-  parentId                String?
   isSystem                Boolean       @default(false)
   isActive                Boolean       @default(true)
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
+  parentId                String?
   parent                  Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
   subcategories           Category[]    @relation("CategoryHierarchy")
   user                    User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -86,31 +83,31 @@ model Category {
 }
 
 model Transaction {
-  id              String          @id @default(cuid())
-  userId          String
-  budgetId        String?
-  categoryId      String?
-  subcategoryId   String?
-  description     String
-  amount          Decimal         @db.Decimal(12, 2)
-  currency        String          @default("USD")
-  date            DateTime
-  dueDate         DateTime?
-  type            TransactionType
-  status          PaymentStatus?
-  recurrence      String?
-  isAICategorized Boolean         @default(false)
-  aiConfidence    Float?
-  notes           String?
-  location        String?
-  merchantName    String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  budget          Budget?         @relation(fields: [budgetId], references: [id])
-  category        Category?       @relation(fields: [categoryId], references: [id])
-  subcategory     Category?       @relation("TransactionSubcategory", fields: [subcategoryId], references: [id])
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  userId            String
+  budgetId          String?
+  categoryId        String?
+  description       String
+  amount            Decimal            @db.Decimal(12, 2)
+  currency          String             @default("USD")
+  date              DateTime
+  type              TransactionType
+  isAICategorized   Boolean            @default(false)
+  aiConfidence      Float?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  location          String?
+  merchantName      String?
+  notes             String?
+  recurrence        String?
+  subcategoryId     String?
+  dueDate           DateTime?
+  status            PaymentStatus?
   goalContributions GoalContribution[]
+  budget            Budget?            @relation(fields: [budgetId], references: [id])
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  subcategory       Category?          @relation("TransactionSubcategory", fields: [subcategoryId], references: [id])
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@index([categoryId])
@@ -119,30 +116,28 @@ model Transaction {
 }
 
 model Goal {
-  id              String      @id @default(cuid())
-  userId          String
-  name            String
-  description     String?
-  targetAmount    Decimal     @db.Decimal(12, 2)
-  currentAmount   Decimal     @default(0) @db.Decimal(12, 2)
-  currency        String      @default("USD")
-  targetDate      DateTime?
-  category        GoalCategory
-  originalCategory String?  
-  type            GoalType    @default(SAVINGS)
-  isActive        Boolean     @default(true)
-  isCompleted     Boolean     @default(false)
-  completedAt     DateTime?
-  priority        GoalPriority @default(MEDIUM)
-  autoContribute  Boolean     @default(false)
-  monthlyTarget   Decimal?    @db.Decimal(12, 2)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  // Relations
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contributions   GoalContribution[]
-  reminders       GoalReminder[]
+  id               String             @id @default(cuid())
+  userId           String
+  name             String
+  description      String?
+  targetAmount     Decimal            @db.Decimal(12, 2)
+  currentAmount    Decimal            @default(0) @db.Decimal(12, 2)
+  currency         String             @default("USD")
+  targetDate       DateTime?
+  category         GoalCategory
+  type             GoalType           @default(SAVINGS)
+  isActive         Boolean            @default(true)
+  isCompleted      Boolean            @default(false)
+  completedAt      DateTime?
+  priority         GoalPriority       @default(MEDIUM)
+  autoContribute   Boolean            @default(false)
+  monthlyTarget    Decimal?           @db.Decimal(12, 2)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  originalCategory String?
+  contributions    GoalContribution[]
+  reminders        GoalReminder[]
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([userId, category])
@@ -150,22 +145,18 @@ model Goal {
 }
 
 model GoalContribution {
-  id          String   @id @default(cuid())
-  goalId      String
-  userId      String
-  amount      Decimal  @db.Decimal(12, 2)
-  currency    String   @default("USD")
-  date        DateTime @default(now())
-  description String?
-  type        ContributionType @default(MANUAL)
-  
-  // Link to transaction if contribution came from a transaction
+  id            String           @id @default(cuid())
+  goalId        String
+  userId        String
+  amount        Decimal          @db.Decimal(12, 2)
+  currency      String           @default("USD")
+  date          DateTime         @default(now())
+  description   String?
+  type          ContributionType @default(MANUAL)
   transactionId String?
-  
-  // Relations
-  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  goal          Goal             @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  transaction   Transaction?     @relation(fields: [transactionId], references: [id])
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([goalId, date])
   @@index([userId, date])
@@ -173,20 +164,18 @@ model GoalContribution {
 }
 
 model GoalReminder {
-  id          String        @id @default(cuid())
-  goalId      String
-  userId      String
-  type        ReminderType
-  frequency   ReminderFrequency
-  isActive    Boolean       @default(true)
-  lastSent    DateTime?
-  nextDue     DateTime?
-  message     String?
-  createdAt   DateTime      @default(now())
-  
-  // Relations
-  goal        Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String            @id @default(cuid())
+  goalId    String
+  userId    String
+  type      ReminderType
+  frequency ReminderFrequency
+  isActive  Boolean           @default(true)
+  lastSent  DateTime?
+  nextDue   DateTime?
+  message   String?
+  createdAt DateTime          @default(now())
+  goal      Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, nextDue])
   @@map("goal_reminders")
@@ -274,4 +263,50 @@ enum PaymentStatus {
   UPCOMING
   PAID
   OVERDUE
+}
+
+model PokerTournament {
+  id               String    @id @default(cuid())
+  userId           String
+  name             String
+  location         String
+  venue            String?
+  dateStart        DateTime
+  dateEnd          DateTime?
+  accommodationCost Decimal   @default(0) @db.Decimal(10, 2)
+  foodBudget       Decimal   @default(0) @db.Decimal(10, 2)
+  otherExpenses    Decimal   @default(0) @db.Decimal(10, 2)
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events           PokerTournamentEvent[]
+
+  @@index([userId, dateStart])
+  @@map("poker_tournaments")
+}
+
+model PokerTournamentEvent {
+  id              String    @id @default(cuid())
+  tournamentId    String
+  userId          String
+  eventName       String
+  eventNumber     String?
+  buyIn           Decimal   @db.Decimal(10, 2)
+  winnings        Decimal   @default(0) @db.Decimal(10, 2)
+  eventDate       DateTime
+  gameType        String?
+  fieldSize       Int?
+  finishPosition  Int?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  tournament      PokerTournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId, eventDate])
+  @@index([userId, eventDate])
+  @@map("poker_tournament_events")
 }
