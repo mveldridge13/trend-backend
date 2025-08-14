@@ -16,6 +16,7 @@ export declare class PokerService {
     createTournamentEvent(tournamentId: string, userId: string, createEventDto: CreatePokerTournamentEventDto): Promise<PokerTournamentEventDto>;
     updateTournamentEvent(eventId: string, userId: string, updateEventDto: UpdatePokerTournamentEventDto): Promise<PokerTournamentEventDto>;
     deleteTournamentEvent(eventId: string, userId: string): Promise<void>;
+    getTournamentEvents(tournamentId: string, userId: string): Promise<PokerTournamentEventDto[]>;
     getPokerAnalytics(userId: string): Promise<PokerAnalyticsDto>;
     getTournamentAnalytics(tournamentId: string, userId: string): Promise<TournamentAnalyticsDto>;
     private transformTournamentToDto;

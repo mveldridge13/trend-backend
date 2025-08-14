@@ -138,6 +138,17 @@ let PokerService = class PokerService {
         }
         await this.pokerRepository.deleteEvent(eventId);
     }
+    async getTournamentEvents(tournamentId, userId) {
+        const tournament = await this.pokerRepository.findTournamentById(tournamentId);
+        if (!tournament) {
+            throw new common_1.NotFoundException("Tournament not found");
+        }
+        if (tournament.userId !== userId) {
+            throw new common_1.ForbiddenException("Access denied to this tournament");
+        }
+        const events = await this.pokerRepository.findEventsByTournamentId(tournamentId);
+        return events.map(event => this.transformEventToDto(event));
+    }
     async getPokerAnalytics(userId) {
         const stats = await this.pokerRepository.getUserPokerStats(userId);
         if (!stats) {

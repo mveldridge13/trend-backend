@@ -104,6 +104,15 @@ export class PokerController {
     );
   }
 
+  @Get("tournaments/:tournamentId/events")
+  async getTournamentEvents(
+    @Request() req: any,
+    @Param("tournamentId") tournamentId: string,
+  ): Promise<PokerTournamentEventDto[]> {
+    const userId = this.extractUserId(req);
+    return this.pokerService.getTournamentEvents(tournamentId, userId);
+  }
+
   @Put("tournaments/events/:eventId")
   async updateTournamentEvent(
     @Request() req: any,
