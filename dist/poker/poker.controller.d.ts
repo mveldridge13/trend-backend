@@ -15,6 +15,7 @@ export declare class PokerController {
     updateTournament(req: any, id: string, updateTournamentDto: UpdatePokerTournamentDto): Promise<PokerTournamentDto>;
     deleteTournament(req: any, id: string): Promise<void>;
     createTournamentEvent(req: any, tournamentId: string, createEventDto: CreatePokerTournamentEventDto): Promise<PokerTournamentEventDto>;
+    getTournamentEvents(req: any, tournamentId: string): Promise<PokerTournamentEventDto[]>;
     updateTournamentEvent(req: any, eventId: string, updateEventDto: UpdatePokerTournamentEventDto): Promise<PokerTournamentEventDto>;
     deleteTournamentEvent(req: any, eventId: string): Promise<void>;
     getPokerAnalytics(req: any): Promise<PokerAnalyticsDto>;

@@ -55,6 +55,10 @@ let PokerController = class PokerController {
         const userId = this.extractUserId(req);
         return this.pokerService.createTournamentEvent(tournamentId, userId, createEventDto);
     }
+    async getTournamentEvents(req, tournamentId) {
+        const userId = this.extractUserId(req);
+        return this.pokerService.getTournamentEvents(tournamentId, userId);
+    }
     async updateTournamentEvent(req, eventId, updateEventDto) {
         const userId = this.extractUserId(req);
         return this.pokerService.updateTournamentEvent(eventId, userId, updateEventDto);
@@ -125,6 +129,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, create_poker_tournament_event_dto_1.CreatePokerTournamentEventDto]),
     __metadata("design:returntype", Promise)
 ], PokerController.prototype, "createTournamentEvent", null);
+__decorate([
+    (0, common_1.Get)("tournaments/:tournamentId/events"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)("tournamentId")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], PokerController.prototype, "getTournamentEvents", null);
 __decorate([
     (0, common_1.Put)("tournaments/events/:eventId"),
     __param(0, (0, common_1.Request)()),
