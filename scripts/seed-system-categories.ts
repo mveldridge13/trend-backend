@@ -159,6 +159,13 @@ const hierarchicalCategories = [
         icon: "flash-outline",
         color: "#45B7D1",
       },
+      {
+        name: "Home Maintenance",
+        description: "Home repairs, maintenance, upkeep, and property improvements",
+        type: CategoryType.EXPENSE,
+        icon: "hammer-outline",
+        color: "#45B7D1",
+      },
     ],
   },
 
