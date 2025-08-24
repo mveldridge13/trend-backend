@@ -246,13 +246,14 @@ let PokerService = class PokerService {
     transformTournamentToDto(tournament) {
         const events = tournament.events || [];
         const totalBuyIns = events.reduce((sum, event) => sum + parseFloat(event.buyIn), 0);
+        const totalReBuyCosts = events.reduce((sum, event) => sum + (parseFloat(event.reBuyAmount) || 0), 0);
         const totalWinnings = events.reduce((sum, event) => sum + parseFloat(event.winnings), 0);
         const totalSharedCosts = parseFloat(tournament.accommodationCost) +
             parseFloat(tournament.foodBudget) +
             parseFloat(tournament.otherExpenses);
-        const totalInvestment = totalSharedCosts + totalBuyIns;
+        const totalInvestment = totalSharedCosts + totalBuyIns + totalReBuyCosts;
         const netProfit = totalWinnings - totalInvestment;
-        const eventsWon = events.filter((event) => parseFloat(event.winnings) > parseFloat(event.buyIn)).length;
+        const eventsWon = events.filter((event) => parseFloat(event.winnings) > (parseFloat(event.buyIn) + (parseFloat(event.reBuyAmount) || 0))).length;
         return {
             id: tournament.id,
             userId: tournament.userId,
@@ -292,6 +293,8 @@ let PokerService = class PokerService {
             fieldSize: event.fieldSize,
             finishPosition: event.finishPosition,
             notes: event.notes,
+            reBuys: event.reBuys,
+            reBuyAmount: event.reBuyAmount ? parseFloat(event.reBuyAmount) : undefined,
             createdAt: event.createdAt,
             updatedAt: event.updatedAt,
         };

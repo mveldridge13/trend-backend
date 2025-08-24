@@ -8,4 +8,6 @@ export declare class CreatePokerTournamentEventDto {
     fieldSize?: number;
     finishPosition?: number;
     notes?: string;
+    reBuys?: number;
+    reBuyAmount?: number;
 }
