@@ -15,6 +15,8 @@ const class_transformer_1 = require("class-transformer");
 class CreatePokerTournamentEventDto {
     constructor() {
         this.winnings = 0;
+        this.reBuys = 0;
+        this.reBuyAmount = 0;
     }
 }
 exports.CreatePokerTournamentEventDto = CreatePokerTournamentEventDto;
@@ -76,4 +78,20 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePokerTournamentEventDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(10),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreatePokerTournamentEventDto.prototype, "reBuys", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 2 }),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(99999.99),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreatePokerTournamentEventDto.prototype, "reBuyAmount", void 0);
 //# sourceMappingURL=create-poker-tournament-event.dto.js.map

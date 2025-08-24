@@ -60,4 +60,18 @@ export class CreatePokerTournamentEventDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  @Type(() => Number)
+  reBuys?: number = 0;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(99999.99)
+  @Type(() => Number)
+  reBuyAmount?: number = 0;
 }

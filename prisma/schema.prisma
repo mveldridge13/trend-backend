@@ -300,6 +300,8 @@ model PokerTournamentEvent {
   fieldSize       Int?
   finishPosition  Int?
   notes           String?
+  reBuys          Int?      @default(0)
+  reBuyAmount     Decimal?  @default(0) @db.Decimal(10, 2)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   

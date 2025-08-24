@@ -123,11 +123,12 @@ export class PokerRepository {
         t."otherExpenses",
         (t."accommodationCost" + t."foodBudget" + t."otherExpenses") as "sharedCosts",
         COALESCE(SUM(e."buyIn"), 0) as "totalBuyIns",
-        (t."accommodationCost" + t."foodBudget" + t."otherExpenses" + COALESCE(SUM(e."buyIn"), 0)) as "totalInvestment",
+        COALESCE(SUM(e."reBuyAmount"), 0) as "totalReBuys",
+        (t."accommodationCost" + t."foodBudget" + t."otherExpenses" + COALESCE(SUM(e."buyIn"), 0) + COALESCE(SUM(e."reBuyAmount"), 0)) as "totalInvestment",
         COALESCE(SUM(e.winnings), 0) as "totalWinnings",
-        (COALESCE(SUM(e.winnings), 0) - (t."accommodationCost" + t."foodBudget" + t."otherExpenses" + COALESCE(SUM(e."buyIn"), 0))) as "netProfit",
+        (COALESCE(SUM(e.winnings), 0) - (t."accommodationCost" + t."foodBudget" + t."otherExpenses" + COALESCE(SUM(e."buyIn"), 0) + COALESCE(SUM(e."reBuyAmount"), 0))) as "netProfit",
         COUNT(e.id) as "eventsPlayed",
-        COUNT(CASE WHEN e.winnings > e."buyIn" THEN 1 END) as "eventsWon"
+        COUNT(CASE WHEN e.winnings > (e."buyIn" + COALESCE(e."reBuyAmount", 0)) THEN 1 END) as "eventsWon"
       FROM poker_tournaments t
       LEFT JOIN poker_tournament_events e ON t.id = e."tournamentId"
       WHERE t.id = ${tournamentId}
@@ -143,11 +144,12 @@ export class PokerRepository {
         COUNT(DISTINCT t.id) as "totalTournaments",
         COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses"), 0) as "totalSharedCosts",
         COALESCE(SUM(e."buyIn"), 0) as "totalBuyIns",
-        COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") + SUM(e."buyIn"), 0) as "totalInvestment",
+        COALESCE(SUM(e."reBuyAmount"), 0) as "totalReBuys",
+        COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") + SUM(e."buyIn") + SUM(e."reBuyAmount"), 0) as "totalInvestment",
         COALESCE(SUM(e.winnings), 0) as "totalWinnings",
-        COALESCE(SUM(e.winnings) - SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") - SUM(e."buyIn"), 0) as "netProfit",
+        COALESCE(SUM(e.winnings) - SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") - SUM(e."buyIn") - SUM(e."reBuyAmount"), 0) as "netProfit",
         COUNT(e.id) as "totalEventsPlayed",
-        COUNT(CASE WHEN e.winnings > e."buyIn" THEN 1 END) as "totalEventsWon",
+        COUNT(CASE WHEN e.winnings > (e."buyIn" + COALESCE(e."reBuyAmount", 0)) THEN 1 END) as "totalEventsWon",
         COALESCE(MAX(e.winnings), 0) as "biggestWin",
         COALESCE(MIN(e."buyIn" - e.winnings), 0) as "biggestLoss"
       FROM poker_tournaments t
