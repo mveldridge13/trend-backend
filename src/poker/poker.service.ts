@@ -386,6 +386,7 @@ export class PokerService {
       reBuys: event.reBuys,
       reBuyAmount: event.reBuyAmount ? parseFloat(event.reBuyAmount) : undefined,
       startingStack: event.startingStack,
+      isClosed: event.isClosed,
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     };
