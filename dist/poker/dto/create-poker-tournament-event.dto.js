@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreatePokerTournamentEventDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const poker_tournament_dto_1 = require("./poker-tournament.dto");
 class CreatePokerTournamentEventDto {
     constructor() {
         this.winnings = 0;
@@ -54,8 +55,7 @@ __decorate([
 ], CreatePokerTournamentEventDto.prototype, "eventDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MaxLength)(100),
+    (0, class_validator_1.IsEnum)(poker_tournament_dto_1.GameType),
     __metadata("design:type", String)
 ], CreatePokerTournamentEventDto.prototype, "gameType", void 0);
 __decorate([
