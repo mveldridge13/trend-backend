@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsDateString,
   IsInt,
+  IsBoolean,
   Min,
   Max,
   MaxLength,
@@ -81,4 +82,8 @@ export class CreatePokerTournamentEventDto {
   @Max(999999)
   @Type(() => Number)
   startingStack?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isClosed?: boolean = false;
 }

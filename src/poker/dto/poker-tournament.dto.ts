@@ -43,6 +43,7 @@ export class PokerTournamentEventDto {
   reBuys?: number;
   reBuyAmount?: number;
   startingStack?: number;
+  isClosed: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

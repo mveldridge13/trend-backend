@@ -17,6 +17,7 @@ class CreatePokerTournamentEventDto {
         this.winnings = 0;
         this.reBuys = 0;
         this.reBuyAmount = 0;
+        this.isClosed = false;
     }
 }
 exports.CreatePokerTournamentEventDto = CreatePokerTournamentEventDto;
@@ -102,4 +103,9 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreatePokerTournamentEventDto.prototype, "startingStack", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreatePokerTournamentEventDto.prototype, "isClosed", void 0);
 //# sourceMappingURL=create-poker-tournament-event.dto.js.map
