@@ -220,6 +220,7 @@ model PokerTournamentEvent {
   reBuyAmount    Decimal?        @default(0) @db.Decimal(10, 2)
   reBuys         Int?            @default(0)
   startingStack  Int?            @default(0)
+  isClosed       Boolean         @default(false)
   tournament     PokerTournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 

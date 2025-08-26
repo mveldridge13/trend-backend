@@ -11,4 +11,5 @@ export declare class CreatePokerTournamentEventDto {
     reBuys?: number;
     reBuyAmount?: number;
     startingStack?: number;
+    isClosed?: boolean;
 }
