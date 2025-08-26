@@ -295,6 +295,7 @@ let PokerService = class PokerService {
             notes: event.notes,
             reBuys: event.reBuys,
             reBuyAmount: event.reBuyAmount ? parseFloat(event.reBuyAmount) : undefined,
+            startingStack: event.startingStack,
             createdAt: event.createdAt,
             updatedAt: event.updatedAt,
         };

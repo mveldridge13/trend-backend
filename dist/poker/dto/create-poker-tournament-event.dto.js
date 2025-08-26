@@ -94,4 +94,12 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreatePokerTournamentEventDto.prototype, "reBuyAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(999999),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreatePokerTournamentEventDto.prototype, "startingStack", void 0);
 //# sourceMappingURL=create-poker-tournament-event.dto.js.map

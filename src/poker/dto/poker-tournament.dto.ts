@@ -42,6 +42,7 @@ export class PokerTournamentEventDto {
   notes?: string;
   reBuys?: number;
   reBuyAmount?: number;
+  startingStack?: number;
   createdAt: Date;
   updatedAt: Date;
 }
