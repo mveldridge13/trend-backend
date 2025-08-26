@@ -10,4 +10,5 @@ export declare class CreatePokerTournamentEventDto {
     notes?: string;
     reBuys?: number;
     reBuyAmount?: number;
+    startingStack?: number;
 }

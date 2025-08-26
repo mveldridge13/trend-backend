@@ -74,4 +74,11 @@ export class CreatePokerTournamentEventDto {
   @Max(99999.99)
   @Type(() => Number)
   reBuyAmount?: number = 0;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(999999)
+  @Type(() => Number)
+  startingStack?: number;
 }
