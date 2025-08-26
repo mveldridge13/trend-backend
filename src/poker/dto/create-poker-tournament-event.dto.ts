@@ -6,11 +6,13 @@ import {
   IsDateString,
   IsInt,
   IsBoolean,
+  IsEnum,
   Min,
   Max,
   MaxLength,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { GameType } from "./poker-tournament.dto";
 
 export class CreatePokerTournamentEventDto {
   @IsString()
@@ -40,9 +42,8 @@ export class CreatePokerTournamentEventDto {
   eventDate: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  gameType?: string;
+  @IsEnum(GameType)
+  gameType?: GameType;
 
   @IsOptional()
   @IsInt()

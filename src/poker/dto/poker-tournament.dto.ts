@@ -1,3 +1,13 @@
+export enum GameType {
+  NO_LIMIT_HOLDEM = 'NO_LIMIT_HOLDEM',
+  SATELLITE = 'SATELLITE',
+  FREEZEOUT = 'FREEZEOUT',
+  BOUNTY = 'BOUNTY',
+  TURBO = 'TURBO',
+  DEEPSTACK = 'DEEPSTACK',
+  TEAM_EVENT = 'TEAM_EVENT',
+}
+
 export class PokerTournamentDto {
   id: string;
   userId: string;
@@ -36,7 +46,7 @@ export class PokerTournamentEventDto {
   buyIn: number;
   winnings: number;
   eventDate: Date;
-  gameType?: string;
+  gameType?: GameType;
   fieldSize?: number;
   finishPosition?: number;
   notes?: string;

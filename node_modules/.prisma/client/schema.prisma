@@ -211,7 +211,7 @@ model PokerTournamentEvent {
   buyIn          Decimal         @db.Decimal(10, 2)
   winnings       Decimal         @default(0) @db.Decimal(10, 2)
   eventDate      DateTime
-  gameType       String?
+  gameType       GameType?
   fieldSize      Int?
   finishPosition Int?
   notes          String?
@@ -311,4 +311,14 @@ enum PaymentStatus {
   UPCOMING
   PAID
   OVERDUE
+}
+
+enum GameType {
+  NO_LIMIT_HOLDEM
+  SATELLITE
+  FREEZEOUT
+  BOUNTY
+  TURBO
+  DEEPSTACK
+  TEAM_EVENT
 }
