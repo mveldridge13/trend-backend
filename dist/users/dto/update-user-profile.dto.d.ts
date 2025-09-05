@@ -14,4 +14,6 @@ export declare class UpdateUserProfileDto {
     hasSeenBalanceCardTour?: boolean;
     hasSeenAddTransactionTour?: boolean;
     hasSeenTransactionSwipeTour?: boolean;
+    rolloverAmount?: number;
+    lastRolloverDate?: string;
 }

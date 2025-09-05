@@ -94,9 +94,45 @@ let UsersService = class UsersService {
         }
         await this.usersRepository.update(id, { isActive: false });
     }
+    async getRolloverHistory(userId) {
+        const rolloverEntries = await this.usersRepository.getRolloverHistory(userId);
+        return rolloverEntries.map(entry => ({
+            id: entry.id,
+            amount: Number(entry.amount),
+            date: entry.date,
+            type: entry.type,
+            periodStart: entry.periodStart,
+            periodEnd: entry.periodEnd,
+            description: entry.description,
+        }));
+    }
+    async createRolloverEntry(userId, amount, type, periodStart, periodEnd, description) {
+        const entry = await this.usersRepository.createRolloverEntry({
+            userId,
+            amount,
+            type,
+            periodStart,
+            periodEnd,
+            description,
+        });
+        return {
+            id: entry.id,
+            amount: Number(entry.amount),
+            date: entry.date,
+            type: entry.type,
+            periodStart: entry.periodStart,
+            periodEnd: entry.periodEnd,
+            description: entry.description,
+        };
+    }
     toUserDto(user) {
         const { passwordHash, ...userWithoutPassword } = user;
-        return userWithoutPassword;
+        return {
+            ...userWithoutPassword,
+            income: user.income ? Number(user.income) : undefined,
+            fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : undefined,
+            rolloverAmount: user.rolloverAmount ? Number(user.rolloverAmount) : undefined,
+        };
     }
 };
 exports.UsersService = UsersService;

@@ -26,7 +26,6 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
         }
         catch (error) {
             this.handleDatabaseError(error);
-            return null;
         }
     }
     async findByUsername(username) {
@@ -37,7 +36,6 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
         }
         catch (error) {
             this.handleDatabaseError(error);
-            return null;
         }
     }
     async findById(id) {
@@ -48,7 +46,6 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
         }
         catch (error) {
             this.handleDatabaseError(error);
-            return null;
         }
     }
     async create(data) {
@@ -92,6 +89,27 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             await this.prisma.user.update({
                 where: { id },
                 data: { updatedAt: new Date() },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async getRolloverHistory(userId) {
+        try {
+            return await this.prisma.rolloverEntry.findMany({
+                where: { userId },
+                orderBy: { date: "desc" },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async createRolloverEntry(data) {
+        try {
+            return await this.prisma.rolloverEntry.create({
+                data,
             });
         }
         catch (error) {

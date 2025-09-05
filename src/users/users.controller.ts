@@ -16,6 +16,8 @@ import { UsersService } from "./users.service";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
+import { UpdateRolloverDto } from "./dto/update-rollover.dto";
+import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -91,6 +93,60 @@ export class UsersController {
       console.error("💰 Backend: Error updating income:", error);
       throw error;
     }
+  }
+
+  // ============================================================================
+  // ROLLOVER ENDPOINTS - NEW SECTION
+  // ============================================================================
+
+  @Get("rollover")
+  async getRolloverStatus(@Request() req): Promise<any> {
+    const userId = req.user.id;
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return {
+      rolloverAmount: user.rolloverAmount,
+      lastRolloverDate: user.lastRolloverDate,
+    };
+  }
+
+  @Put("rollover")
+  async updateRollover(
+    @Request() req,
+    @Body() rolloverData: UpdateRolloverDto
+  ): Promise<any> {
+    const userId = req.user.id;
+
+    console.log("🔄 Backend: Received rollover data:", rolloverData);
+
+    try {
+      const updatedUser = await this.usersService.updateProfile(
+        userId,
+        rolloverData as UpdateUserDto
+      );
+
+      console.log("🔄 Backend: Rollover updated successfully");
+
+      return {
+        success: true,
+        rollover: {
+          rolloverAmount: updatedUser.rolloverAmount,
+          lastRolloverDate: updatedUser.lastRolloverDate,
+        },
+      };
+    } catch (error) {
+      console.error("🔄 Backend: Error updating rollover:", error);
+      throw error;
+    }
+  }
+
+  @Get("rollover/history")
+  async getRolloverHistory(@Request() req): Promise<RolloverEntryDto[]> {
+    const userId = req.user.id;
+    return this.usersService.getRolloverHistory(userId);
   }
 
   // ============================================================================

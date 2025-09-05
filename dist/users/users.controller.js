@@ -18,6 +18,7 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const users_service_1 = require("./users.service");
 const update_user_dto_1 = require("./dto/update-user.dto");
 const update_user_profile_dto_1 = require("./dto/update-user-profile.dto");
+const update_rollover_dto_1 = require("./dto/update-rollover.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -68,6 +69,40 @@ let UsersController = class UsersController {
             throw error;
         }
     }
+    async getRolloverStatus(req) {
+        const userId = req.user.id;
+        const user = await this.usersService.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        return {
+            rolloverAmount: user.rolloverAmount,
+            lastRolloverDate: user.lastRolloverDate,
+        };
+    }
+    async updateRollover(req, rolloverData) {
+        const userId = req.user.id;
+        console.log("🔄 Backend: Received rollover data:", rolloverData);
+        try {
+            const updatedUser = await this.usersService.updateProfile(userId, rolloverData);
+            console.log("🔄 Backend: Rollover updated successfully");
+            return {
+                success: true,
+                rollover: {
+                    rolloverAmount: updatedUser.rolloverAmount,
+                    lastRolloverDate: updatedUser.lastRolloverDate,
+                },
+            };
+        }
+        catch (error) {
+            console.error("🔄 Backend: Error updating rollover:", error);
+            throw error;
+        }
+    }
+    async getRolloverHistory(req) {
+        const userId = req.user.id;
+        return this.usersService.getRolloverHistory(userId);
+    }
     async updateOnboarding(req, updateOnboardingDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateOnboardingDto);
@@ -108,6 +143,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateIncome", null);
+__decorate([
+    (0, common_1.Get)("rollover"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getRolloverStatus", null);
+__decorate([
+    (0, common_1.Put)("rollover"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_rollover_dto_1.UpdateRolloverDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateRollover", null);
+__decorate([
+    (0, common_1.Get)("rollover/history"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getRolloverHistory", null);
 __decorate([
     (0, common_1.Patch)("onboarding"),
     __param(0, (0, common_1.Request)()),

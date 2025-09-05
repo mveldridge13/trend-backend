@@ -1,4 +1,4 @@
-import { User } from "@prisma/client";
+import { User, RolloverEntry, RolloverType } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
@@ -15,4 +15,13 @@ export declare class UsersRepository extends BaseRepository<User> {
     update(id: string, data: UpdateUserDto): Promise<User>;
     updateProfile(id: string, data: UpdateUserProfileDto): Promise<User>;
     updateLastLogin(id: string): Promise<void>;
+    getRolloverHistory(userId: string): Promise<RolloverEntry[]>;
+    createRolloverEntry(data: {
+        userId: string;
+        amount: number;
+        type: RolloverType;
+        periodStart: Date;
+        periodEnd: Date;
+        description?: string;
+    }): Promise<RolloverEntry>;
 }

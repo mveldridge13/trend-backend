@@ -1,4 +1,5 @@
 import { IncomeFrequency } from "@prisma/client";
+import { RolloverEntryDto } from "./rollover-entry.dto";
 export declare class UserDto {
     id: string;
     email: string;
@@ -16,6 +17,9 @@ export declare class UserDto {
     fixedExpenses?: number;
     setupComplete: boolean;
     hasSeenWelcome: boolean;
+    rolloverAmount?: number;
+    lastRolloverDate?: Date;
+    rolloverHistory?: RolloverEntryDto[];
     hasSeenBalanceCardTour: boolean;
     hasSeenAddTransactionTour: boolean;
     hasSeenTransactionSwipeTour: boolean;

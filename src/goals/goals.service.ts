@@ -16,6 +16,7 @@ import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalFiltersDto } from "./dto/goal-filters.dto";
 import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
+import { RolloverContributionDto } from "./dto/rollover-contribution.dto";
 import {
   GoalResponseDto,
   GoalsListResponseDto,
@@ -812,5 +813,92 @@ export class GoalsService {
       0
     );
     return totalExpenses / 3; // 90 days = ~3 months
+  }
+
+  // ============================================================================
+  // ROLLOVER CONTRIBUTION METHODS - NEW SECTION
+  // ============================================================================
+
+  async addRolloverContribution(
+    userId: string,
+    rolloverContributionDto: RolloverContributionDto
+  ): Promise<GoalContributionResponseDto[]> {
+    const { totalRolloverAmount, goalAllocations, description } = rolloverContributionDto;
+
+    // Verify the allocations sum to total rollover amount
+    const allocatedSum = goalAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    if (Math.abs(allocatedSum - totalRolloverAmount) > 0.01) {
+      throw new BadRequestException(
+        `Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`
+      );
+    }
+
+    const contributionResults: GoalContributionResponseDto[] = [];
+
+    // Process each goal allocation
+    for (const allocation of goalAllocations) {
+      const goal = await this.goalsRepository.findByUserAndGoalId(userId, allocation.goalId);
+
+      if (!goal) {
+        throw new NotFoundException(`Goal with ID ${allocation.goalId} not found`);
+      }
+
+      if (goal.isCompleted) {
+        throw new BadRequestException(
+          `Cannot add rollover contribution to completed goal: ${goal.name}`
+        );
+      }
+
+      // Create rollover contribution
+      const contributionData = {
+        amount: allocation.amount,
+        date: new Date(),
+        description: allocation.description || description || 'Rollover contribution',
+        type: ContributionType.ROLLOVER,
+        goal: {
+          connect: { id: allocation.goalId },
+        },
+        user: {
+          connect: { id: userId },
+        },
+      };
+
+      const contribution = await this.goalsRepository.createContribution(contributionData);
+
+      // Update goal progress (same logic as regular contributions)
+      let newCurrentAmount: number;
+      let isNowCompleted: boolean;
+
+      if (goal.type === "DEBT_PAYOFF") {
+        // For debt goals, subtract the payment from current debt
+        newCurrentAmount = goal.currentAmount.toNumber() - allocation.amount;
+        isNowCompleted = newCurrentAmount <= 0;
+        if (newCurrentAmount < 0) {
+          newCurrentAmount = 0;
+        }
+      } else {
+        // For savings goals, add to current amount
+        newCurrentAmount = goal.currentAmount.toNumber() + allocation.amount;
+        isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+      }
+
+      await this.goalsRepository.update(allocation.goalId, {
+        currentAmount: newCurrentAmount,
+        isCompleted: isNowCompleted,
+        completedAt: isNowCompleted ? new Date() : null,
+      });
+
+      contributionResults.push({
+        id: contribution.id,
+        amount: contribution.amount.toNumber(),
+        currency: contribution.currency,
+        date: contribution.date,
+        description: contribution.description,
+        type: contribution.type,
+        transactionId: contribution.transactionId,
+      });
+    }
+
+    return contributionResults;
   }
 }
