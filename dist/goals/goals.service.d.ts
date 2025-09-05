@@ -3,6 +3,7 @@ import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalFiltersDto } from "./dto/goal-filters.dto";
 import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
+import { RolloverContributionDto } from "./dto/rollover-contribution.dto";
 import { GoalResponseDto, GoalsListResponseDto, GoalAnalyticsDto, GoalContributionResponseDto } from "./dto/goal-response.dto";
 import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
 export declare class GoalsService {
@@ -30,4 +31,5 @@ export declare class GoalsService {
     private generateEmergencyFundSuggestion;
     private generateSpendingLimitSuggestions;
     private calculateAverageMonthlyExpenses;
+    addRolloverContribution(userId: string, rolloverContributionDto: RolloverContributionDto): Promise<GoalContributionResponseDto[]>;
 }

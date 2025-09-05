@@ -541,6 +541,64 @@ let GoalsService = class GoalsService {
         const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount.toNumber(), 0);
         return totalExpenses / 3;
     }
+    async addRolloverContribution(userId, rolloverContributionDto) {
+        const { totalRolloverAmount, goalAllocations, description } = rolloverContributionDto;
+        const allocatedSum = goalAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+        if (Math.abs(allocatedSum - totalRolloverAmount) > 0.01) {
+            throw new common_1.BadRequestException(`Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`);
+        }
+        const contributionResults = [];
+        for (const allocation of goalAllocations) {
+            const goal = await this.goalsRepository.findByUserAndGoalId(userId, allocation.goalId);
+            if (!goal) {
+                throw new common_1.NotFoundException(`Goal with ID ${allocation.goalId} not found`);
+            }
+            if (goal.isCompleted) {
+                throw new common_1.BadRequestException(`Cannot add rollover contribution to completed goal: ${goal.name}`);
+            }
+            const contributionData = {
+                amount: allocation.amount,
+                date: new Date(),
+                description: allocation.description || description || 'Rollover contribution',
+                type: client_1.ContributionType.ROLLOVER,
+                goal: {
+                    connect: { id: allocation.goalId },
+                },
+                user: {
+                    connect: { id: userId },
+                },
+            };
+            const contribution = await this.goalsRepository.createContribution(contributionData);
+            let newCurrentAmount;
+            let isNowCompleted;
+            if (goal.type === "DEBT_PAYOFF") {
+                newCurrentAmount = goal.currentAmount.toNumber() - allocation.amount;
+                isNowCompleted = newCurrentAmount <= 0;
+                if (newCurrentAmount < 0) {
+                    newCurrentAmount = 0;
+                }
+            }
+            else {
+                newCurrentAmount = goal.currentAmount.toNumber() + allocation.amount;
+                isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+            }
+            await this.goalsRepository.update(allocation.goalId, {
+                currentAmount: newCurrentAmount,
+                isCompleted: isNowCompleted,
+                completedAt: isNowCompleted ? new Date() : null,
+            });
+            contributionResults.push({
+                id: contribution.id,
+                amount: contribution.amount.toNumber(),
+                currency: contribution.currency,
+                date: contribution.date,
+                description: contribution.description,
+                type: contribution.type,
+                transactionId: contribution.transactionId,
+            });
+        }
+        return contributionResults;
+    }
 };
 exports.GoalsService = GoalsService;
 exports.GoalsService = GoalsService = __decorate([

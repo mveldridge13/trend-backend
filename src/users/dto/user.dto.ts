@@ -1,4 +1,5 @@
 import { IncomeFrequency } from "@prisma/client";
+import { RolloverEntryDto } from "./rollover-entry.dto";
 
 export class UserDto {
   id: string;
@@ -19,6 +20,11 @@ export class UserDto {
   fixedExpenses?: number;
   setupComplete: boolean;
   hasSeenWelcome: boolean;
+
+  // Rollover fields
+  rolloverAmount?: number;
+  lastRolloverDate?: Date;
+  rolloverHistory?: RolloverEntryDto[];
 
   // Tutorial onboarding fields - removed optional modifiers for consistency
   hasSeenBalanceCardTour: boolean;

@@ -3,6 +3,7 @@ import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalFiltersDto } from "./dto/goal-filters.dto";
 import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
+import { RolloverContributionDto } from "./dto/rollover-contribution.dto";
 import { GoalResponseDto, GoalsListResponseDto, GoalAnalyticsDto, GoalContributionResponseDto } from "./dto/goal-response.dto";
 import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
 export declare class GoalsController {
@@ -18,4 +19,5 @@ export declare class GoalsController {
     getGoalAnalytics(req: any, goalId: string): Promise<GoalAnalyticsDto>;
     addGoalContribution(req: any, goalId: string, createContributionDto: CreateGoalContributionDto): Promise<GoalContributionResponseDto>;
     getGoalContributions(req: any, goalId: string, startDate?: string, endDate?: string): Promise<GoalContributionResponseDto[]>;
+    addRolloverContribution(req: any, rolloverContributionDto: RolloverContributionDto): Promise<GoalContributionResponseDto[]>;
 }

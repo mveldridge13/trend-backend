@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { User } from "@prisma/client";
+import { User, RolloverEntry, RolloverType } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
@@ -20,7 +20,6 @@ export class UsersRepository extends BaseRepository<User> {
       return result;
     } catch (error) {
       this.handleDatabaseError(error);
-      return null;
     }
   }
 
@@ -31,7 +30,6 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      return null;
     }
   }
 
@@ -42,7 +40,6 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
-      return null;
     }
   }
 
@@ -88,6 +85,38 @@ export class UsersRepository extends BaseRepository<User> {
       await this.prisma.user.update({
         where: { id },
         data: { updatedAt: new Date() },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  // ============================================================================
+  // ROLLOVER METHODS - NEW SECTION
+  // ============================================================================
+
+  async getRolloverHistory(userId: string): Promise<RolloverEntry[]> {
+    try {
+      return await this.prisma.rolloverEntry.findMany({
+        where: { userId },
+        orderBy: { date: "desc" },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async createRolloverEntry(data: {
+    userId: string;
+    amount: number;
+    type: RolloverType;
+    periodStart: Date;
+    periodEnd: Date;
+    description?: string;
+  }): Promise<RolloverEntry> {
+    try {
+      return await this.prisma.rolloverEntry.create({
+        data,
       });
     } catch (error) {
       this.handleDatabaseError(error);

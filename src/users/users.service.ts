@@ -3,6 +3,7 @@ import { UsersRepository } from "./repositories/users.repository";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
+import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 
 @Injectable()
 export class UsersService {
@@ -128,8 +129,58 @@ export class UsersService {
     await this.usersRepository.update(id, { isActive: false });
   }
 
+  // ============================================================================
+  // ROLLOVER METHODS - NEW SECTION
+  // ============================================================================
+
+  async getRolloverHistory(userId: string): Promise<RolloverEntryDto[]> {
+    const rolloverEntries = await this.usersRepository.getRolloverHistory(userId);
+    return rolloverEntries.map(entry => ({
+      id: entry.id,
+      amount: Number(entry.amount),
+      date: entry.date,
+      type: entry.type,
+      periodStart: entry.periodStart,
+      periodEnd: entry.periodEnd,
+      description: entry.description,
+    }));
+  }
+
+  async createRolloverEntry(
+    userId: string,
+    amount: number,
+    type: 'ROLLOVER' | 'GOAL_ALLOCATION',
+    periodStart: Date,
+    periodEnd: Date,
+    description?: string
+  ): Promise<RolloverEntryDto> {
+    const entry = await this.usersRepository.createRolloverEntry({
+      userId,
+      amount,
+      type,
+      periodStart,
+      periodEnd,
+      description,
+    });
+
+    return {
+      id: entry.id,
+      amount: Number(entry.amount),
+      date: entry.date,
+      type: entry.type,
+      periodStart: entry.periodStart,
+      periodEnd: entry.periodEnd,
+      description: entry.description,
+    };
+  }
+
   private toUserDto(user: any): UserDto {
     const { passwordHash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      income: user.income ? Number(user.income) : undefined,
+      fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : undefined,
+      rolloverAmount: user.rolloverAmount ? Number(user.rolloverAmount) : undefined,
+    };
   }
 }

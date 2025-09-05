@@ -20,6 +20,7 @@ const create_goal_dto_1 = require("./dto/create-goal.dto");
 const update_goal_dto_1 = require("./dto/update-goal.dto");
 const goal_filters_dto_1 = require("./dto/goal-filters.dto");
 const create_goal_contribution_dto_1 = require("./dto/create-goal-contribution.dto");
+const rollover_contribution_dto_1 = require("./dto/rollover-contribution.dto");
 let GoalsController = class GoalsController {
     constructor(goalsService) {
         this.goalsService = goalsService;
@@ -66,6 +67,10 @@ let GoalsController = class GoalsController {
     async getGoalContributions(req, goalId, startDate, endDate) {
         const userId = this.extractUserId(req);
         return this.goalsService.getGoalContributions(userId, goalId, startDate, endDate);
+    }
+    async addRolloverContribution(req, rolloverContributionDto) {
+        const userId = this.extractUserId(req);
+        return this.goalsService.addRolloverContribution(userId, rolloverContributionDto);
     }
 };
 exports.GoalsController = GoalsController;
@@ -147,6 +152,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], GoalsController.prototype, "getGoalContributions", null);
+__decorate([
+    (0, common_1.Post)("rollover-contribution"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)(common_1.ValidationPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, rollover_contribution_dto_1.RolloverContributionDto]),
+    __metadata("design:returntype", Promise)
+], GoalsController.prototype, "addRolloverContribution", null);
 exports.GoalsController = GoalsController = __decorate([
     (0, common_1.Controller)("goals"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

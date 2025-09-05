@@ -19,6 +19,7 @@ import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalFiltersDto } from "./dto/goal-filters.dto";
 import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
+import { RolloverContributionDto } from "./dto/rollover-contribution.dto";
 import {
   GoalResponseDto,
   GoalsListResponseDto,
@@ -139,6 +140,20 @@ export class GoalsController {
       goalId,
       startDate,
       endDate,
+    );
+  }
+
+  // Rollover Contribution
+  @Post("rollover-contribution")
+  @HttpCode(HttpStatus.CREATED)
+  async addRolloverContribution(
+    @Request() req: any,
+    @Body(ValidationPipe) rolloverContributionDto: RolloverContributionDto,
+  ): Promise<GoalContributionResponseDto[]> {
+    const userId = this.extractUserId(req);
+    return this.goalsService.addRolloverContribution(
+      userId,
+      rolloverContributionDto,
     );
   }
 }
