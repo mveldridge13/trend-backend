@@ -19,6 +19,7 @@ const users_service_1 = require("./users.service");
 const update_user_dto_1 = require("./dto/update-user.dto");
 const update_user_profile_dto_1 = require("./dto/update-user-profile.dto");
 const update_rollover_dto_1 = require("./dto/update-rollover.dto");
+const create_rollover_entry_dto_1 = require("./dto/create-rollover-entry.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -103,6 +104,10 @@ let UsersController = class UsersController {
         const userId = req.user.id;
         return this.usersService.getRolloverHistory(userId);
     }
+    async createRolloverEntry(req, createRolloverEntryDto) {
+        const userId = req.user.id;
+        return this.usersService.createRolloverEntry(userId, createRolloverEntryDto);
+    }
     async updateOnboarding(req, updateOnboardingDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateOnboardingDto);
@@ -165,6 +170,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getRolloverHistory", null);
+__decorate([
+    (0, common_1.Post)("rollover/entries"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_rollover_entry_dto_1.CreateRolloverEntryDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "createRolloverEntry", null);
 __decorate([
     (0, common_1.Patch)("onboarding"),
     __param(0, (0, common_1.Request)()),

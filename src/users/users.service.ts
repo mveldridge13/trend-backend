@@ -4,6 +4,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
+import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 
 @Injectable()
 export class UsersService {
@@ -148,19 +149,29 @@ export class UsersService {
 
   async createRolloverEntry(
     userId: string,
-    amount: number,
-    type: 'ROLLOVER' | 'GOAL_ALLOCATION',
-    periodStart: Date,
-    periodEnd: Date,
-    description?: string
+    createRolloverEntryDto: CreateRolloverEntryDto
   ): Promise<RolloverEntryDto> {
+    let periodStartDate: Date;
+    let periodEndDate: Date;
+
+    try {
+      periodStartDate = new Date(createRolloverEntryDto.periodStart);
+      periodEndDate = new Date(createRolloverEntryDto.periodEnd);
+
+      if (isNaN(periodStartDate.getTime()) || isNaN(periodEndDate.getTime())) {
+        throw new Error("Invalid date format provided");
+      }
+    } catch (error) {
+      throw new Error("Invalid date format in rollover entry data");
+    }
+
     const entry = await this.usersRepository.createRolloverEntry({
       userId,
-      amount,
-      type,
-      periodStart,
-      periodEnd,
-      description,
+      amount: createRolloverEntryDto.amount,
+      type: createRolloverEntryDto.type,
+      periodStart: periodStartDate,
+      periodEnd: periodEndDate,
+      description: createRolloverEntryDto.description,
     });
 
     return {

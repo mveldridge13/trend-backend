@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Post,
   Patch,
   Delete,
   Body,
@@ -18,6 +19,7 @@ import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
 import { UpdateRolloverDto } from "./dto/update-rollover.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
+import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -147,6 +149,15 @@ export class UsersController {
   async getRolloverHistory(@Request() req): Promise<RolloverEntryDto[]> {
     const userId = req.user.id;
     return this.usersService.getRolloverHistory(userId);
+  }
+
+  @Post("rollover/entries")
+  async createRolloverEntry(
+    @Request() req,
+    @Body() createRolloverEntryDto: CreateRolloverEntryDto
+  ): Promise<RolloverEntryDto> {
+    const userId = req.user.id;
+    return this.usersService.createRolloverEntry(userId, createRolloverEntryDto);
   }
 
   // ============================================================================
