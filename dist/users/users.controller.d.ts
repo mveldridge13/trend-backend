@@ -4,6 +4,7 @@ import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
 import { UpdateRolloverDto } from "./dto/update-rollover.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
+import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
@@ -14,6 +15,7 @@ export declare class UsersController {
     getRolloverStatus(req: any): Promise<any>;
     updateRollover(req: any, rolloverData: UpdateRolloverDto): Promise<any>;
     getRolloverHistory(req: any): Promise<RolloverEntryDto[]>;
+    createRolloverEntry(req: any, createRolloverEntryDto: CreateRolloverEntryDto): Promise<RolloverEntryDto>;
     updateOnboarding(req: any, updateOnboardingDto: UpdateUserProfileDto): Promise<UserDto>;
     deactivateAccount(req: any): Promise<void>;
 }

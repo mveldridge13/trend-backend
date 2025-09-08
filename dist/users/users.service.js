@@ -106,14 +106,26 @@ let UsersService = class UsersService {
             description: entry.description,
         }));
     }
-    async createRolloverEntry(userId, amount, type, periodStart, periodEnd, description) {
+    async createRolloverEntry(userId, createRolloverEntryDto) {
+        let periodStartDate;
+        let periodEndDate;
+        try {
+            periodStartDate = new Date(createRolloverEntryDto.periodStart);
+            periodEndDate = new Date(createRolloverEntryDto.periodEnd);
+            if (isNaN(periodStartDate.getTime()) || isNaN(periodEndDate.getTime())) {
+                throw new Error("Invalid date format provided");
+            }
+        }
+        catch (error) {
+            throw new Error("Invalid date format in rollover entry data");
+        }
         const entry = await this.usersRepository.createRolloverEntry({
             userId,
-            amount,
-            type,
-            periodStart,
-            periodEnd,
-            description,
+            amount: createRolloverEntryDto.amount,
+            type: createRolloverEntryDto.type,
+            periodStart: periodStartDate,
+            periodEnd: periodEndDate,
+            description: createRolloverEntryDto.description,
         });
         return {
             id: entry.id,

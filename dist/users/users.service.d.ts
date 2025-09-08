@@ -3,6 +3,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
 import { UserDto } from "./dto/user.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
+import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 export declare class UsersService {
     private readonly usersRepository;
     constructor(usersRepository: UsersRepository);
@@ -33,6 +34,6 @@ export declare class UsersService {
     }>;
     deactivate(id: string): Promise<void>;
     getRolloverHistory(userId: string): Promise<RolloverEntryDto[]>;
-    createRolloverEntry(userId: string, amount: number, type: 'ROLLOVER' | 'GOAL_ALLOCATION', periodStart: Date, periodEnd: Date, description?: string): Promise<RolloverEntryDto>;
+    createRolloverEntry(userId: string, createRolloverEntryDto: CreateRolloverEntryDto): Promise<RolloverEntryDto>;
     private toUserDto;
 }
