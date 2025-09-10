@@ -21,6 +21,7 @@ const categories_module_1 = require("./categories/categories.module");
 const transactions_module_1 = require("./transactions/transactions.module");
 const goals_module_1 = require("./goals/goals.module");
 const poker_module_1 = require("./poker/poker.module");
+const common_module_1 = require("./common/common.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -36,6 +37,7 @@ exports.AppModule = AppModule = __decorate([
                     limit: 100,
                 },
             ]),
+            common_module_1.CommonModule,
             database_module_1.DatabaseModule,
             health_module_1.HealthModule,
             auth_module_1.AuthModule,

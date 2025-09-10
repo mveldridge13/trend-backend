@@ -28,6 +28,7 @@ import {
 } from "./dto/day-time-patterns.dto";
 //import { DiscretionaryBreakdownDto } from "./dto/discretionary-breakdown.dto";
 import { Transaction, TransactionType, IncomeFrequency } from "@prisma/client";
+import { DateService } from "../common/services/date.service";
 
 // ✅ Inline interface definition for discretionary breakdown
 interface DiscretionaryBreakdownDto {
@@ -122,20 +123,35 @@ export class TransactionsService {
   constructor(
     private readonly transactionsRepository: TransactionsRepository,
     private readonly usersRepository: UsersRepository,
+    private readonly dateService: DateService,
   ) {}
 
   async create(
     userId: string,
     createTransactionDto: CreateTransactionDto,
   ): Promise<TransactionDto> {
+    // Get user's timezone for proper date validation
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    
+    const userTimezone = this.dateService.getValidTimezone(user.timezone);
+    
     this.validateTransactionAmount(createTransactionDto.amount);
-    this.validateTransactionDate(createTransactionDto.date);
+    this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
 
+    // Convert date from user timezone to UTC for storage
+    const utcDate = this.dateService.toUtc(createTransactionDto.date, userTimezone);
+    
     const transaction = await this.transactionsRepository.create(
       userId,
-      createTransactionDto,
+      {
+        ...createTransactionDto,
+        date: utcDate.toISOString(),
+      },
     );
-    return this.mapToDto(transaction);
+    return await this.mapToDto(transaction, userTimezone);
   }
 
   async findAll(
@@ -153,11 +169,15 @@ export class TransactionsService {
       this.transactionsRepository.count(userId, filters),
     ]);
 
+    // Get user timezone for date conversion
+    const user = await this.usersRepository.findById(userId);
+    const userTimezone = this.dateService.getValidTimezone(user?.timezone);
+
     const page = Math.floor(filters.offset / filters.limit) + 1;
     const totalPages = Math.ceil(total / filters.limit);
 
     return {
-      transactions: transactions.map(this.mapToDto),
+      transactions: await Promise.all(transactions.map(t => this.mapToDto(t, userTimezone))),
       total,
       page,
       limit: filters.limit,
@@ -170,7 +190,7 @@ export class TransactionsService {
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
-    return this.mapToDto(transaction);
+    return await this.mapToDto(transaction);
   }
 
   async update(
@@ -197,8 +217,20 @@ export class TransactionsService {
       this.validateTransactionAmount(Number(existingTransaction.amount));
     }
 
+    // Get user's timezone for proper date validation and response conversion
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    
+    const userTimezone = this.dateService.getValidTimezone(user.timezone);
+
     if (updateTransactionDto.date !== undefined) {
-      this.validateTransactionDate(updateTransactionDto.date);
+      this.dateService.validateTransactionDate(updateTransactionDto.date, userTimezone);
+      
+      // Convert date from user timezone to UTC for storage
+      const utcDate = this.dateService.toUtc(updateTransactionDto.date, userTimezone);
+      updateTransactionDto.date = utcDate.toISOString();
     }
 
     const updatedTransaction = await this.transactionsRepository.update(
@@ -207,7 +239,7 @@ export class TransactionsService {
       updateTransactionDto,
     );
 
-    return this.mapToDto(updatedTransaction);
+    return await this.mapToDto(updatedTransaction, userTimezone);
   }
 
   async remove(id: string, userId: string): Promise<void> {
@@ -239,13 +271,15 @@ export class TransactionsService {
     userId: string,
     filters: Partial<TransactionFilterDto> = {},
   ): Promise<DiscretionaryBreakdownDto> {
-    const now = new Date();
-    const defaultStartDate = new Date();
-    defaultStartDate.setDate(now.getDate() - 30);
+    // Get user timezone for proper date handling
+    const user = await this.usersRepository.findById(userId);
+    const userTimezone = this.dateService.getValidTimezone(user?.timezone);
 
-    const startDate = filters.startDate || defaultStartDate.toISOString();
-    const endDate = filters.endDate || now.toISOString();
-    const selectedDate = filters.endDate || now.toISOString().split("T")[0];
+    // Use timezone-aware date range
+    const defaultRange = this.dateService.getRelativeDateRange(30, userTimezone);
+    const startDate = filters.startDate || defaultRange.start.toISOString();
+    const endDate = filters.endDate || defaultRange.end.toISOString();
+    const selectedDate = filters.endDate || this.dateService.formatInUserTimezone(defaultRange.end, userTimezone, 'yyyy-MM-dd');
     const selectedPeriod = this.determinePeriodType(startDate, endDate);
 
     const transactions = await this.transactionsRepository.findMany(userId, {
@@ -1558,26 +1592,14 @@ export class TransactionsService {
     }
   }
 
-  private validateTransactionDate(dateString: string): void {
-    const transactionDate = new Date(dateString);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
 
-    if (transactionDate > today) {
-      throw new BadRequestException("Transaction date cannot be in the future");
+  private async mapToDto(transaction: any, userTimezone?: string): Promise<TransactionDto> {
+    // Get user timezone if not provided
+    if (!userTimezone) {
+      const user = await this.usersRepository.findById(transaction.userId);
+      userTimezone = this.dateService.getValidTimezone(user?.timezone);
     }
 
-    const fiveYearsAgo = new Date();
-    fiveYearsAgo.setFullYear(today.getFullYear() - 5);
-
-    if (transactionDate < fiveYearsAgo) {
-      throw new BadRequestException(
-        "Transaction date cannot be more than 5 years in the past",
-      );
-    }
-  }
-
-  private mapToDto(transaction: any): TransactionDto {
     return {
       id: transaction.id,
       userId: transaction.userId,
@@ -1587,8 +1609,8 @@ export class TransactionsService {
       description: transaction.description,
       amount: Number(transaction.amount),
       currency: transaction.currency,
-      date: transaction.date,
-      dueDate: transaction.dueDate,
+      date: this.dateService.toUserTimezone(transaction.date, userTimezone),
+      dueDate: transaction.dueDate ? this.dateService.toUserTimezone(transaction.dueDate, userTimezone) : transaction.dueDate,
       type: transaction.type,
       status: transaction.status,
       recurrence: transaction.recurrence || "none",
