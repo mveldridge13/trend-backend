@@ -39,7 +39,7 @@ let PokerService = class PokerService {
     }
     async getTournaments(userId) {
         const tournaments = await this.pokerRepository.findTournamentsByUserId(userId);
-        return tournaments.map(tournament => this.transformTournamentToDto(tournament));
+        return tournaments.map((tournament) => this.transformTournamentToDto(tournament));
     }
     async getTournamentById(id, userId) {
         const tournament = await this.pokerRepository.findTournamentByIdWithEvents(id);
@@ -147,7 +147,7 @@ let PokerService = class PokerService {
             throw new common_1.ForbiddenException("Access denied to this tournament");
         }
         const events = await this.pokerRepository.findEventsByTournamentId(tournamentId);
-        return events.map(event => this.transformEventToDto(event));
+        return events.map((event) => this.transformEventToDto(event));
     }
     async getPokerAnalytics(userId) {
         const stats = await this.pokerRepository.getUserPokerStats(userId);
@@ -183,15 +183,11 @@ let PokerService = class PokerService {
                 : 0,
             totalEventsPlayed,
             totalEventsWon,
-            winRate: totalEventsPlayed > 0
-                ? (totalEventsWon / totalEventsPlayed) * 100
-                : 0,
+            winRate: totalEventsPlayed > 0 ? (totalEventsWon / totalEventsPlayed) * 100 : 0,
             averageBuyIn: totalEventsPlayed > 0
                 ? parseFloat(stats.totalBuyIns) / totalEventsPlayed
                 : 0,
-            averageWinnings: totalEventsPlayed > 0
-                ? totalWinnings / totalEventsPlayed
-                : 0,
+            averageWinnings: totalEventsPlayed > 0 ? totalWinnings / totalEventsPlayed : 0,
             biggestWin: parseFloat(stats.biggestWin) || 0,
             biggestLoss: parseFloat(stats.biggestLoss) || 0,
             profitableTournaments: 0,
@@ -253,7 +249,8 @@ let PokerService = class PokerService {
             parseFloat(tournament.otherExpenses);
         const totalInvestment = totalSharedCosts + totalBuyIns + totalReBuyCosts;
         const netProfit = totalWinnings - totalInvestment;
-        const eventsWon = events.filter((event) => parseFloat(event.winnings) > (parseFloat(event.buyIn) + (parseFloat(event.reBuyAmount) || 0))).length;
+        const eventsWon = events.filter((event) => parseFloat(event.winnings) >
+            parseFloat(event.buyIn) + (parseFloat(event.reBuyAmount) || 0)).length;
         return {
             id: tournament.id,
             userId: tournament.userId,
@@ -294,7 +291,9 @@ let PokerService = class PokerService {
             finishPosition: event.finishPosition,
             notes: event.notes,
             reBuys: event.reBuys,
-            reBuyAmount: event.reBuyAmount ? parseFloat(event.reBuyAmount) : undefined,
+            reBuyAmount: event.reBuyAmount
+                ? parseFloat(event.reBuyAmount)
+                : undefined,
             startingStack: event.startingStack,
             isClosed: event.isClosed,
             createdAt: event.createdAt,

@@ -1,4 +1,4 @@
-import { User, RolloverEntry, RolloverType } from "@prisma/client";
+import { User, RolloverEntry, RolloverType, RolloverNotification } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
@@ -24,4 +24,12 @@ export declare class UsersRepository extends BaseRepository<User> {
         periodEnd: Date;
         description?: string;
     }): Promise<RolloverEntry>;
+    getRolloverNotification(userId: string): Promise<RolloverNotification | null>;
+    createRolloverNotification(data: {
+        userId: string;
+        amount: number;
+        fromPeriod?: string;
+        createdAt?: Date;
+    }): Promise<RolloverNotification>;
+    dismissRolloverNotification(userId: string): Promise<void>;
 }

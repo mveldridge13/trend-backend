@@ -1,9 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { 
-  PokerTournament, 
-  PokerTournamentEvent, 
-  Prisma 
-} from "@prisma/client";
+import { PokerTournament, PokerTournamentEvent, Prisma } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
 
 @Injectable()
@@ -11,7 +7,9 @@ export class PokerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // Tournament CRUD operations
-  async createTournament(data: Prisma.PokerTournamentCreateInput): Promise<PokerTournament> {
+  async createTournament(
+    data: Prisma.PokerTournamentCreateInput,
+  ): Promise<PokerTournament> {
     return this.prisma.pokerTournament.create({
       data,
     });
@@ -28,8 +26,8 @@ export class PokerRepository {
       where: { id },
       include: {
         events: {
-          orderBy: { eventDate: 'asc' }
-        }
+          orderBy: { eventDate: "asc" },
+        },
       },
     });
   }
@@ -37,16 +35,16 @@ export class PokerRepository {
   async findTournamentsByUserId(userId: string): Promise<PokerTournament[]> {
     return this.prisma.pokerTournament.findMany({
       where: { userId },
-      orderBy: { dateStart: 'desc' },
+      orderBy: { dateStart: "desc" },
       include: {
-        events: true
-      }
+        events: true,
+      },
     });
   }
 
   async updateTournament(
-    id: string, 
-    data: Prisma.PokerTournamentUpdateInput
+    id: string,
+    data: Prisma.PokerTournamentUpdateInput,
   ): Promise<PokerTournament> {
     return this.prisma.pokerTournament.update({
       where: { id },
@@ -61,7 +59,9 @@ export class PokerRepository {
   }
 
   // Tournament Event CRUD operations
-  async createEvent(data: Prisma.PokerTournamentEventCreateInput): Promise<PokerTournamentEvent> {
+  async createEvent(
+    data: Prisma.PokerTournamentEventCreateInput,
+  ): Promise<PokerTournamentEvent> {
     return this.prisma.pokerTournamentEvent.create({
       data,
     });
@@ -71,31 +71,33 @@ export class PokerRepository {
     return this.prisma.pokerTournamentEvent.findUnique({
       where: { id },
       include: {
-        tournament: true
-      }
+        tournament: true,
+      },
     });
   }
 
-  async findEventsByTournamentId(tournamentId: string): Promise<PokerTournamentEvent[]> {
+  async findEventsByTournamentId(
+    tournamentId: string,
+  ): Promise<PokerTournamentEvent[]> {
     return this.prisma.pokerTournamentEvent.findMany({
       where: { tournamentId },
-      orderBy: { eventDate: 'asc' },
+      orderBy: { eventDate: "asc" },
     });
   }
 
   async findEventsByUserId(userId: string): Promise<PokerTournamentEvent[]> {
     return this.prisma.pokerTournamentEvent.findMany({
       where: { userId },
-      orderBy: { eventDate: 'desc' },
+      orderBy: { eventDate: "desc" },
       include: {
-        tournament: true
-      }
+        tournament: true,
+      },
     });
   }
 
   async updateEvent(
-    id: string, 
-    data: Prisma.PokerTournamentEventUpdateInput
+    id: string,
+    data: Prisma.PokerTournamentEventUpdateInput,
   ): Promise<PokerTournamentEvent> {
     return this.prisma.pokerTournamentEvent.update({
       where: { id },
@@ -134,7 +136,7 @@ export class PokerRepository {
       WHERE t.id = ${tournamentId}
       GROUP BY t.id, t.name, t.location, t."dateStart", t."dateEnd", t."accommodationCost", t."foodBudget", t."otherExpenses"
     `;
-    
+
     return result[0] || null;
   }
 
@@ -156,7 +158,7 @@ export class PokerRepository {
       LEFT JOIN poker_tournament_events e ON t.id = e."tournamentId"
       WHERE t."userId" = ${userId}
     `;
-    
+
     return result[0] || null;
   }
 }

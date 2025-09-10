@@ -1,9 +1,4 @@
-import {
-  IsNumber,
-  IsOptional,
-  IsDateString,
-  Min,
-} from "class-validator";
+import { IsNumber, IsOptional, IsDateString, Min } from "class-validator";
 
 export class UpdateRolloverDto {
   @IsOptional()

@@ -20,6 +20,7 @@ const update_user_dto_1 = require("./dto/update-user.dto");
 const update_user_profile_dto_1 = require("./dto/update-user-profile.dto");
 const update_rollover_dto_1 = require("./dto/update-rollover.dto");
 const create_rollover_entry_dto_1 = require("./dto/create-rollover-entry.dto");
+const create_rollover_notification_dto_1 = require("./dto/create-rollover-notification.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -108,6 +109,18 @@ let UsersController = class UsersController {
         const userId = req.user.id;
         return this.usersService.createRolloverEntry(userId, createRolloverEntryDto);
     }
+    async getRolloverNotification(req) {
+        const userId = req.user.id;
+        return this.usersService.getRolloverNotification(userId);
+    }
+    async createRolloverNotification(req, createNotificationDto) {
+        const userId = req.user.id;
+        return this.usersService.createRolloverNotification(userId, createNotificationDto);
+    }
+    async dismissRolloverNotification(req) {
+        const userId = req.user.id;
+        await this.usersService.dismissRolloverNotification(userId);
+    }
     async updateOnboarding(req, updateOnboardingDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateOnboardingDto);
@@ -178,6 +191,29 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_rollover_entry_dto_1.CreateRolloverEntryDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "createRolloverEntry", null);
+__decorate([
+    (0, common_1.Get)("rollover/notification"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getRolloverNotification", null);
+__decorate([
+    (0, common_1.Post)("rollover/notification"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_rollover_notification_dto_1.CreateRolloverNotificationDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "createRolloverNotification", null);
+__decorate([
+    (0, common_1.Delete)("rollover/notification"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "dismissRolloverNotification", null);
 __decorate([
     (0, common_1.Patch)("onboarding"),
     __param(0, (0, common_1.Request)()),

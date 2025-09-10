@@ -1,11 +1,11 @@
 export enum GameType {
-  NO_LIMIT_HOLDEM = 'NO_LIMIT_HOLDEM',
-  SATELLITE = 'SATELLITE',
-  FREEZEOUT = 'FREEZEOUT',
-  BOUNTY = 'BOUNTY',
-  TURBO = 'TURBO',
-  DEEPSTACK = 'DEEPSTACK',
-  TEAM_EVENT = 'TEAM_EVENT',
+  NO_LIMIT_HOLDEM = "NO_LIMIT_HOLDEM",
+  SATELLITE = "SATELLITE",
+  FREEZEOUT = "FREEZEOUT",
+  BOUNTY = "BOUNTY",
+  TURBO = "TURBO",
+  DEEPSTACK = "DEEPSTACK",
+  TEAM_EVENT = "TEAM_EVENT",
 }
 
 export class PokerTournamentDto {
@@ -22,7 +22,7 @@ export class PokerTournamentDto {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Calculated fields
   totalSharedCosts?: number;
   totalBuyIns?: number;
@@ -32,7 +32,7 @@ export class PokerTournamentDto {
   eventsPlayed?: number;
   eventsWon?: number;
   roi?: number;
-  
+
   // Related data
   events?: PokerTournamentEventDto[];
 }

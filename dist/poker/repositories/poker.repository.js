@@ -31,18 +31,18 @@ let PokerRepository = class PokerRepository {
             where: { id },
             include: {
                 events: {
-                    orderBy: { eventDate: 'asc' }
-                }
+                    orderBy: { eventDate: "asc" },
+                },
             },
         });
     }
     async findTournamentsByUserId(userId) {
         return this.prisma.pokerTournament.findMany({
             where: { userId },
-            orderBy: { dateStart: 'desc' },
+            orderBy: { dateStart: "desc" },
             include: {
-                events: true
-            }
+                events: true,
+            },
         });
     }
     async updateTournament(id, data) {
@@ -65,23 +65,23 @@ let PokerRepository = class PokerRepository {
         return this.prisma.pokerTournamentEvent.findUnique({
             where: { id },
             include: {
-                tournament: true
-            }
+                tournament: true,
+            },
         });
     }
     async findEventsByTournamentId(tournamentId) {
         return this.prisma.pokerTournamentEvent.findMany({
             where: { tournamentId },
-            orderBy: { eventDate: 'asc' },
+            orderBy: { eventDate: "asc" },
         });
     }
     async findEventsByUserId(userId) {
         return this.prisma.pokerTournamentEvent.findMany({
             where: { userId },
-            orderBy: { eventDate: 'desc' },
+            orderBy: { eventDate: "desc" },
             include: {
-                tournament: true
-            }
+                tournament: true,
+            },
         });
     }
     async updateEvent(id, data) {

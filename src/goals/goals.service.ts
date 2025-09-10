@@ -38,7 +38,7 @@ export class GoalsService {
   // Core CRUD Operations
   async createGoal(
     userId: string,
-    createGoalDto: CreateGoalDto
+    createGoalDto: CreateGoalDto,
   ): Promise<GoalResponseDto> {
     // For debt goals, initialize currentAmount to targetAmount (debt owed)
     // For savings goals, initialize currentAmount to provided value or 0
@@ -66,7 +66,7 @@ export class GoalsService {
     const goal = await this.goalsRepository.create(goalData);
     const goalWithIncludes = await this.goalsRepository.findByIdWithIncludes(
       goal.id,
-      this.getGoalIncludes()
+      this.getGoalIncludes(),
     );
 
     return this.transformGoalToResponse(goalWithIncludes);
@@ -74,7 +74,7 @@ export class GoalsService {
 
   async getGoals(
     userId: string,
-    filters: GoalFiltersDto
+    filters: GoalFiltersDto,
   ): Promise<GoalsListResponseDto> {
     const where = this.buildGoalFilters(userId, filters);
     const orderBy = this.buildOrderBy(filters.sortBy, filters.sortOrder);
@@ -85,13 +85,13 @@ export class GoalsService {
         this.getGoalIncludes(),
         orderBy,
         ((filters.page || 1) - 1) * (filters.limit || 10),
-        filters.limit || 10
+        filters.limit || 10,
       ),
       this.goalsRepository.count(where),
     ]);
 
     const transformedGoals = goals.map((goal) =>
-      this.transformGoalToResponse(goal)
+      this.transformGoalToResponse(goal),
     );
     const summary = await this.getGoalsSummary(userId);
 
@@ -116,7 +116,7 @@ export class GoalsService {
 
     const goalWithIncludes = await this.goalsRepository.findByIdWithIncludes(
       goalId,
-      this.getGoalIncludes()
+      this.getGoalIncludes(),
     );
 
     return this.transformGoalToResponse(goalWithIncludes);
@@ -125,11 +125,11 @@ export class GoalsService {
   async updateGoal(
     userId: string,
     goalId: string,
-    updateGoalDto: UpdateGoalDto
+    updateGoalDto: UpdateGoalDto,
   ): Promise<GoalResponseDto> {
     const existingGoal = await this.goalsRepository.findByUserAndGoalId(
       userId,
-      goalId
+      goalId,
     );
 
     if (!existingGoal) {
@@ -184,7 +184,7 @@ export class GoalsService {
     const goal = await this.goalsRepository.updateWithIncludes(
       goalId,
       updateData,
-      this.getGoalIncludes()
+      this.getGoalIncludes(),
     );
 
     return this.transformGoalToResponse(goal);
@@ -204,7 +204,7 @@ export class GoalsService {
   async addContribution(
     userId: string,
     goalId: string,
-    createContributionDto: CreateGoalContributionDto
+    createContributionDto: CreateGoalContributionDto,
   ): Promise<GoalContributionResponseDto> {
     const goal = await this.goalsRepository.findByUserAndGoalId(userId, goalId);
 
@@ -214,7 +214,7 @@ export class GoalsService {
 
     if (goal.isCompleted) {
       throw new BadRequestException(
-        "Cannot add contributions to completed goal"
+        "Cannot add contributions to completed goal",
       );
     }
 
@@ -293,7 +293,7 @@ export class GoalsService {
     userId: string,
     goalId: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
   ): Promise<GoalContributionResponseDto[]> {
     const goal = await this.goalsRepository.findByUserAndGoalId(userId, goalId);
 
@@ -306,7 +306,7 @@ export class GoalsService {
         userId,
         goalId,
         startDate ? new Date(startDate) : undefined,
-        endDate ? new Date(endDate) : undefined
+        endDate ? new Date(endDate) : undefined,
       );
 
     return contributions.map((contribution) => ({
@@ -323,7 +323,7 @@ export class GoalsService {
   // Analytics
   async getGoalAnalytics(
     userId: string,
-    goalId: string
+    goalId: string,
   ): Promise<GoalAnalyticsDto> {
     const goal = await this.goalsRepository.findByUserAndGoalId(userId, goalId);
 
@@ -340,12 +340,12 @@ export class GoalsService {
 
     // Calculate monthly progress
     const monthlyProgress = this.calculateMonthlyProgress(
-      goalWithContributions.contributions
+      goalWithContributions.contributions,
     );
 
     // Calculate projections
     const averageMonthlyContribution = this.calculateAverageMonthlyContribution(
-      goalWithContributions.contributions
+      goalWithContributions.contributions,
     );
     const requiredMonthlyContribution = goalWithContributions.targetDate
       ? Math.max(
@@ -353,27 +353,27 @@ export class GoalsService {
           (targetAmount - currentAmount) /
             Math.max(
               1,
-              differenceInMonths(goalWithContributions.targetDate, new Date())
-            )
+              differenceInMonths(goalWithContributions.targetDate, new Date()),
+            ),
         )
       : undefined;
 
     const projectedCompletion = this.calculateProjectedCompletion(
       currentAmount,
       targetAmount,
-      averageMonthlyContribution
+      averageMonthlyContribution,
     );
 
     // Contribution sources
     const contributionSources = this.calculateContributionSources(
-      goalWithContributions.contributions
+      goalWithContributions.contributions,
     );
 
     // Milestones
     const milestones = this.calculateMilestones(
       targetAmount,
       currentAmount,
-      goalWithContributions.contributions
+      goalWithContributions.contributions,
     );
 
     return {
@@ -396,7 +396,7 @@ export class GoalsService {
 
   // Smart Suggestions
   async generateSmartSuggestions(
-    userId: string
+    userId: string,
   ): Promise<GoalSuggestionsResponseDto> {
     const user = await this.goalsRepository.getUserWithIncome(userId);
     const existingGoals = await this.goalsRepository.findActiveByUserId(userId);
@@ -410,16 +410,16 @@ export class GoalsService {
 
     // Emergency fund suggestion
     const hasEmergencyFund = existingGoals.some(
-      (goal) => goal.category === GoalCategory.EMERGENCY_FUND
+      (goal) => goal.category === GoalCategory.EMERGENCY_FUND,
     );
     if (!hasEmergencyFund) {
       const emergencySuggestion = await this.generateEmergencyFundSuggestion(
         transactions,
-        user?.income?.toNumber()
+        user?.income?.toNumber(),
       );
       suggestions.push(emergencySuggestion);
       insights.push(
-        "You have no emergency fund. This should be your top priority."
+        "You have no emergency fund. This should be your top priority.",
       );
     }
 
@@ -500,7 +500,7 @@ export class GoalsService {
 
   private buildOrderBy(
     sortBy?: string,
-    sortOrder?: string
+    sortOrder?: string,
   ): Prisma.GoalOrderByWithRelationInput {
     const order = sortOrder === "asc" ? "asc" : "desc";
 
@@ -606,7 +606,7 @@ export class GoalsService {
 
       monthlyContributions.set(
         month,
-        (monthlyContributions.get(month) || 0) + amount
+        (monthlyContributions.get(month) || 0) + amount,
       );
     });
 
@@ -627,7 +627,7 @@ export class GoalsService {
 
     const totalAmount = contributions.reduce(
       (sum, c) => sum + c.amount.toNumber(),
-      0
+      0,
     );
     const firstContribution = contributions[0];
     const lastContribution = contributions[contributions.length - 1];
@@ -636,7 +636,7 @@ export class GoalsService {
 
     const monthsSpan = Math.max(
       1,
-      differenceInMonths(lastContribution.date, firstContribution.date) + 1
+      differenceInMonths(lastContribution.date, firstContribution.date) + 1,
     );
     return totalAmount / monthsSpan;
   }
@@ -644,13 +644,13 @@ export class GoalsService {
   private calculateProjectedCompletion(
     currentAmount: number,
     targetAmount: number,
-    averageMonthlyContribution: number
+    averageMonthlyContribution: number,
   ): Date | undefined {
     if (averageMonthlyContribution <= 0) return undefined;
 
     const remainingAmount = targetAmount - currentAmount;
     const monthsToComplete = Math.ceil(
-      remainingAmount / averageMonthlyContribution
+      remainingAmount / averageMonthlyContribution,
     );
 
     const completion = new Date();
@@ -662,7 +662,7 @@ export class GoalsService {
     const sources = new Map<string, number>();
     const totalAmount = contributions.reduce(
       (sum, c) => sum + c.amount.toNumber(),
-      0
+      0,
     );
 
     contributions.forEach((contribution) => {
@@ -681,14 +681,14 @@ export class GoalsService {
   private calculateMilestones(
     targetAmount: number,
     currentAmount: number,
-    contributions: any[]
+    contributions: any[],
   ) {
     const milestonePercentages = [25, 50, 75, 90, 100];
 
     return milestonePercentages.map((percentage) => {
       const milestoneAmount = (targetAmount * percentage) / 100;
       const achievedContribution = contributions.find(
-        (c) => c.amount.toNumber() >= milestoneAmount
+        (c) => c.amount.toNumber() >= milestoneAmount,
       );
 
       return {
@@ -700,7 +700,7 @@ export class GoalsService {
             ? this.calculateProjectedCompletion(
                 currentAmount,
                 milestoneAmount,
-                this.calculateAverageMonthlyContribution(contributions)
+                this.calculateAverageMonthlyContribution(contributions),
               )
             : undefined,
       };
@@ -709,7 +709,7 @@ export class GoalsService {
 
   private async generateEmergencyFundSuggestion(
     transactions: any[],
-    income?: number
+    income?: number,
   ): Promise<GoalSuggestionDto> {
     const monthlyExpenses = this.calculateAverageMonthlyExpenses(transactions);
     const recommendedAmount = monthlyExpenses * 6; // 6 months of expenses
@@ -744,7 +744,7 @@ export class GoalsService {
   }
 
   private generateSpendingLimitSuggestions(
-    transactions: any[]
+    transactions: any[],
   ): GoalSuggestionDto[] {
     // Analyze spending by category to suggest spending limits
     const categorySpending = new Map<
@@ -806,11 +806,11 @@ export class GoalsService {
 
   private calculateAverageMonthlyExpenses(transactions: any[]): number {
     const expenseTransactions = transactions.filter(
-      (t) => t.type === "EXPENSE"
+      (t) => t.type === "EXPENSE",
     );
     const totalExpenses = expenseTransactions.reduce(
       (sum, t) => sum + t.amount.toNumber(),
-      0
+      0,
     );
     return totalExpenses / 3; // 90 days = ~3 months
   }
@@ -821,15 +821,19 @@ export class GoalsService {
 
   async addRolloverContribution(
     userId: string,
-    rolloverContributionDto: RolloverContributionDto
+    rolloverContributionDto: RolloverContributionDto,
   ): Promise<GoalContributionResponseDto[]> {
-    const { totalRolloverAmount, goalAllocations, description } = rolloverContributionDto;
+    const { totalRolloverAmount, goalAllocations, description } =
+      rolloverContributionDto;
 
     // Verify the allocations sum to total rollover amount
-    const allocatedSum = goalAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    const allocatedSum = goalAllocations.reduce(
+      (sum, allocation) => sum + allocation.amount,
+      0,
+    );
     if (Math.abs(allocatedSum - totalRolloverAmount) > 0.01) {
       throw new BadRequestException(
-        `Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`
+        `Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`,
       );
     }
 
@@ -837,15 +841,20 @@ export class GoalsService {
 
     // Process each goal allocation
     for (const allocation of goalAllocations) {
-      const goal = await this.goalsRepository.findByUserAndGoalId(userId, allocation.goalId);
+      const goal = await this.goalsRepository.findByUserAndGoalId(
+        userId,
+        allocation.goalId,
+      );
 
       if (!goal) {
-        throw new NotFoundException(`Goal with ID ${allocation.goalId} not found`);
+        throw new NotFoundException(
+          `Goal with ID ${allocation.goalId} not found`,
+        );
       }
 
       if (goal.isCompleted) {
         throw new BadRequestException(
-          `Cannot add rollover contribution to completed goal: ${goal.name}`
+          `Cannot add rollover contribution to completed goal: ${goal.name}`,
         );
       }
 
@@ -853,7 +862,8 @@ export class GoalsService {
       const contributionData = {
         amount: allocation.amount,
         date: new Date(),
-        description: allocation.description || description || 'Rollover contribution',
+        description:
+          allocation.description || description || "Rollover contribution",
         type: ContributionType.ROLLOVER,
         goal: {
           connect: { id: allocation.goalId },
@@ -863,7 +873,8 @@ export class GoalsService {
         },
       };
 
-      const contribution = await this.goalsRepository.createContribution(contributionData);
+      const contribution =
+        await this.goalsRepository.createContribution(contributionData);
 
       // Update goal progress (same logic as regular contributions)
       let newCurrentAmount: number;

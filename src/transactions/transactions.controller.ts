@@ -27,7 +27,7 @@ export class TransactionsController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Request() req,
-    @Body() createTransactionDto: CreateTransactionDto
+    @Body() createTransactionDto: CreateTransactionDto,
   ) {
     return this.transactionsService.create(req.user.id, createTransactionDto);
   }
@@ -45,18 +45,18 @@ export class TransactionsController {
   @Get("discretionary-breakdown")
   async getDiscretionaryBreakdown(
     @Request() req,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ): Promise<any> {
     return this.transactionsService.getDiscretionaryBreakdown(
       req.user.id,
-      filters
+      filters,
     );
   }
 
   @Get("day-time-patterns")
   async getDayTimePatterns(
     @Request() req,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ): Promise<any> {
     return this.transactionsService.getDayTimePatterns(req.user.id, filters);
   }
@@ -64,7 +64,7 @@ export class TransactionsController {
   @Get("bills-analytics")
   async getBillsAnalytics(
     @Request() req,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ): Promise<any> {
     return this.transactionsService.getBillsAnalytics(req.user.id, filters);
   }
@@ -72,7 +72,7 @@ export class TransactionsController {
   @Get("income-analytics")
   async getIncomeAnalytics(
     @Request() req,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ): Promise<any> {
     return this.transactionsService.getIncomeAnalytics(req.user.id, filters);
   }
@@ -81,7 +81,7 @@ export class TransactionsController {
   async getSummary(@Request() req, @Query() filters: TransactionFilterDto) {
     const analytics = await this.transactionsService.getAnalytics(
       req.user.id,
-      filters
+      filters,
     );
 
     return {
@@ -115,12 +115,12 @@ export class TransactionsController {
   async update(
     @Request() req,
     @Param("id") id: string,
-    @Body() updateTransactionDto: UpdateTransactionDto
+    @Body() updateTransactionDto: UpdateTransactionDto,
   ) {
     return this.transactionsService.update(
       id,
       req.user.id,
-      updateTransactionDto
+      updateTransactionDto,
     );
   }
 
@@ -134,7 +134,7 @@ export class TransactionsController {
   async getByCategory(
     @Request() req,
     @Param("categoryId") categoryId: string,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ) {
     const categoryFilters = {
       ...filters,
@@ -148,7 +148,7 @@ export class TransactionsController {
   async getByBudget(
     @Request() req,
     @Param("budgetId") budgetId: string,
-    @Query() filters: TransactionFilterDto
+    @Query() filters: TransactionFilterDto,
   ) {
     const budgetFilters = {
       ...filters,
@@ -162,7 +162,7 @@ export class TransactionsController {
   async search(
     @Request() req,
     @Body()
-    searchDto: { query: string; filters?: Partial<TransactionFilterDto> }
+    searchDto: { query: string; filters?: Partial<TransactionFilterDto> },
   ) {
     const searchFilters: TransactionFilterDto = {
       ...searchDto.filters,

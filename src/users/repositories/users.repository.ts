@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { User, RolloverEntry, RolloverType } from "@prisma/client";
+import {
+  User,
+  RolloverEntry,
+  RolloverType,
+  RolloverNotification,
+} from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
@@ -117,6 +122,73 @@ export class UsersRepository extends BaseRepository<User> {
     try {
       return await this.prisma.rolloverEntry.create({
         data,
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  // ============================================================================
+  // ROLLOVER NOTIFICATION METHODS - NEW SECTION
+  // ============================================================================
+
+  async getRolloverNotification(
+    userId: string
+  ): Promise<RolloverNotification | null> {
+    try {
+      return await this.prisma.rolloverNotification.findFirst({
+        where: {
+          userId,
+          dismissedAt: null,
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async createRolloverNotification(data: {
+    userId: string;
+    amount: number;
+    fromPeriod?: string;
+    createdAt?: Date;
+  }): Promise<RolloverNotification> {
+    try {
+      // First, dismiss any existing notification
+      await this.prisma.rolloverNotification.updateMany({
+        where: {
+          userId: data.userId,
+          dismissedAt: null,
+        },
+        data: {
+          dismissedAt: new Date(),
+        },
+      });
+
+      // Create new notification
+      return await this.prisma.rolloverNotification.create({
+        data: {
+          userId: data.userId,
+          amount: data.amount,
+          fromPeriod: data.fromPeriod || "last period",
+          createdAt: data.createdAt || new Date(),
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async dismissRolloverNotification(userId: string): Promise<void> {
+    try {
+      await this.prisma.rolloverNotification.updateMany({
+        where: {
+          userId,
+          dismissedAt: null,
+        },
+        data: {
+          dismissedAt: new Date(),
+        },
       });
     } catch (error) {
       this.handleDatabaseError(error);
