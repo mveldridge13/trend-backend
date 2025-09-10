@@ -30,10 +30,9 @@ let TransactionsService = class TransactionsService {
         const userTimezone = this.dateService.getValidTimezone(user.timezone);
         this.validateTransactionAmount(createTransactionDto.amount);
         this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
-        const utcDate = this.dateService.toUtc(createTransactionDto.date, userTimezone);
         const transaction = await this.transactionsRepository.create(userId, {
             ...createTransactionDto,
-            date: utcDate.toISOString(),
+            date: createTransactionDto.date,
         });
         return await this.mapToDto(transaction, userTimezone);
     }

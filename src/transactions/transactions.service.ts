@@ -141,14 +141,12 @@ export class TransactionsService {
     this.validateTransactionAmount(createTransactionDto.amount);
     this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
 
-    // Convert date from user timezone to UTC for storage
-    const utcDate = this.dateService.toUtc(createTransactionDto.date, userTimezone);
-    
+    // Date is already in UTC format from frontend, no conversion needed
     const transaction = await this.transactionsRepository.create(
       userId,
       {
         ...createTransactionDto,
-        date: utcDate.toISOString(),
+        date: createTransactionDto.date,
       },
     );
     return await this.mapToDto(transaction, userTimezone);
