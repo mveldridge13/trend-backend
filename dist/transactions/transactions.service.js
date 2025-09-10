@@ -15,26 +15,39 @@ const transactions_repository_1 = require("./repositories/transactions.repositor
 const users_repository_1 = require("../users/repositories/users.repository");
 const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
 const client_1 = require("@prisma/client");
+const date_service_1 = require("../common/services/date.service");
 let TransactionsService = class TransactionsService {
-    constructor(transactionsRepository, usersRepository) {
+    constructor(transactionsRepository, usersRepository, dateService) {
         this.transactionsRepository = transactionsRepository;
         this.usersRepository = usersRepository;
+        this.dateService = dateService;
     }
     async create(userId, createTransactionDto) {
+        const user = await this.usersRepository.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const userTimezone = this.dateService.getValidTimezone(user.timezone);
         this.validateTransactionAmount(createTransactionDto.amount);
-        this.validateTransactionDate(createTransactionDto.date);
-        const transaction = await this.transactionsRepository.create(userId, createTransactionDto);
-        return this.mapToDto(transaction);
+        this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+        const utcDate = this.dateService.toUtc(createTransactionDto.date, userTimezone);
+        const transaction = await this.transactionsRepository.create(userId, {
+            ...createTransactionDto,
+            date: utcDate.toISOString(),
+        });
+        return await this.mapToDto(transaction, userTimezone);
     }
     async findAll(userId, filters) {
         const [transactions, total] = await Promise.all([
             this.transactionsRepository.findMany(userId, filters),
             this.transactionsRepository.count(userId, filters),
         ]);
+        const user = await this.usersRepository.findById(userId);
+        const userTimezone = this.dateService.getValidTimezone(user?.timezone);
         const page = Math.floor(filters.offset / filters.limit) + 1;
         const totalPages = Math.ceil(total / filters.limit);
         return {
-            transactions: transactions.map(this.mapToDto),
+            transactions: await Promise.all(transactions.map(t => this.mapToDto(t, userTimezone))),
             total,
             page,
             limit: filters.limit,
@@ -46,7 +59,7 @@ let TransactionsService = class TransactionsService {
         if (!transaction) {
             throw new common_1.NotFoundException(`Transaction with ID ${id} not found`);
         }
-        return this.mapToDto(transaction);
+        return await this.mapToDto(transaction);
     }
     async update(id, userId, updateTransactionDto) {
         const existingTransaction = await this.transactionsRepository.findById(id, userId);
@@ -63,11 +76,18 @@ let TransactionsService = class TransactionsService {
         else if (updateTransactionDto.type !== undefined) {
             this.validateTransactionAmount(Number(existingTransaction.amount));
         }
+        const user = await this.usersRepository.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const userTimezone = this.dateService.getValidTimezone(user.timezone);
         if (updateTransactionDto.date !== undefined) {
-            this.validateTransactionDate(updateTransactionDto.date);
+            this.dateService.validateTransactionDate(updateTransactionDto.date, userTimezone);
+            const utcDate = this.dateService.toUtc(updateTransactionDto.date, userTimezone);
+            updateTransactionDto.date = utcDate.toISOString();
         }
         const updatedTransaction = await this.transactionsRepository.update(id, userId, updateTransactionDto);
-        return this.mapToDto(updatedTransaction);
+        return await this.mapToDto(updatedTransaction, userTimezone);
     }
     async remove(id, userId) {
         const transaction = await this.transactionsRepository.findById(id, userId);
@@ -88,12 +108,12 @@ let TransactionsService = class TransactionsService {
         return this.calculateAnalytics(transactions, filters, userProfile);
     }
     async getDiscretionaryBreakdown(userId, filters = {}) {
-        const now = new Date();
-        const defaultStartDate = new Date();
-        defaultStartDate.setDate(now.getDate() - 30);
-        const startDate = filters.startDate || defaultStartDate.toISOString();
-        const endDate = filters.endDate || now.toISOString();
-        const selectedDate = filters.endDate || now.toISOString().split("T")[0];
+        const user = await this.usersRepository.findById(userId);
+        const userTimezone = this.dateService.getValidTimezone(user?.timezone);
+        const defaultRange = this.dateService.getRelativeDateRange(30, userTimezone);
+        const startDate = filters.startDate || defaultRange.start.toISOString();
+        const endDate = filters.endDate || defaultRange.end.toISOString();
+        const selectedDate = filters.endDate || this.dateService.formatInUserTimezone(defaultRange.end, userTimezone, 'yyyy-MM-dd');
         const selectedPeriod = this.determinePeriodType(startDate, endDate);
         const transactions = await this.transactionsRepository.findMany(userId, {
             startDate,
@@ -1029,20 +1049,11 @@ let TransactionsService = class TransactionsService {
             throw new common_1.BadRequestException("Transaction amount cannot exceed $999,999.99");
         }
     }
-    validateTransactionDate(dateString) {
-        const transactionDate = new Date(dateString);
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        if (transactionDate > today) {
-            throw new common_1.BadRequestException("Transaction date cannot be in the future");
+    async mapToDto(transaction, userTimezone) {
+        if (!userTimezone) {
+            const user = await this.usersRepository.findById(transaction.userId);
+            userTimezone = this.dateService.getValidTimezone(user?.timezone);
         }
-        const fiveYearsAgo = new Date();
-        fiveYearsAgo.setFullYear(today.getFullYear() - 5);
-        if (transactionDate < fiveYearsAgo) {
-            throw new common_1.BadRequestException("Transaction date cannot be more than 5 years in the past");
-        }
-    }
-    mapToDto(transaction) {
         return {
             id: transaction.id,
             userId: transaction.userId,
@@ -1052,8 +1063,8 @@ let TransactionsService = class TransactionsService {
             description: transaction.description,
             amount: Number(transaction.amount),
             currency: transaction.currency,
-            date: transaction.date,
-            dueDate: transaction.dueDate,
+            date: this.dateService.toUserTimezone(transaction.date, userTimezone),
+            dueDate: transaction.dueDate ? this.dateService.toUserTimezone(transaction.dueDate, userTimezone) : transaction.dueDate,
             type: transaction.type,
             status: transaction.status,
             recurrence: transaction.recurrence || "none",
@@ -1897,6 +1908,7 @@ exports.TransactionsService = TransactionsService;
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository,
-        users_repository_1.UsersRepository])
+        users_repository_1.UsersRepository,
+        date_service_1.DateService])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

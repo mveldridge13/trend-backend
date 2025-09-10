@@ -13,6 +13,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { GoalsModule } from "./goals/goals.module";
 import { PokerModule } from "./poker/poker.module";
+import { CommonModule } from "./common/common.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PokerModule } from "./poker/poker.module";
         limit: 100,
       },
     ]),
+    CommonModule,
     DatabaseModule,
     HealthModule,
     AuthModule,
