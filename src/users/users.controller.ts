@@ -20,6 +20,8 @@ import { UserDto } from "./dto/user.dto";
 import { UpdateRolloverDto } from "./dto/update-rollover.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
+import { RolloverNotificationDto } from "./dto/rollover-notification.dto";
+import { CreateRolloverNotificationDto } from "./dto/create-rollover-notification.dto";
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -39,7 +41,7 @@ export class UsersController {
   @Put("profile")
   async updateProfile(
     @Request() req,
-    @Body() updateUserDto: UpdateUserDto
+    @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserDto> {
     const userId = req.user.id;
     return this.usersService.updateProfile(userId, updateUserDto);
@@ -68,7 +70,7 @@ export class UsersController {
   @Put("income")
   async updateIncome(
     @Request() req,
-    @Body() incomeData: UpdateUserDto
+    @Body() incomeData: UpdateUserDto,
   ): Promise<any> {
     const userId = req.user.id;
 
@@ -77,7 +79,7 @@ export class UsersController {
     try {
       const updatedUser = await this.usersService.updateProfile(
         userId,
-        incomeData
+        incomeData,
       );
 
       console.log("💰 Backend: User updated successfully");
@@ -118,7 +120,7 @@ export class UsersController {
   @Put("rollover")
   async updateRollover(
     @Request() req,
-    @Body() rolloverData: UpdateRolloverDto
+    @Body() rolloverData: UpdateRolloverDto,
   ): Promise<any> {
     const userId = req.user.id;
 
@@ -127,7 +129,7 @@ export class UsersController {
     try {
       const updatedUser = await this.usersService.updateProfile(
         userId,
-        rolloverData as UpdateUserDto
+        rolloverData as UpdateUserDto,
       );
 
       console.log("🔄 Backend: Rollover updated successfully");
@@ -154,10 +156,44 @@ export class UsersController {
   @Post("rollover/entries")
   async createRolloverEntry(
     @Request() req,
-    @Body() createRolloverEntryDto: CreateRolloverEntryDto
+    @Body() createRolloverEntryDto: CreateRolloverEntryDto,
   ): Promise<RolloverEntryDto> {
     const userId = req.user.id;
-    return this.usersService.createRolloverEntry(userId, createRolloverEntryDto);
+    return this.usersService.createRolloverEntry(
+      userId,
+      createRolloverEntryDto,
+    );
+  }
+
+  // ============================================================================
+  // ROLLOVER NOTIFICATION ENDPOINTS - NEW SECTION
+  // ============================================================================
+
+  @Get("rollover/notification")
+  async getRolloverNotification(
+    @Request() req,
+  ): Promise<RolloverNotificationDto | null> {
+    const userId = req.user.id;
+    return this.usersService.getRolloverNotification(userId);
+  }
+
+  @Post("rollover/notification")
+  async createRolloverNotification(
+    @Request() req,
+    @Body() createNotificationDto: CreateRolloverNotificationDto,
+  ): Promise<RolloverNotificationDto> {
+    const userId = req.user.id;
+    return this.usersService.createRolloverNotification(
+      userId,
+      createNotificationDto,
+    );
+  }
+
+  @Delete("rollover/notification")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async dismissRolloverNotification(@Request() req): Promise<void> {
+    const userId = req.user.id;
+    await this.usersService.dismissRolloverNotification(userId);
   }
 
   // ============================================================================
@@ -167,7 +203,7 @@ export class UsersController {
   @Patch("onboarding")
   async updateOnboarding(
     @Request() req,
-    @Body() updateOnboardingDto: UpdateUserProfileDto
+    @Body() updateOnboardingDto: UpdateUserProfileDto,
   ): Promise<UserDto> {
     const userId = req.user.id;
     return this.usersService.updateProfile(userId, updateOnboardingDto);

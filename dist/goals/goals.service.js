@@ -559,7 +559,7 @@ let GoalsService = class GoalsService {
             const contributionData = {
                 amount: allocation.amount,
                 date: new Date(),
-                description: allocation.description || description || 'Rollover contribution',
+                description: allocation.description || description || "Rollover contribution",
                 type: client_1.ContributionType.ROLLOVER,
                 goal: {
                     connect: { id: allocation.goalId },

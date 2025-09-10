@@ -116,6 +116,59 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             this.handleDatabaseError(error);
         }
     }
+    async getRolloverNotification(userId) {
+        try {
+            return await this.prisma.rolloverNotification.findFirst({
+                where: {
+                    userId,
+                    dismissedAt: null,
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async createRolloverNotification(data) {
+        try {
+            await this.prisma.rolloverNotification.updateMany({
+                where: {
+                    userId: data.userId,
+                    dismissedAt: null,
+                },
+                data: {
+                    dismissedAt: new Date(),
+                },
+            });
+            return await this.prisma.rolloverNotification.create({
+                data: {
+                    userId: data.userId,
+                    amount: data.amount,
+                    fromPeriod: data.fromPeriod || "last period",
+                    createdAt: data.createdAt || new Date(),
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async dismissRolloverNotification(userId) {
+        try {
+            await this.prisma.rolloverNotification.updateMany({
+                where: {
+                    userId,
+                    dismissedAt: null,
+                },
+                data: {
+                    dismissedAt: new Date(),
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
 };
 exports.UsersRepository = UsersRepository;
 exports.UsersRepository = UsersRepository = __decorate([

@@ -21,20 +21,20 @@ export class TournamentAnalyticsDto {
   location: string;
   dateStart: Date;
   dateEnd?: Date;
-  
+
   // Costs breakdown
   sharedCosts: number;
   accommodationCost: number;
   foodBudget: number;
   otherExpenses: number;
-  
+
   // Event performance
   totalBuyIns: number;
   totalWinnings: number;
   totalInvestment: number;
   netProfit: number;
   roi: number;
-  
+
   // Event statistics
   eventsPlayed: number;
   eventsWon: number;
@@ -42,7 +42,7 @@ export class TournamentAnalyticsDto {
   averageBuyIn: number;
   averageWinnings: number;
   costPerEvent: number;
-  
+
   // Best performances
   biggestWin: number;
   bestFinish?: number;

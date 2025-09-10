@@ -1,5 +1,11 @@
 import { RolloverType } from "@prisma/client";
-import { IsNumber, IsEnum, IsString, IsOptional, IsISO8601 } from "class-validator";
+import {
+  IsNumber,
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsISO8601,
+} from "class-validator";
 
 export class CreateRolloverEntryDto {
   @IsNumber()

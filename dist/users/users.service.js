@@ -96,7 +96,7 @@ let UsersService = class UsersService {
     }
     async getRolloverHistory(userId) {
         const rolloverEntries = await this.usersRepository.getRolloverHistory(userId);
-        return rolloverEntries.map(entry => ({
+        return rolloverEntries.map((entry) => ({
             id: entry.id,
             amount: Number(entry.amount),
             date: entry.date,
@@ -137,13 +137,58 @@ let UsersService = class UsersService {
             description: entry.description,
         };
     }
+    async getRolloverNotification(userId) {
+        const notification = await this.usersRepository.getRolloverNotification(userId);
+        if (!notification) {
+            return null;
+        }
+        return {
+            id: notification.id,
+            amount: Number(notification.amount),
+            fromPeriod: notification.fromPeriod,
+            createdAt: notification.createdAt,
+        };
+    }
+    async createRolloverNotification(userId, createNotificationDto) {
+        let createdAt;
+        if (createNotificationDto.createdAt) {
+            try {
+                createdAt = new Date(createNotificationDto.createdAt);
+                if (isNaN(createdAt.getTime())) {
+                    throw new Error("Invalid date format provided");
+                }
+            }
+            catch (error) {
+                throw new Error("Invalid date format in notification data");
+            }
+        }
+        const notification = await this.usersRepository.createRolloverNotification({
+            userId,
+            amount: createNotificationDto.amount,
+            fromPeriod: createNotificationDto.fromPeriod,
+            createdAt,
+        });
+        return {
+            id: notification.id,
+            amount: Number(notification.amount),
+            fromPeriod: notification.fromPeriod,
+            createdAt: notification.createdAt,
+        };
+    }
+    async dismissRolloverNotification(userId) {
+        await this.usersRepository.dismissRolloverNotification(userId);
+    }
     toUserDto(user) {
         const { passwordHash, ...userWithoutPassword } = user;
         return {
             ...userWithoutPassword,
             income: user.income ? Number(user.income) : undefined,
-            fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : undefined,
-            rolloverAmount: user.rolloverAmount ? Number(user.rolloverAmount) : undefined,
+            fixedExpenses: user.fixedExpenses
+                ? Number(user.fixedExpenses)
+                : undefined,
+            rolloverAmount: user.rolloverAmount
+                ? Number(user.rolloverAmount)
+                : undefined,
         };
     }
 };

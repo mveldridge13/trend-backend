@@ -5,6 +5,8 @@ import { UserDto } from "./dto/user.dto";
 import { UpdateRolloverDto } from "./dto/update-rollover.dto";
 import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
+import { RolloverNotificationDto } from "./dto/rollover-notification.dto";
+import { CreateRolloverNotificationDto } from "./dto/create-rollover-notification.dto";
 export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
@@ -16,6 +18,9 @@ export declare class UsersController {
     updateRollover(req: any, rolloverData: UpdateRolloverDto): Promise<any>;
     getRolloverHistory(req: any): Promise<RolloverEntryDto[]>;
     createRolloverEntry(req: any, createRolloverEntryDto: CreateRolloverEntryDto): Promise<RolloverEntryDto>;
+    getRolloverNotification(req: any): Promise<RolloverNotificationDto | null>;
+    createRolloverNotification(req: any, createNotificationDto: CreateRolloverNotificationDto): Promise<RolloverNotificationDto>;
+    dismissRolloverNotification(req: any): Promise<void>;
     updateOnboarding(req: any, updateOnboardingDto: UpdateUserProfileDto): Promise<UserDto>;
     deactivateAccount(req: any): Promise<void>;
 }
