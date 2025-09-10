@@ -91,17 +91,19 @@ let DateService = class DateService {
         };
     }
     validateTransactionDate(dateString, userTimezone) {
-        const transactionDate = (0, date_fns_1.parseISO)(dateString);
-        if (!(0, date_fns_1.isValid)(transactionDate)) {
+        const transactionDateUtc = (0, date_fns_1.parseISO)(dateString);
+        if (!(0, date_fns_1.isValid)(transactionDateUtc)) {
             throw new Error('Invalid transaction date');
         }
-        const todayInUserTz = this.getTodayInUserTimezone(userTimezone);
-        const transactionDateUtc = this.toUtc(dateString, userTimezone);
-        if (transactionDateUtc > todayInUserTz) {
+        const nowInUserTz = this.getNowInUserTimezone(userTimezone);
+        const todayStartInUserTz = (0, date_fns_1.startOfDay)(nowInUserTz);
+        const transactionDateInUserTz = this.toUserTimezone(transactionDateUtc, userTimezone);
+        const transactionDateStartInUserTz = (0, date_fns_1.startOfDay)(transactionDateInUserTz);
+        if (transactionDateStartInUserTz > todayStartInUserTz) {
             throw new Error('Transaction date cannot be in the future');
         }
-        const fiveYearsAgo = (0, date_fns_1.subDays)(todayInUserTz, 365 * 5);
-        if (transactionDateUtc < fiveYearsAgo) {
+        const fiveYearsAgo = (0, date_fns_1.subDays)(todayStartInUserTz, 365 * 5);
+        if (transactionDateStartInUserTz < fiveYearsAgo) {
             throw new Error('Transaction date cannot be older than 5 years');
         }
     }
