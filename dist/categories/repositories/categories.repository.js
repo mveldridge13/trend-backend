@@ -45,11 +45,9 @@ let CategoriesRepository = class CategoriesRepository {
         });
     }
     async findManyByUser(userId, filters = {}, pagination = { skip: 0, take: 50 }) {
-        const where = {
-            OR: [{ userId: userId }, { isSystem: true }],
+        let where = {
             isActive: filters.includeArchived ? undefined : true,
             ...(filters.type && { type: filters.type }),
-            ...(filters.isSystem !== undefined && { isSystem: filters.isSystem }),
             ...(filters.parentId && { parentId: filters.parentId }),
             ...(filters.search && {
                 OR: [
@@ -58,6 +56,18 @@ let CategoriesRepository = class CategoriesRepository {
                 ],
             }),
         };
+        if (filters.isSystem !== undefined) {
+            if (filters.isSystem === true) {
+                where.isSystem = true;
+            }
+            else {
+                where.userId = userId;
+                where.isSystem = false;
+            }
+        }
+        else {
+            where.OR = [{ userId: userId }, { isSystem: true }];
+        }
         const [categories, total] = await Promise.all([
             this.prisma.category.findMany({
                 where,
