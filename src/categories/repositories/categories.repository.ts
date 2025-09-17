@@ -48,11 +48,10 @@ export class CategoriesRepository {
     } = {},
     pagination: { skip: number; take: number } = { skip: 0, take: 50 },
   ): Promise<{ categories: Category[]; total: number }> {
-    const where: any = {
-      OR: [{ userId: userId }, { isSystem: true }],
+    // Build base where clause with proper isSystem filtering
+    let where: any = {
       isActive: filters.includeArchived ? undefined : true,
       ...(filters.type && { type: filters.type }),
-      ...(filters.isSystem !== undefined && { isSystem: filters.isSystem }),
       ...(filters.parentId && { parentId: filters.parentId }),
       ...(filters.search && {
         OR: [
@@ -61,6 +60,21 @@ export class CategoriesRepository {
         ],
       }),
     };
+
+    // Handle isSystem filtering properly
+    if (filters.isSystem !== undefined) {
+      if (filters.isSystem === true) {
+        // Only system categories
+        where.isSystem = true;
+      } else {
+        // Only user's custom categories
+        where.userId = userId;
+        where.isSystem = false;
+      }
+    } else {
+      // Default: both system and user's custom categories
+      where.OR = [{ userId: userId }, { isSystem: true }];
+    }
 
     const [categories, total] = await Promise.all([
       this.prisma.category.findMany({
