@@ -52,10 +52,8 @@ let UsersController = class UsersController {
     }
     async updateIncome(req, incomeData) {
         const userId = req.user.id;
-        console.log("💰 Backend: Received income data:", incomeData);
         try {
             const updatedUser = await this.usersService.updateProfile(userId, incomeData);
-            console.log("💰 Backend: User updated successfully");
             return {
                 success: true,
                 income: {
@@ -67,7 +65,6 @@ let UsersController = class UsersController {
             };
         }
         catch (error) {
-            console.error("💰 Backend: Error updating income:", error);
             throw error;
         }
     }
@@ -84,10 +81,8 @@ let UsersController = class UsersController {
     }
     async updateRollover(req, rolloverData) {
         const userId = req.user.id;
-        console.log("🔄 Backend: Received rollover data:", rolloverData);
         try {
             const updatedUser = await this.usersService.updateProfile(userId, rolloverData);
-            console.log("🔄 Backend: Rollover updated successfully");
             return {
                 success: true,
                 rollover: {
@@ -97,7 +92,6 @@ let UsersController = class UsersController {
             };
         }
         catch (error) {
-            console.error("🔄 Backend: Error updating rollover:", error);
             throw error;
         }
     }

@@ -74,7 +74,6 @@ export class UsersController {
   ): Promise<any> {
     const userId = req.user.id;
 
-    console.log("💰 Backend: Received income data:", incomeData);
 
     try {
       const updatedUser = await this.usersService.updateProfile(
@@ -82,7 +81,6 @@ export class UsersController {
         incomeData,
       );
 
-      console.log("💰 Backend: User updated successfully");
 
       return {
         success: true,
@@ -94,7 +92,6 @@ export class UsersController {
         },
       };
     } catch (error) {
-      console.error("💰 Backend: Error updating income:", error);
       throw error;
     }
   }
@@ -124,7 +121,6 @@ export class UsersController {
   ): Promise<any> {
     const userId = req.user.id;
 
-    console.log("🔄 Backend: Received rollover data:", rolloverData);
 
     try {
       const updatedUser = await this.usersService.updateProfile(
@@ -132,7 +128,6 @@ export class UsersController {
         rolloverData as UpdateUserDto,
       );
 
-      console.log("🔄 Backend: Rollover updated successfully");
 
       return {
         success: true,
@@ -142,7 +137,6 @@ export class UsersController {
         },
       };
     } catch (error) {
-      console.error("🔄 Backend: Error updating rollover:", error);
       throw error;
     }
   }

@@ -1,8 +1,9 @@
 import { Strategy } from "passport-jwt";
 import { UsersService } from "../../users/users.service";
 export interface JwtPayload {
-    sub: string;
-    email: string;
+    userId?: string;
+    sub?: string;
+    email?: string;
     username?: string;
     iat?: number;
     exp?: number;

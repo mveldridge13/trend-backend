@@ -49,12 +49,16 @@ export class CategoriesController {
       }),
     };
 
-    return this.categoriesService.findAll(
+
+    const result = await this.categoriesService.findAll(
       req.user.userId,
       filters,
       page,
       limit,
     );
+
+
+    return result;
   }
 
   @Get("system")

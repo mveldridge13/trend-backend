@@ -102,7 +102,6 @@ export class GoalsRepository {
       throw new Error("User ID is required for findActiveByUserId");
     }
 
-    console.log("🔍 Debug: findActiveByUserId called with userId:", userId);
 
     return this.prisma.goal.findMany({
       where: {
@@ -250,12 +249,6 @@ export class GoalsRepository {
       throw new Error("User ID is required for getRecentTransactionsByUserId");
     }
 
-    console.log(
-      "🔍 Debug: getRecentTransactionsByUserId called with userId:",
-      userId,
-      "daysBack:",
-      daysBack,
-    );
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
@@ -275,10 +268,8 @@ export class GoalsRepository {
         orderBy: { date: "desc" },
       });
 
-      console.log("🔍 Debug: Found transactions:", transactions.length);
       return transactions;
     } catch (error) {
-      console.error("❌ Error in getRecentTransactionsByUserId:", error);
       throw error;
     }
   }
@@ -286,9 +277,6 @@ export class GoalsRepository {
   // ✅ ENHANCED: Better error handling and debugging for getUserWithIncome
   async getUserWithIncome(userId: string): Promise<any> {
     // Add comprehensive validation and debugging
-    console.log("🔍 Debug: getUserWithIncome called with userId:", userId);
-    console.log("🔍 Debug: userId type:", typeof userId);
-    console.log("🔍 Debug: userId length:", userId?.length);
 
     if (!userId) {
       throw new Error("User ID is required for getUserWithIncome");
@@ -303,7 +291,6 @@ export class GoalsRepository {
     }
 
     try {
-      console.log("🔍 Debug: Executing Prisma query for user:", userId);
 
       const user = await this.prisma.user.findUnique({
         where: {
@@ -317,19 +304,9 @@ export class GoalsRepository {
         },
       });
 
-      console.log(
-        "🔍 Debug: User query result:",
-        user ? "Found user" : "User not found",
-      );
 
       return user;
     } catch (error) {
-      console.error("❌ Error in getUserWithIncome:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        code: error.code,
-        userId: userId,
-      });
       throw error;
     }
   }

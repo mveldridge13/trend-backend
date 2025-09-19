@@ -7,12 +7,16 @@ export class CategoriesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: Prisma.CategoryCreateInput): Promise<Category> {
+    const userId = (data as any).userId as string;
     return this.prisma.category.create({
       data,
       include: {
         parent: true,
         subcategories: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            OR: [{ userId: userId }, { isSystem: true }],
+          },
           orderBy: { name: "asc" },
         },
       },
@@ -29,7 +33,10 @@ export class CategoriesRepository {
       include: {
         parent: true,
         subcategories: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            OR: [{ userId: userId }, { isSystem: true }],
+          },
           orderBy: { name: "asc" },
         },
       },
@@ -46,20 +53,26 @@ export class CategoriesRepository {
       search?: string;
       includeArchived?: boolean;
     } = {},
-    pagination: { skip: number; take: number } = { skip: 0, take: 50 },
+    pagination: { skip: number; take: number } = { skip: 0, take: 50 }
   ): Promise<{ categories: Category[]; total: number }> {
-    // Build base where clause with proper isSystem filtering
+    // Build the WHERE clause properly
     let where: any = {
-      isActive: filters.includeArchived ? undefined : true,
       ...(filters.type && { type: filters.type }),
       ...(filters.parentId && { parentId: filters.parentId }),
-      ...(filters.search && {
-        OR: [
-          { name: { contains: filters.search, mode: "insensitive" } },
-          { description: { contains: filters.search, mode: "insensitive" } },
-        ],
-      }),
     };
+
+    // Handle isActive filtering
+    if (!filters.includeArchived) {
+      where.isActive = true;
+    }
+
+    // Handle search filtering
+    if (filters.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: "insensitive" } },
+        { description: { contains: filters.search, mode: "insensitive" } },
+      ];
+    }
 
     // Handle isSystem filtering properly
     if (filters.isSystem !== undefined) {
@@ -73,8 +86,17 @@ export class CategoriesRepository {
       }
     } else {
       // Default: both system and user's custom categories
-      where.OR = [{ userId: userId }, { isSystem: true }];
+      // Use AND with nested OR to avoid conflicts
+      where.AND = [
+        {
+          OR: [
+            { userId: userId, isSystem: false },
+            { isSystem: true }
+          ]
+        }
+      ];
     }
+
 
     const [categories, total] = await Promise.all([
       this.prisma.category.findMany({
@@ -82,7 +104,10 @@ export class CategoriesRepository {
         include: {
           parent: true,
           subcategories: {
-            where: { isActive: true },
+            where: {
+              isActive: true,
+              OR: [{ userId: userId }, { isSystem: true }],
+            },
             orderBy: { name: "asc" },
           },
           _count: {
@@ -98,13 +123,14 @@ export class CategoriesRepository {
       this.prisma.category.count({ where }),
     ]);
 
+
     return { categories, total };
   }
 
   async update(
     id: string,
     userId: string,
-    data: Prisma.CategoryUpdateInput,
+    data: Prisma.CategoryUpdateInput
   ): Promise<Category> {
     return this.prisma.category.update({
       where: {
@@ -116,7 +142,10 @@ export class CategoriesRepository {
       include: {
         parent: true,
         subcategories: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            OR: [{ userId: userId }, { isSystem: true }],
+          },
           orderBy: { name: "asc" },
         },
       },
@@ -138,7 +167,7 @@ export class CategoriesRepository {
 
   async countActiveSubcategories(
     parentId: string,
-    userId: string,
+    userId: string
   ): Promise<number> {
     return this.prisma.category.count({
       where: {
@@ -282,7 +311,7 @@ export class CategoriesRepository {
   async getCategoryAnalytics(
     categoryId: string,
     userId: string,
-    dateRange: { startDate: Date; endDate: Date },
+    dateRange: { startDate: Date; endDate: Date }
   ): Promise<any> {
     const { startDate, endDate } = dateRange;
 
@@ -327,7 +356,7 @@ export class CategoriesRepository {
     const transactions = categoryWithStats.transactions;
     const totalSpent = transactions.reduce(
       (sum, t) => sum + Number(t.amount),
-      0,
+      0
     );
     const averageTransaction =
       transactions.length > 0 ? totalSpent / transactions.length : 0;
@@ -338,7 +367,7 @@ export class CategoriesRepository {
         acc[month] = (acc[month] || 0) + Number(transaction.amount);
         return acc;
       },
-      {} as Record<string, number>,
+      {} as Record<string, number>
     );
 
     return {
@@ -360,14 +389,14 @@ export class CategoriesRepository {
         ([month, amount]) => ({
           month,
           amount,
-        }),
+        })
       ),
     };
   }
 
   async getMostUsedCategories(
     userId: string,
-    limit: number = 10,
+    limit: number = 10
   ): Promise<Category[]> {
     return this.prisma.category.findMany({
       where: {

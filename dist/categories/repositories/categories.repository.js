@@ -17,12 +17,16 @@ let CategoriesRepository = class CategoriesRepository {
         this.prisma = prisma;
     }
     async create(data) {
+        const userId = data.userId;
         return this.prisma.category.create({
             data,
             include: {
                 parent: true,
                 subcategories: {
-                    where: { isActive: true },
+                    where: {
+                        isActive: true,
+                        OR: [{ userId: userId }, { isSystem: true }],
+                    },
                     orderBy: { name: "asc" },
                 },
             },
@@ -38,7 +42,10 @@ let CategoriesRepository = class CategoriesRepository {
             include: {
                 parent: true,
                 subcategories: {
-                    where: { isActive: true },
+                    where: {
+                        isActive: true,
+                        OR: [{ userId: userId }, { isSystem: true }],
+                    },
                     orderBy: { name: "asc" },
                 },
             },
@@ -46,16 +53,18 @@ let CategoriesRepository = class CategoriesRepository {
     }
     async findManyByUser(userId, filters = {}, pagination = { skip: 0, take: 50 }) {
         let where = {
-            isActive: filters.includeArchived ? undefined : true,
             ...(filters.type && { type: filters.type }),
             ...(filters.parentId && { parentId: filters.parentId }),
-            ...(filters.search && {
-                OR: [
-                    { name: { contains: filters.search, mode: "insensitive" } },
-                    { description: { contains: filters.search, mode: "insensitive" } },
-                ],
-            }),
         };
+        if (!filters.includeArchived) {
+            where.isActive = true;
+        }
+        if (filters.search) {
+            where.OR = [
+                { name: { contains: filters.search, mode: "insensitive" } },
+                { description: { contains: filters.search, mode: "insensitive" } },
+            ];
+        }
         if (filters.isSystem !== undefined) {
             if (filters.isSystem === true) {
                 where.isSystem = true;
@@ -66,7 +75,14 @@ let CategoriesRepository = class CategoriesRepository {
             }
         }
         else {
-            where.OR = [{ userId: userId }, { isSystem: true }];
+            where.AND = [
+                {
+                    OR: [
+                        { userId: userId, isSystem: false },
+                        { isSystem: true }
+                    ]
+                }
+            ];
         }
         const [categories, total] = await Promise.all([
             this.prisma.category.findMany({
@@ -74,7 +90,10 @@ let CategoriesRepository = class CategoriesRepository {
                 include: {
                     parent: true,
                     subcategories: {
-                        where: { isActive: true },
+                        where: {
+                            isActive: true,
+                            OR: [{ userId: userId }, { isSystem: true }],
+                        },
                         orderBy: { name: "asc" },
                     },
                     _count: {
@@ -102,7 +121,10 @@ let CategoriesRepository = class CategoriesRepository {
             include: {
                 parent: true,
                 subcategories: {
-                    where: { isActive: true },
+                    where: {
+                        isActive: true,
+                        OR: [{ userId: userId }, { isSystem: true }],
+                    },
                     orderBy: { name: "asc" },
                 },
             },

@@ -24,7 +24,11 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         this.usersService = usersService;
     }
     async validate(payload) {
-        const user = await this.usersService.findById(payload.sub);
+        const userIdFromToken = payload.userId || payload.sub;
+        if (!userIdFromToken) {
+            throw new common_1.UnauthorizedException("No user ID found in token");
+        }
+        const user = await this.usersService.findById(userIdFromToken);
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException("User not found or inactive");
         }

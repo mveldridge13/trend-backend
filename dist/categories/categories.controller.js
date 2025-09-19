@@ -36,7 +36,8 @@ let CategoriesController = class CategoriesController {
                 includeArchived: includeArchived === "true",
             }),
         };
-        return this.categoriesService.findAll(req.user.userId, filters, page, limit);
+        const result = await this.categoriesService.findAll(req.user.userId, filters, page, limit);
+        return result;
     }
     async getSystemCategories() {
         return this.categoriesService.getSystemCategories();

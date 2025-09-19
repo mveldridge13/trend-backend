@@ -476,7 +476,6 @@ export class TransactionsService {
             recurrence: t.recurrence || "none",
           };
         } catch (error) {
-          console.warn("Error mapping bill:", error);
           return {
             id: t.id || "unknown",
             description: "Error loading bill details",
@@ -585,7 +584,6 @@ export class TransactionsService {
       };
     } catch (error) {
       // Log error for debugging
-      console.error("Error in getBillsAnalytics:", error);
 
       // Return empty structure with error indication
       if (error instanceof BadRequestException) {
@@ -687,7 +685,6 @@ export class TransactionsService {
         selectedPeriod,
       );
     } catch (error) {
-      console.warn("Failed to calculate previous period comparison:", error);
       // Continue without previous period data
     }
 
@@ -2636,7 +2633,6 @@ export class TransactionsService {
         hasProfileData: projectedMonthlyIncome > 0,
       };
     } catch (error) {
-      console.error("Error in getIncomeAnalytics:", error);
 
       if (
         error instanceof BadRequestException ||
