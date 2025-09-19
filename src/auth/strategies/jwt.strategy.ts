@@ -4,8 +4,9 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 import { UsersService } from "../../users/users.service";
 
 export interface JwtPayload {
-  sub: string;
-  email: string;
+  userId?: string; // For tokens with userId field
+  sub?: string;    // For tokens with sub field
+  email?: string;
   username?: string;
   iat?: number;
   exp?: number;
@@ -22,7 +23,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.usersService.findById(payload.sub);
+    // Handle both userId and sub fields in JWT payload
+    const userIdFromToken = payload.userId || payload.sub;
+
+    if (!userIdFromToken) {
+      throw new UnauthorizedException("No user ID found in token");
+    }
+
+    const user = await this.usersService.findById(userIdFromToken);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException("User not found or inactive");

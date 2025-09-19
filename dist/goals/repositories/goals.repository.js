@@ -80,7 +80,6 @@ let GoalsRepository = class GoalsRepository {
         if (!userId) {
             throw new Error("User ID is required for findActiveByUserId");
         }
-        console.log("🔍 Debug: findActiveByUserId called with userId:", userId);
         return this.prisma.goal.findMany({
             where: {
                 userId,
@@ -175,7 +174,6 @@ let GoalsRepository = class GoalsRepository {
         if (!userId) {
             throw new Error("User ID is required for getRecentTransactionsByUserId");
         }
-        console.log("🔍 Debug: getRecentTransactionsByUserId called with userId:", userId, "daysBack:", daysBack);
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - daysBack);
         try {
@@ -192,18 +190,13 @@ let GoalsRepository = class GoalsRepository {
                 },
                 orderBy: { date: "desc" },
             });
-            console.log("🔍 Debug: Found transactions:", transactions.length);
             return transactions;
         }
         catch (error) {
-            console.error("❌ Error in getRecentTransactionsByUserId:", error);
             throw error;
         }
     }
     async getUserWithIncome(userId) {
-        console.log("🔍 Debug: getUserWithIncome called with userId:", userId);
-        console.log("🔍 Debug: userId type:", typeof userId);
-        console.log("🔍 Debug: userId length:", userId?.length);
         if (!userId) {
             throw new Error("User ID is required for getUserWithIncome");
         }
@@ -214,7 +207,6 @@ let GoalsRepository = class GoalsRepository {
             throw new Error("User ID cannot be empty");
         }
         try {
-            console.log("🔍 Debug: Executing Prisma query for user:", userId);
             const user = await this.prisma.user.findUnique({
                 where: {
                     id: userId.trim(),
@@ -226,16 +218,9 @@ let GoalsRepository = class GoalsRepository {
                     currency: true,
                 },
             });
-            console.log("🔍 Debug: User query result:", user ? "Found user" : "User not found");
             return user;
         }
         catch (error) {
-            console.error("❌ Error in getUserWithIncome:", error);
-            console.error("❌ Error details:", {
-                message: error.message,
-                code: error.code,
-                userId: userId,
-            });
             throw error;
         }
     }

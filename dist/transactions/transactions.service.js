@@ -247,7 +247,6 @@ let TransactionsService = class TransactionsService {
                     };
                 }
                 catch (error) {
-                    console.warn("Error mapping bill:", error);
                     return {
                         id: t.id || "unknown",
                         description: "Error loading bill details",
@@ -341,7 +340,6 @@ let TransactionsService = class TransactionsService {
             };
         }
         catch (error) {
-            console.error("Error in getBillsAnalytics:", error);
             if (error instanceof common_1.BadRequestException) {
                 throw error;
             }
@@ -404,7 +402,6 @@ let TransactionsService = class TransactionsService {
             previousPeriod = await this.calculateDayTimePreviousPeriod(userId, startDate, endDate, selectedPeriod);
         }
         catch (error) {
-            console.warn("Failed to calculate previous period comparison:", error);
         }
         return {
             selectedPeriod,
@@ -1799,7 +1796,6 @@ let TransactionsService = class TransactionsService {
             };
         }
         catch (error) {
-            console.error("Error in getIncomeAnalytics:", error);
             if (error instanceof common_1.BadRequestException ||
                 error instanceof common_1.NotFoundException) {
                 throw error;
