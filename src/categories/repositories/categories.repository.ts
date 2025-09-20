@@ -300,7 +300,10 @@ export class CategoriesRepository {
       },
       include: {
         subcategories: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            isSystem: true
+          },
           orderBy: { name: "asc" },
         },
       },
