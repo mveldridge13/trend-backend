@@ -24,7 +24,7 @@ export class CreateTransactionDto {
 
   @IsString()
   @IsOptional()
-  currency?: string = "USD";
+  currency?: string;
 
   @IsDateString()
   date: string;

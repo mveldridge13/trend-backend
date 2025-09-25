@@ -23,7 +23,7 @@ let TransactionsRepository = class TransactionsRepository {
                 userId,
                 description: data.description,
                 amount: new client_1.Prisma.Decimal(data.amount),
-                currency: data.currency || "USD",
+                currency: data.currency,
                 date: new Date(data.date),
                 dueDate: data.dueDate ? new Date(data.dueDate) : null,
                 type: data.type,

@@ -14,9 +14,6 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const client_1 = require("@prisma/client");
 class CreateTransactionDto {
-    constructor() {
-        this.currency = "USD";
-    }
 }
 exports.CreateTransactionDto = CreateTransactionDto;
 __decorate([

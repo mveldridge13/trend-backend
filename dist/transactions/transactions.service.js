@@ -16,11 +16,13 @@ const users_repository_1 = require("../users/repositories/users.repository");
 const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
 const client_1 = require("@prisma/client");
 const date_service_1 = require("../common/services/date.service");
+const currency_service_1 = require("../common/services/currency.service");
 let TransactionsService = class TransactionsService {
-    constructor(transactionsRepository, usersRepository, dateService) {
+    constructor(transactionsRepository, usersRepository, dateService, currencyService) {
         this.transactionsRepository = transactionsRepository;
         this.usersRepository = usersRepository;
         this.dateService = dateService;
+        this.currencyService = currencyService;
     }
     async create(userId, createTransactionDto) {
         const user = await this.usersRepository.findById(userId);
@@ -30,8 +32,14 @@ let TransactionsService = class TransactionsService {
         const userTimezone = this.dateService.getValidTimezone(user.timezone);
         this.validateTransactionAmount(createTransactionDto.amount);
         this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+        let currency = createTransactionDto.currency;
+        if (!currency) {
+            const detectedCurrency = this.currencyService.detectCurrencyFromUser(user.timezone, user.currency?.substring(0, 2));
+            currency = detectedCurrency.code;
+        }
         const transaction = await this.transactionsRepository.create(userId, {
             ...createTransactionDto,
+            currency,
             date: createTransactionDto.date,
         });
         return await this.mapToDto(transaction, userTimezone);
@@ -1904,6 +1912,7 @@ exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository,
         users_repository_1.UsersRepository,
-        date_service_1.DateService])
+        date_service_1.DateService,
+        currency_service_1.CurrencyService])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

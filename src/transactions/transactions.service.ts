@@ -29,6 +29,7 @@ import {
 //import { DiscretionaryBreakdownDto } from "./dto/discretionary-breakdown.dto";
 import { Transaction, TransactionType, IncomeFrequency } from "@prisma/client";
 import { DateService } from "../common/services/date.service";
+import { CurrencyService } from "../common/services/currency.service";
 
 // ✅ Inline interface definition for discretionary breakdown
 interface DiscretionaryBreakdownDto {
@@ -124,6 +125,7 @@ export class TransactionsService {
     private readonly transactionsRepository: TransactionsRepository,
     private readonly usersRepository: UsersRepository,
     private readonly dateService: DateService,
+    private readonly currencyService: CurrencyService,
   ) {}
 
   async create(
@@ -135,17 +137,28 @@ export class TransactionsService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    
+
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
-    
+
     this.validateTransactionAmount(createTransactionDto.amount);
     this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+
+    // Detect user's currency if not provided
+    let currency = createTransactionDto.currency;
+    if (!currency) {
+      const detectedCurrency = this.currencyService.detectCurrencyFromUser(
+        user.timezone,
+        user.currency?.substring(0, 2) // Extract country code if currency exists
+      );
+      currency = detectedCurrency.code;
+    }
 
     // Date is already in UTC format from frontend, no conversion needed
     const transaction = await this.transactionsRepository.create(
       userId,
       {
         ...createTransactionDto,
+        currency,
         date: createTransactionDto.date,
       },
     );

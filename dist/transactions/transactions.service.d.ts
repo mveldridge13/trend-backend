@@ -7,6 +7,7 @@ import { TransactionFilterDto } from "./dto/transaction-filter.dto";
 import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
 import { DayTimePatternsResponseDto } from "./dto/day-time-patterns.dto";
 import { DateService } from "../common/services/date.service";
+import { CurrencyService } from "../common/services/currency.service";
 interface DiscretionaryBreakdownDto {
     selectedDate: string;
     selectedPeriod: "daily" | "weekly" | "monthly";
@@ -97,7 +98,8 @@ export declare class TransactionsService {
     private readonly transactionsRepository;
     private readonly usersRepository;
     private readonly dateService;
-    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService);
+    private readonly currencyService;
+    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService, currencyService: CurrencyService);
     create(userId: string, createTransactionDto: CreateTransactionDto): Promise<TransactionDto>;
     findAll(userId: string, filters: TransactionFilterDto): Promise<{
         transactions: TransactionDto[];
