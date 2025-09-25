@@ -18,7 +18,7 @@ export class TransactionsRepository {
         userId,
         description: data.description,
         amount: new Prisma.Decimal(data.amount),
-        currency: data.currency || "USD",
+        currency: data.currency,
         date: new Date(data.date),
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         type: data.type,

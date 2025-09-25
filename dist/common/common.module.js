@@ -9,14 +9,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommonModule = void 0;
 const common_1 = require("@nestjs/common");
 const date_service_1 = require("./services/date.service");
+const currency_service_1 = require("./services/currency.service");
 let CommonModule = class CommonModule {
 };
 exports.CommonModule = CommonModule;
 exports.CommonModule = CommonModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        providers: [date_service_1.DateService],
-        exports: [date_service_1.DateService],
+        providers: [date_service_1.DateService, currency_service_1.CurrencyService],
+        exports: [date_service_1.DateService, currency_service_1.CurrencyService],
     })
 ], CommonModule);
 //# sourceMappingURL=common.module.js.map
