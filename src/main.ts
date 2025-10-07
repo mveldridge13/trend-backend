@@ -18,7 +18,8 @@ async function bootstrap() {
   app.setGlobalPrefix("api/v1");
 
   // ✅ Listen on all interfaces and correct port
-  await app.listen(3001, "0.0.0.0");
+  const port = process.env.PORT || 3000;
+  await app.listen(port, "0.0.0.0");
 }
 
 bootstrap();
