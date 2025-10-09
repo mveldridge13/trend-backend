@@ -191,6 +191,23 @@ export class UsersController {
   }
 
   // ============================================================================
+  // GDPR COMPLIANCE ENDPOINTS - NEW SECTION
+  // ============================================================================
+
+  @Post("export-data")
+  async exportUserData(@Request() req): Promise<any> {
+    const userId = req.user.id;
+    return this.usersService.exportUserData(userId);
+  }
+
+  @Delete("account")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteAccount(@Request() req): Promise<void> {
+    const userId = req.user.id;
+    await this.usersService.permanentlyDeleteAccount(userId);
+  }
+
+  // ============================================================================
   // EXISTING ENDPOINTS
   // ============================================================================
 

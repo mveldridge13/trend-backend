@@ -10,6 +10,7 @@ import {
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -39,5 +40,14 @@ export class AuthController {
     @Body() updateProfileDto: UpdateUserProfileDto,
   ) {
     return this.authService.updateUserProfile(req.user.id, updateProfileDto);
+  }
+
+  @Post("change-password")
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Request() req,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(req.user.id, changePasswordDto);
   }
 }
