@@ -96,6 +96,18 @@ export class UsersRepository extends BaseRepository<User> {
     }
   }
 
+  async updatePassword(id: string, passwordHash: string): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id },
+        data: { passwordHash },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+      throw error;
+    }
+  }
+
   // ============================================================================
   // ROLLOVER METHODS - NEW SECTION
   // ============================================================================

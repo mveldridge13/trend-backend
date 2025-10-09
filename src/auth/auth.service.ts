@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
@@ -10,6 +11,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { IncomeFrequency } from "@prisma/client";
 
 @Injectable()
@@ -255,5 +257,54 @@ export class AuthService {
     };
 
     return result;
+  }
+
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<{ success: boolean; message: string }> {
+    // 1. Get user
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    // 2. Verify current password
+    const isPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.passwordHash || "",
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    // 3. Check new password is different
+    const isSamePassword = await bcrypt.compare(
+      changePasswordDto.newPassword,
+      user.passwordHash || "",
+    );
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        "New password must be different from current password",
+      );
+    }
+
+    // 4. Hash new password
+    const saltRounds = 12;
+    const newPasswordHash = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      saltRounds,
+    );
+
+    // 5. Update password in database
+    await this.usersRepository.updatePassword(userId, newPasswordHash);
+
+    return {
+      success: true,
+      message: "Password changed successfully",
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Inject, forwardRef } from "@nestjs/common";
 import { UsersRepository } from "./repositories/users.repository";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUserProfileDto } from "./dto/update-user-profile.dto";
@@ -7,10 +7,14 @@ import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 import { RolloverNotificationDto } from "./dto/rollover-notification.dto";
 import { CreateRolloverNotificationDto } from "./dto/create-rollover-notification.dto";
+import { PrismaService } from "../database/prisma.service";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async findById(id: string): Promise<UserDto | null> {
     const user = await this.usersRepository.findById(id);
@@ -243,6 +247,107 @@ export class UsersService {
 
   async dismissRolloverNotification(userId: string): Promise<void> {
     await this.usersRepository.dismissRolloverNotification(userId);
+  }
+
+  // ============================================================================
+  // DATA EXPORT - GDPR COMPLIANCE
+  // ============================================================================
+
+  async exportUserData(userId: string): Promise<any> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    // Fetch all user data in parallel
+    const [transactions, goals, budgets, categories, pokerTournaments, rolloverHistory] = await Promise.all([
+      this.prisma.transaction.findMany({ where: { userId } }),
+      this.prisma.goal.findMany({
+        where: { userId },
+        include: { contributions: true },
+      }),
+      this.prisma.budget.findMany({ where: { userId } }),
+      this.prisma.category.findMany({
+        where: { OR: [{ userId }, { userId: null }] },
+      }),
+      this.prisma.pokerTournament.findMany({ where: { userId } }),
+      this.prisma.rolloverEntry.findMany({ where: { userId } }),
+    ]);
+
+    // Remove password hash from user data
+    const { passwordHash, ...userDataWithoutPassword } = user;
+
+    return {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      user: {
+        ...userDataWithoutPassword,
+        income: user.income ? Number(user.income) : null,
+        fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
+        rolloverAmount: user.rolloverAmount ? Number(user.rolloverAmount) : null,
+      },
+      transactions: transactions.map((t: any) => ({
+        ...t,
+        amount: Number(t.amount),
+      })),
+      goals: goals.map((g: any) => ({
+        ...g,
+        targetAmount: Number(g.targetAmount),
+        currentAmount: Number(g.currentAmount),
+        monthlyTarget: g.monthlyTarget ? Number(g.monthlyTarget) : null,
+        contributions: g.contributions.map((c: any) => ({
+          ...c,
+          amount: Number(c.amount),
+        })),
+      })),
+      budgets: budgets.map((b: any) => ({
+        ...b,
+        totalAmount: Number(b.totalAmount),
+      })),
+      categories,
+      pokerTournaments: pokerTournaments.map((t: any) => ({
+        ...t,
+        buyIn: Number(t.buyIn),
+        totalPrizePool: t.totalPrizePool ? Number(t.totalPrizePool) : null,
+      })),
+      rolloverHistory: rolloverHistory.map((r: any) => ({
+        ...r,
+        amount: Number(r.amount),
+      })),
+      metadata: {
+        totalTransactions: transactions.length,
+        totalGoals: goals.length,
+        totalBudgets: budgets.length,
+        totalPokerTournaments: pokerTournaments.length,
+      },
+    };
+  }
+
+  // ============================================================================
+  // ACCOUNT DELETION - GDPR COMPLIANCE
+  // ============================================================================
+
+  async permanentlyDeleteAccount(userId: string): Promise<void> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    // Delete all user data in a transaction
+    await this.prisma.$transaction(async (tx) => {
+      // Delete in correct order to respect foreign key constraints
+      await tx.transaction.deleteMany({ where: { userId } });
+      await tx.goalContribution.deleteMany({ where: { goal: { userId } } });
+      await tx.goal.deleteMany({ where: { userId } });
+      await tx.budget.deleteMany({ where: { userId } });
+      await tx.pokerTournament.deleteMany({ where: { userId } });
+      await tx.category.deleteMany({ where: { userId } });
+      await tx.rolloverEntry.deleteMany({ where: { userId } });
+      await tx.rolloverNotification.deleteMany({ where: { userId } });
+
+      // Finally, delete the user
+      await tx.user.delete({ where: { id: userId } });
+    });
   }
 
   private toUserDto(user: any): UserDto {
