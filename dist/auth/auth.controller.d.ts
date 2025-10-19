@@ -1,5 +1,6 @@
 import { AuthService } from "./auth.service";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -46,5 +47,9 @@ export declare class AuthController {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+    }>;
+    changePassword(req: any, changePasswordDto: ChangePasswordDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
 }

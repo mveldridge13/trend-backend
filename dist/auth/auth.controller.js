@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
 const update_user_profile_dto_1 = require("../users/dto/update-user-profile.dto");
+const change_password_dto_1 = require("./dto/change-password.dto");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -32,6 +33,9 @@ let AuthController = class AuthController {
     }
     async updateProfile(req, updateProfileDto) {
         return this.authService.updateUserProfile(req.user.id, updateProfileDto);
+    }
+    async changePassword(req, changePasswordDto) {
+        return this.authService.changePassword(req.user.id, changePasswordDto);
     }
 };
 exports.AuthController = AuthController;
@@ -66,6 +70,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_user_profile_dto_1.UpdateUserProfileDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Post)("change-password"),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "changePassword", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)("auth"),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

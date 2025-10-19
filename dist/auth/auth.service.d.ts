@@ -4,6 +4,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { IncomeFrequency } from "@prisma/client";
 export declare class AuthService {
     private readonly usersRepository;
@@ -53,5 +54,9 @@ export declare class AuthService {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+    }>;
+    changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
 }

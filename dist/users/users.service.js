@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const users_repository_1 = require("./repositories/users.repository");
+const prisma_service_1 = require("../database/prisma.service");
 let UsersService = class UsersService {
-    constructor(usersRepository) {
+    constructor(usersRepository, prisma) {
         this.usersRepository = usersRepository;
+        this.prisma = prisma;
     }
     async findById(id) {
         const user = await this.usersRepository.findById(id);
@@ -178,6 +180,87 @@ let UsersService = class UsersService {
     async dismissRolloverNotification(userId) {
         await this.usersRepository.dismissRolloverNotification(userId);
     }
+    async exportUserData(userId) {
+        const user = await this.usersRepository.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        const [transactions, goals, budgets, categories, pokerTournaments, rolloverHistory] = await Promise.all([
+            this.prisma.transaction.findMany({ where: { userId } }),
+            this.prisma.goal.findMany({
+                where: { userId },
+                include: { contributions: true },
+            }),
+            this.prisma.budget.findMany({ where: { userId } }),
+            this.prisma.category.findMany({
+                where: { OR: [{ userId }, { userId: null }] },
+            }),
+            this.prisma.pokerTournament.findMany({ where: { userId } }),
+            this.prisma.rolloverEntry.findMany({ where: { userId } }),
+        ]);
+        const { passwordHash, ...userDataWithoutPassword } = user;
+        return {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            user: {
+                ...userDataWithoutPassword,
+                income: user.income ? Number(user.income) : null,
+                fixedExpenses: user.fixedExpenses ? Number(user.fixedExpenses) : null,
+                rolloverAmount: user.rolloverAmount ? Number(user.rolloverAmount) : null,
+            },
+            transactions: transactions.map((t) => ({
+                ...t,
+                amount: Number(t.amount),
+            })),
+            goals: goals.map((g) => ({
+                ...g,
+                targetAmount: Number(g.targetAmount),
+                currentAmount: Number(g.currentAmount),
+                monthlyTarget: g.monthlyTarget ? Number(g.monthlyTarget) : null,
+                contributions: g.contributions.map((c) => ({
+                    ...c,
+                    amount: Number(c.amount),
+                })),
+            })),
+            budgets: budgets.map((b) => ({
+                ...b,
+                totalAmount: Number(b.totalAmount),
+            })),
+            categories,
+            pokerTournaments: pokerTournaments.map((t) => ({
+                ...t,
+                buyIn: Number(t.buyIn),
+                totalPrizePool: t.totalPrizePool ? Number(t.totalPrizePool) : null,
+            })),
+            rolloverHistory: rolloverHistory.map((r) => ({
+                ...r,
+                amount: Number(r.amount),
+            })),
+            metadata: {
+                totalTransactions: transactions.length,
+                totalGoals: goals.length,
+                totalBudgets: budgets.length,
+                totalPokerTournaments: pokerTournaments.length,
+            },
+        };
+    }
+    async permanentlyDeleteAccount(userId) {
+        const user = await this.usersRepository.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException("User not found");
+        }
+        await this.prisma.$transaction(async (tx) => {
+            await tx.transaction.deleteMany({ where: { userId } });
+            await tx.goalContribution.deleteMany({ where: { goal: { userId } } });
+            await tx.goal.deleteMany({ where: { userId } });
+            await tx.budget.deleteMany({ where: { userId } });
+            await tx.pokerTournament.deleteMany({ where: { userId } });
+            await tx.category.deleteMany({ where: { userId } });
+            await tx.rolloverEntry.deleteMany({ where: { userId } });
+            await tx.rolloverNotification.deleteMany({ where: { userId } });
+            await tx.user.delete({ where: { id: userId } });
+        });
+    }
     toUserDto(user) {
         const { passwordHash, ...userWithoutPassword } = user;
         return {
@@ -195,6 +278,7 @@ let UsersService = class UsersService {
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [users_repository_1.UsersRepository])
+    __metadata("design:paramtypes", [users_repository_1.UsersRepository,
+        prisma_service_1.PrismaService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

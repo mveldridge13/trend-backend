@@ -115,6 +115,14 @@ let UsersController = class UsersController {
         const userId = req.user.id;
         await this.usersService.dismissRolloverNotification(userId);
     }
+    async exportUserData(req) {
+        const userId = req.user.id;
+        return this.usersService.exportUserData(userId);
+    }
+    async deleteAccount(req) {
+        const userId = req.user.id;
+        await this.usersService.permanentlyDeleteAccount(userId);
+    }
     async updateOnboarding(req, updateOnboardingDto) {
         const userId = req.user.id;
         return this.usersService.updateProfile(userId, updateOnboardingDto);
@@ -208,6 +216,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "dismissRolloverNotification", null);
+__decorate([
+    (0, common_1.Post)("export-data"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "exportUserData", null);
+__decorate([
+    (0, common_1.Delete)("account"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "deleteAccount", null);
 __decorate([
     (0, common_1.Patch)("onboarding"),
     __param(0, (0, common_1.Request)()),
