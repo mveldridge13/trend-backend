@@ -15,6 +15,7 @@ export declare class UsersRepository extends BaseRepository<User> {
     update(id: string, data: UpdateUserDto): Promise<User>;
     updateProfile(id: string, data: UpdateUserProfileDto): Promise<User>;
     updateLastLogin(id: string): Promise<void>;
+    updatePassword(id: string, passwordHash: string): Promise<void>;
     getRolloverHistory(userId: string): Promise<RolloverEntry[]>;
     createRolloverEntry(data: {
         userId: string;

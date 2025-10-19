@@ -6,9 +6,11 @@ import { RolloverEntryDto } from "./dto/rollover-entry.dto";
 import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 import { RolloverNotificationDto } from "./dto/rollover-notification.dto";
 import { CreateRolloverNotificationDto } from "./dto/create-rollover-notification.dto";
+import { PrismaService } from "../database/prisma.service";
 export declare class UsersService {
     private readonly usersRepository;
-    constructor(usersRepository: UsersRepository);
+    private readonly prisma;
+    constructor(usersRepository: UsersRepository, prisma: PrismaService);
     findById(id: string): Promise<UserDto | null>;
     findByEmail(email: string): Promise<UserDto | null>;
     updateProfile(id: string, updateData: UpdateUserDto): Promise<UserDto>;
@@ -40,5 +42,7 @@ export declare class UsersService {
     getRolloverNotification(userId: string): Promise<RolloverNotificationDto | null>;
     createRolloverNotification(userId: string, createNotificationDto: CreateRolloverNotificationDto): Promise<RolloverNotificationDto>;
     dismissRolloverNotification(userId: string): Promise<void>;
+    exportUserData(userId: string): Promise<any>;
+    permanentlyDeleteAccount(userId: string): Promise<void>;
     private toUserDto;
 }

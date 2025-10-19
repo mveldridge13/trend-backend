@@ -21,6 +21,8 @@ export declare class UsersController {
     getRolloverNotification(req: any): Promise<RolloverNotificationDto | null>;
     createRolloverNotification(req: any, createNotificationDto: CreateRolloverNotificationDto): Promise<RolloverNotificationDto>;
     dismissRolloverNotification(req: any): Promise<void>;
+    exportUserData(req: any): Promise<any>;
+    deleteAccount(req: any): Promise<void>;
     updateOnboarding(req: any, updateOnboardingDto: UpdateUserProfileDto): Promise<UserDto>;
     deactivateAccount(req: any): Promise<void>;
 }

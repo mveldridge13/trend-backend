@@ -170,6 +170,27 @@ let AuthService = class AuthService {
         };
         return result;
     }
+    async changePassword(userId, changePasswordDto) {
+        const user = await this.usersRepository.findById(userId);
+        if (!user || !user.isActive) {
+            throw new common_1.UnauthorizedException("User not found");
+        }
+        const isPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, user.passwordHash || "");
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException("Current password is incorrect");
+        }
+        const isSamePassword = await bcrypt.compare(changePasswordDto.newPassword, user.passwordHash || "");
+        if (isSamePassword) {
+            throw new common_1.BadRequestException("New password must be different from current password");
+        }
+        const saltRounds = 12;
+        const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
+        await this.usersRepository.updatePassword(userId, newPasswordHash);
+        return {
+            success: true,
+            message: "Password changed successfully",
+        };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([

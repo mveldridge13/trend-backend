@@ -95,6 +95,18 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             this.handleDatabaseError(error);
         }
     }
+    async updatePassword(id, passwordHash) {
+        try {
+            await this.prisma.user.update({
+                where: { id },
+                data: { passwordHash },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+            throw error;
+        }
+    }
     async getRolloverHistory(userId) {
         try {
             return await this.prisma.rolloverEntry.findMany({
