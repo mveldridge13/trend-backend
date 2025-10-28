@@ -42,11 +42,12 @@ RUN npx prisma generate
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy seed script
+# Copy seed script and startup script
 COPY seed-categories.js ./seed-categories.js
+COPY start.sh ./start.sh
 
 # Expose port
 EXPOSE 3000
 
-# Run database migrations, seed categories, and start application
-CMD ["sh", "-c", "npx prisma migrate deploy && node seed-categories.js || true && npm run start:prod"]
+# Run startup script
+CMD ["sh", "./start.sh"]

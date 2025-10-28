@@ -253,6 +253,7 @@ enum TransactionType {
   EXPENSE
   TRANSFER
   REFUND
+  ROLLOVER
 }
 
 enum IncomeFrequency {
