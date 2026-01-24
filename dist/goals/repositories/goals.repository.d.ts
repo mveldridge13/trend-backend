@@ -27,6 +27,13 @@ export declare class GoalsRepository {
     }>;
     getRecentTransactionsByUserId(userId: string, daysBack?: number): Promise<any[]>;
     getUserWithIncome(userId: string): Promise<any>;
+    getOverallAnalytics(userId: string): Promise<{
+        totalGoals: number;
+        activeGoals: number;
+        completedGoals: number;
+        totalTargetAmount: number;
+        totalCurrentAmount: number;
+    }>;
     getGoalWithContributions(goalId: string): Promise<any>;
     getGoalsWithLatestContribution(userId: string): Promise<any[]>;
 }

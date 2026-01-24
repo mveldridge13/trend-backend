@@ -196,6 +196,16 @@ let GoalsService = class GoalsService {
             transactionId: contribution.transactionId,
         }));
     }
+    async getOverallAnalytics(userId) {
+        const analytics = await this.goalsRepository.getOverallAnalytics(userId);
+        const overallProgress = analytics.totalTargetAmount > 0
+            ? Math.round((analytics.totalCurrentAmount / analytics.totalTargetAmount) * 100)
+            : 0;
+        return {
+            ...analytics,
+            overallProgress,
+        };
+    }
     async getGoalAnalytics(userId, goalId) {
         const goal = await this.goalsRepository.findByUserAndGoalId(userId, goalId);
         if (!goal) {

@@ -65,6 +65,19 @@ export class GoalsController {
     return this.goalsService.getGoals(userId, filters);
   }
 
+  @Get("analytics")
+  async getOverallAnalytics(@Request() req: any): Promise<{
+    totalGoals: number;
+    activeGoals: number;
+    completedGoals: number;
+    totalTargetAmount: number;
+    totalCurrentAmount: number;
+    overallProgress: number;
+  }> {
+    const userId = this.extractUserId(req);
+    return this.goalsService.getOverallAnalytics(userId);
+  }
+
   @Get("suggestions")
   async getGoalSuggestions(
     @Request() req: any,

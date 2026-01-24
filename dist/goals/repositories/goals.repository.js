@@ -224,6 +224,30 @@ let GoalsRepository = class GoalsRepository {
             throw error;
         }
     }
+    async getOverallAnalytics(userId) {
+        if (!userId) {
+            throw new Error("User ID is required for getOverallAnalytics");
+        }
+        const goals = await this.prisma.goal.findMany({
+            where: { userId },
+            select: {
+                targetAmount: true,
+                currentAmount: true,
+            },
+        });
+        const totalGoals = goals.length;
+        const activeGoals = goals.filter((g) => g.currentAmount.toNumber() < g.targetAmount.toNumber()).length;
+        const completedGoals = goals.filter((g) => g.currentAmount.toNumber() >= g.targetAmount.toNumber()).length;
+        const totalTargetAmount = goals.reduce((sum, g) => sum + g.targetAmount.toNumber(), 0);
+        const totalCurrentAmount = goals.reduce((sum, g) => sum + g.currentAmount.toNumber(), 0);
+        return {
+            totalGoals,
+            activeGoals,
+            completedGoals,
+            totalTargetAmount,
+            totalCurrentAmount,
+        };
+    }
     async getGoalWithContributions(goalId) {
         return this.prisma.goal.findUnique({
             where: { id: goalId },

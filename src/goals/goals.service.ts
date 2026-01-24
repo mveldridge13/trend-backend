@@ -320,6 +320,30 @@ export class GoalsService {
     }));
   }
 
+  // Overall Analytics (aggregate across all user goals)
+  async getOverallAnalytics(userId: string): Promise<{
+    totalGoals: number;
+    activeGoals: number;
+    completedGoals: number;
+    totalTargetAmount: number;
+    totalCurrentAmount: number;
+    overallProgress: number;
+  }> {
+    const analytics = await this.goalsRepository.getOverallAnalytics(userId);
+
+    const overallProgress =
+      analytics.totalTargetAmount > 0
+        ? Math.round(
+            (analytics.totalCurrentAmount / analytics.totalTargetAmount) * 100,
+          )
+        : 0;
+
+    return {
+      ...analytics,
+      overallProgress,
+    };
+  }
+
   // Analytics
   async getGoalAnalytics(
     userId: string,
