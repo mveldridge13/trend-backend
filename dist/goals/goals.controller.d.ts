@@ -12,6 +12,14 @@ export declare class GoalsController {
     private extractUserId;
     createGoal(req: any, createGoalDto: CreateGoalDto): Promise<GoalResponseDto>;
     getGoals(req: any, filters: GoalFiltersDto): Promise<GoalsListResponseDto>;
+    getOverallAnalytics(req: any): Promise<{
+        totalGoals: number;
+        activeGoals: number;
+        completedGoals: number;
+        totalTargetAmount: number;
+        totalCurrentAmount: number;
+        overallProgress: number;
+    }>;
     getGoalSuggestions(req: any): Promise<GoalSuggestionsResponseDto>;
     getGoalById(req: any, goalId: string): Promise<GoalResponseDto>;
     updateGoal(req: any, goalId: string, updateGoalDto: UpdateGoalDto): Promise<GoalResponseDto>;

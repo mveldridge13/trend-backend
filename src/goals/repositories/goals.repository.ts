@@ -311,6 +311,51 @@ export class GoalsRepository {
     }
   }
 
+  // Overall analytics for all user goals
+  async getOverallAnalytics(userId: string): Promise<{
+    totalGoals: number;
+    activeGoals: number;
+    completedGoals: number;
+    totalTargetAmount: number;
+    totalCurrentAmount: number;
+  }> {
+    if (!userId) {
+      throw new Error("User ID is required for getOverallAnalytics");
+    }
+
+    const goals = await this.prisma.goal.findMany({
+      where: { userId },
+      select: {
+        targetAmount: true,
+        currentAmount: true,
+      },
+    });
+
+    const totalGoals = goals.length;
+    const activeGoals = goals.filter(
+      (g) => g.currentAmount.toNumber() < g.targetAmount.toNumber(),
+    ).length;
+    const completedGoals = goals.filter(
+      (g) => g.currentAmount.toNumber() >= g.targetAmount.toNumber(),
+    ).length;
+    const totalTargetAmount = goals.reduce(
+      (sum, g) => sum + g.targetAmount.toNumber(),
+      0,
+    );
+    const totalCurrentAmount = goals.reduce(
+      (sum, g) => sum + g.currentAmount.toNumber(),
+      0,
+    );
+
+    return {
+      totalGoals,
+      activeGoals,
+      completedGoals,
+      totalTargetAmount,
+      totalCurrentAmount,
+    };
+  }
+
   // Specialized queries for analytics
   async getGoalWithContributions(goalId: string): Promise<any> {
     return this.prisma.goal.findUnique({

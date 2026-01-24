@@ -16,6 +16,14 @@ export declare class GoalsService {
     deleteGoal(userId: string, goalId: string): Promise<void>;
     addContribution(userId: string, goalId: string, createContributionDto: CreateGoalContributionDto): Promise<GoalContributionResponseDto>;
     getGoalContributions(userId: string, goalId: string, startDate?: string, endDate?: string): Promise<GoalContributionResponseDto[]>;
+    getOverallAnalytics(userId: string): Promise<{
+        totalGoals: number;
+        activeGoals: number;
+        completedGoals: number;
+        totalTargetAmount: number;
+        totalCurrentAmount: number;
+        overallProgress: number;
+    }>;
     getGoalAnalytics(userId: string, goalId: string): Promise<GoalAnalyticsDto>;
     generateSmartSuggestions(userId: string): Promise<GoalSuggestionsResponseDto>;
     private getGoalIncludes;

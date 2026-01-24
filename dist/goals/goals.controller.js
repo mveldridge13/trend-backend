@@ -40,6 +40,10 @@ let GoalsController = class GoalsController {
         const userId = this.extractUserId(req);
         return this.goalsService.getGoals(userId, filters);
     }
+    async getOverallAnalytics(req) {
+        const userId = this.extractUserId(req);
+        return this.goalsService.getOverallAnalytics(userId);
+    }
     async getGoalSuggestions(req) {
         const userId = this.extractUserId(req);
         return this.goalsService.generateSmartSuggestions(userId);
@@ -91,6 +95,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, goal_filters_dto_1.GoalFiltersDto]),
     __metadata("design:returntype", Promise)
 ], GoalsController.prototype, "getGoals", null);
+__decorate([
+    (0, common_1.Get)("analytics"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], GoalsController.prototype, "getOverallAnalytics", null);
 __decorate([
     (0, common_1.Get)("suggestions"),
     __param(0, (0, common_1.Request)()),
