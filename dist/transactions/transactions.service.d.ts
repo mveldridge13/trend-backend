@@ -130,6 +130,7 @@ export declare class TransactionsService {
     private generateDiscretionaryInsights;
     private calculateDiscretionarySummary;
     private validateTransactionAmount;
+    private calculateTransactionStatus;
     private mapToDto;
     private calculateDailyBurnRate;
     private calculateMonthlyRecurringExpenses;
