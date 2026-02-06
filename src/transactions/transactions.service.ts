@@ -27,7 +27,7 @@ import {
   getTimePeriod,
 } from "./dto/day-time-patterns.dto";
 //import { DiscretionaryBreakdownDto } from "./dto/discretionary-breakdown.dto";
-import { Transaction, TransactionType, IncomeFrequency } from "@prisma/client";
+import { Transaction, TransactionType, IncomeFrequency, PaymentStatus } from "@prisma/client";
 import { DateService } from "../common/services/date.service";
 import { CurrencyService } from "../common/services/currency.service";
 
@@ -1601,6 +1601,27 @@ export class TransactionsService {
   }
 
 
+  /**
+   * Dynamically calculates the correct transaction status based on current date and due date.
+   * - PAID transactions remain PAID
+   * - Transactions with dueDate in the past (and not PAID) are marked OVERDUE
+   * - All others keep their current status (typically UPCOMING)
+   */
+  private calculateTransactionStatus(transaction: any): PaymentStatus {
+    // If already paid, keep it as PAID
+    if (transaction.status === 'PAID') {
+      return 'PAID';
+    }
+
+    // If has a due date and it's in the past, mark as OVERDUE
+    if (transaction.dueDate && new Date(transaction.dueDate) < new Date()) {
+      return 'OVERDUE';
+    }
+
+    // Otherwise, return the current status (typically UPCOMING)
+    return transaction.status || 'UPCOMING';
+  }
+
   private async mapToDto(transaction: any, userTimezone?: string): Promise<TransactionDto> {
     // Get user timezone if not provided
     if (!userTimezone) {
@@ -1620,7 +1641,7 @@ export class TransactionsService {
       date: this.dateService.toUserTimezone(transaction.date, userTimezone),
       dueDate: transaction.dueDate ? this.dateService.toUserTimezone(transaction.dueDate, userTimezone) : transaction.dueDate,
       type: transaction.type,
-      status: transaction.status,
+      status: this.calculateTransactionStatus(transaction),
       recurrence: transaction.recurrence || "none",
       isAICategorized: transaction.isAICategorized,
       aiConfidence: transaction.aiConfidence,

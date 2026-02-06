@@ -1053,6 +1053,15 @@ let TransactionsService = class TransactionsService {
             throw new common_1.BadRequestException("Transaction amount cannot exceed $999,999.99");
         }
     }
+    calculateTransactionStatus(transaction) {
+        if (transaction.status === 'PAID') {
+            return 'PAID';
+        }
+        if (transaction.dueDate && new Date(transaction.dueDate) < new Date()) {
+            return 'OVERDUE';
+        }
+        return transaction.status || 'UPCOMING';
+    }
     async mapToDto(transaction, userTimezone) {
         if (!userTimezone) {
             const user = await this.usersRepository.findById(transaction.userId);
@@ -1070,7 +1079,7 @@ let TransactionsService = class TransactionsService {
             date: this.dateService.toUserTimezone(transaction.date, userTimezone),
             dueDate: transaction.dueDate ? this.dateService.toUserTimezone(transaction.dueDate, userTimezone) : transaction.dueDate,
             type: transaction.type,
-            status: transaction.status,
+            status: this.calculateTransactionStatus(transaction),
             recurrence: transaction.recurrence || "none",
             isAICategorized: transaction.isAICategorized,
             aiConfidence: transaction.aiConfidence,
