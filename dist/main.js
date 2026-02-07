@@ -12,7 +12,12 @@ async function bootstrap() {
         whitelist: true,
         transform: true,
     }));
-    app.enableCors();
+    app.enableCors({
+        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    });
     app.setGlobalPrefix("api/v1");
     const port = process.env.PORT || 3000;
     await app.listen(port, "0.0.0.0");
