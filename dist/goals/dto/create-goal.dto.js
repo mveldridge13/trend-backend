@@ -91,4 +91,23 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateGoalDto.prototype, "currentAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.LoanTerm),
+    __metadata("design:type", String)
+], CreateGoalDto.prototype, "loanTerm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateGoalDto.prototype, "interestRate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateGoalDto.prototype, "minimumPayment", void 0);
 //# sourceMappingURL=create-goal.dto.js.map

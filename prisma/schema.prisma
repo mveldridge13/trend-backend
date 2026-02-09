@@ -136,6 +136,9 @@ model Goal {
   priority         GoalPriority       @default(MEDIUM)
   autoContribute   Boolean            @default(false)
   monthlyTarget    Decimal?           @db.Decimal(12, 2)
+  loanTerm         LoanTerm?
+  interestRate     Decimal?           @db.Decimal(5, 2)
+  minimumPayment   Decimal?           @db.Decimal(12, 2)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   originalCategory String?
@@ -327,6 +330,13 @@ enum GameType {
   TURBO
   DEEPSTACK
   TEAM_EVENT
+}
+
+enum LoanTerm {
+  ONE_YEAR
+  THREE_YEARS
+  FIVE_YEARS
+  SEVEN_YEARS
 }
 
 model RolloverEntry {

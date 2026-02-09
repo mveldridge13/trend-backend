@@ -10,7 +10,7 @@ import {
   Min,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
-import { GoalCategory, GoalPriority } from "@prisma/client";
+import { GoalCategory, GoalPriority, LoanTerm } from "@prisma/client";
 
 export class UpdateGoalDto {
   @IsOptional()
@@ -81,4 +81,20 @@ export class UpdateGoalDto {
   @IsOptional()
   @IsDateString()
   completedAt?: string;
+
+  @IsOptional()
+  @IsEnum(LoanTerm)
+  loanTerm?: LoanTerm;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  interestRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  minimumPayment?: number;
 }
