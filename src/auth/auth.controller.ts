@@ -59,8 +59,13 @@ export class AuthController {
   // Logout - revoke refresh token
   @Post("logout")
   @UseGuards(JwtAuthGuard)
-  async logout(@Body() body: { refreshToken?: string }, @Request() req: any) {
-    return this.authService.logout(req.user.id, body.refreshToken);
+  async logout(
+    @Body() body: { refreshToken?: string },
+    @Request() req: any,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.logout(req.user.id, body.refreshToken, ip, userAgent);
   }
 
   // NEW: Profile endpoints for AppNavigator
@@ -84,7 +89,9 @@ export class AuthController {
   async changePassword(
     @Request() req,
     @Body() changePasswordDto: ChangePasswordDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
   ) {
-    return this.authService.changePassword(req.user.id, changePasswordDto);
+    return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
   }
 }

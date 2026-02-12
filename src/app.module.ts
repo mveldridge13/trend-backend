@@ -14,6 +14,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
 import { GoalsModule } from "./goals/goals.module";
 import { PokerModule } from "./poker/poker.module";
 import { CommonModule } from "./common/common.module";
+import { AuditModule } from "./audit/audit.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CommonModule } from "./common/common.module";
         limit: 100,
       },
     ]),
+    AuditModule,
     CommonModule,
     DatabaseModule,
     HealthModule,

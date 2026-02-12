@@ -392,3 +392,32 @@ enum RolloverType {
   ROLLOVER
   GOAL_ALLOCATION
 }
+
+// Audit logging for security events
+model AuditLog {
+  id          String        @id @default(cuid())
+  userId      String?       // Nullable for failed login attempts where user doesn't exist
+  eventType   AuditEventType
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?         // Additional event-specific data (e.g., email for failed login)
+  success     Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  REGISTER
+  PASSWORD_CHANGE
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_COMPLETE
+  ACCOUNT_LOCKED
+  TOKEN_REFRESH
+}

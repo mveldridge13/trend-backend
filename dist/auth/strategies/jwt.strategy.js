@@ -14,11 +14,12 @@ const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
 const users_service_1 = require("../../users/users.service");
+const secrets_service_1 = require("../../common/services/secrets.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
-    constructor(usersService) {
-        const jwtSecret = process.env.JWT_SECRET;
+    constructor(usersService, secretsService) {
+        const jwtSecret = secretsService.get("JWT_SECRET");
         if (!jwtSecret) {
-            throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start.');
+            throw new Error("FATAL: JWT_SECRET is not set. Application cannot start.");
         }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -26,6 +27,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             secretOrKey: jwtSecret,
         });
         this.usersService = usersService;
+        this.secretsService = secretsService;
     }
     async validate(payload) {
         const userIdFromToken = payload.userId || payload.sub;
@@ -49,6 +51,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
 exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [users_service_1.UsersService])
+    __metadata("design:paramtypes", [users_service_1.UsersService,
+        secrets_service_1.SecretsService])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

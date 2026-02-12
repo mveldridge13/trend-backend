@@ -35,8 +35,8 @@ let AuthController = class AuthController {
     async refreshToken(refreshTokenDto, ip, userAgent) {
         return this.authService.refreshToken(refreshTokenDto.refreshToken, ip, userAgent);
     }
-    async logout(body, req) {
-        return this.authService.logout(req.user.id, body.refreshToken);
+    async logout(body, req, ip, userAgent) {
+        return this.authService.logout(req.user.id, body.refreshToken, ip, userAgent);
     }
     async getProfile(req) {
         return this.authService.getUserProfile(req.user.id);
@@ -44,8 +44,8 @@ let AuthController = class AuthController {
     async updateProfile(req, updateProfileDto) {
         return this.authService.updateUserProfile(req.user.id, updateProfileDto);
     }
-    async changePassword(req, changePasswordDto) {
-        return this.authService.changePassword(req.user.id, changePasswordDto);
+    async changePassword(req, changePasswordDto, ip, userAgent) {
+        return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
     }
 };
 exports.AuthController = AuthController;
@@ -84,8 +84,10 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Ip)()),
+    __param(3, (0, common_1.Headers)("user-agent")),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, Object, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([
@@ -110,8 +112,10 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Ip)()),
+    __param(3, (0, common_1.Headers)("user-agent")),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changePassword", null);
 exports.AuthController = AuthController = __decorate([

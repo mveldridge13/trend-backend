@@ -14,8 +14,34 @@ async function bootstrap() {
     throw new Error('FATAL: FRONTEND_URL environment variable is required in production');
   }
 
-  // Security headers
-  app.use(helmet());
+  // Security headers with enhanced configuration
+  app.use(
+    helmet({
+      // Strict-Transport-Security: force HTTPS for 1 year, include subdomains
+      hsts: isProduction
+        ? {
+            maxAge: 31536000, // 1 year in seconds
+            includeSubDomains: true,
+            preload: true,
+          }
+        : false, // Disable in development (no HTTPS)
+      // Content-Security-Policy: restrictive policy for API
+      contentSecurityPolicy: isProduction
+        ? {
+            directives: {
+              defaultSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+            },
+          }
+        : false, // Disable in development for easier debugging
+      // Prevent clickjacking
+      frameguard: { action: 'deny' },
+      // Prevent MIME type sniffing
+      noSniff: true,
+      // Hide X-Powered-By header
+      hidePoweredBy: true,
+    })
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

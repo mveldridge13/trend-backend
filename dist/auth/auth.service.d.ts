@@ -1,5 +1,7 @@
 import { JwtService } from "@nestjs/jwt";
 import { UsersRepository } from "../users/repositories/users.repository";
+import { AuditService } from "../audit/audit.service";
+import { HibpService } from "../common/services/hibp.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
@@ -9,7 +11,9 @@ import { IncomeFrequency } from "@prisma/client";
 export declare class AuthService {
     private readonly usersRepository;
     private readonly jwtService;
-    constructor(usersRepository: UsersRepository, jwtService: JwtService);
+    private readonly auditService;
+    private readonly hibpService;
+    constructor(usersRepository: UsersRepository, jwtService: JwtService, auditService: AuditService, hibpService: HibpService);
     private generateRefreshToken;
     private isAccountLocked;
     register(registerDto: RegisterDto, ipAddress?: string, userAgent?: string): Promise<AuthResponseDto>;
@@ -19,7 +23,7 @@ export declare class AuthService {
         refresh_token: string;
         expires_in: number;
     }>;
-    logout(userId: string, refreshToken?: string): Promise<{
+    logout(userId: string, refreshToken?: string, ipAddress?: string, userAgent?: string): Promise<{
         success: boolean;
         message: string;
     }>;
@@ -66,7 +70,7 @@ export declare class AuthService {
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
     }>;
-    changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<{
+    changePassword(userId: string, changePasswordDto: ChangePasswordDto, ipAddress?: string, userAgent?: string): Promise<{
         success: boolean;
         message: string;
     }>;

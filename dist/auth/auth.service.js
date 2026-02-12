@@ -15,13 +15,17 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const users_repository_1 = require("../users/repositories/users.repository");
+const audit_service_1 = require("../audit/audit.service");
+const hibp_service_1 = require("../common/services/hibp.service");
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 let AuthService = class AuthService {
-    constructor(usersRepository, jwtService) {
+    constructor(usersRepository, jwtService, auditService, hibpService) {
         this.usersRepository = usersRepository;
         this.jwtService = jwtService;
+        this.auditService = auditService;
+        this.hibpService = hibpService;
     }
     generateRefreshToken() {
         return crypto.randomBytes(64).toString("hex");
@@ -41,6 +45,10 @@ let AuthService = class AuthService {
             if (userWithUsername) {
                 throw new common_1.ConflictException("Username already taken");
             }
+        }
+        const isCompromised = await this.hibpService.isPasswordCompromised(registerDto.password);
+        if (isCompromised) {
+            throw new common_1.BadRequestException("This password has been exposed in a data breach. Please choose a different password.");
         }
         const saltRounds = 12;
         const passwordHash = await bcrypt.hash(registerDto.password, saltRounds);
@@ -63,6 +71,7 @@ let AuthService = class AuthService {
             ipAddress,
             userAgent,
         });
+        await this.auditService.logRegister(user.id, user.email, ipAddress, userAgent);
         return {
             access_token,
             refresh_token: refreshToken,
@@ -90,10 +99,12 @@ let AuthService = class AuthService {
     async login(loginDto, ipAddress, userAgent) {
         const user = await this.usersRepository.findByEmail(loginDto.email);
         if (!user || !user.isActive) {
+            await this.auditService.logLoginFailed(loginDto.email, ipAddress, userAgent, "User not found or inactive");
             throw new common_1.UnauthorizedException("Invalid credentials");
         }
         if (this.isAccountLocked(user.lockedUntil)) {
             const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+            await this.auditService.logLoginFailed(loginDto.email, ipAddress, userAgent, "Account locked");
             throw new common_1.ForbiddenException(`Account is locked. Please try again in ${remainingMinutes} minute(s).`);
         }
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash || "");
@@ -101,8 +112,10 @@ let AuthService = class AuthService {
             const updatedUser = await this.usersRepository.recordFailedLogin(user.id);
             if (updatedUser.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
                 await this.usersRepository.lockAccount(user.id, ACCOUNT_LOCK_DURATION_MINUTES);
+                await this.auditService.logAccountLocked(user.id, loginDto.email, ipAddress, userAgent);
                 throw new common_1.ForbiddenException(`Account locked due to too many failed login attempts. Please try again in ${ACCOUNT_LOCK_DURATION_MINUTES} minutes.`);
             }
+            await this.auditService.logLoginFailed(loginDto.email, ipAddress, userAgent, "Invalid password");
             const remainingAttempts = MAX_FAILED_LOGIN_ATTEMPTS - updatedUser.failedLoginAttempts;
             throw new common_1.UnauthorizedException(`Invalid credentials. ${remainingAttempts} attempt(s) remaining before account lockout.`);
         }
@@ -123,6 +136,7 @@ let AuthService = class AuthService {
             ipAddress,
             userAgent,
         });
+        await this.auditService.logLoginSuccess(user.id, ipAddress, userAgent);
         return {
             access_token,
             refresh_token: refreshToken,
@@ -178,19 +192,22 @@ let AuthService = class AuthService {
             ipAddress,
             userAgent,
         });
+        await this.auditService.logTokenRefresh(user.id, ipAddress, userAgent);
         return {
             access_token,
             refresh_token: newRefreshToken,
             expires_in: 900,
         };
     }
-    async logout(userId, refreshToken) {
+    async logout(userId, refreshToken, ipAddress, userAgent) {
+        const allDevices = !refreshToken;
         if (refreshToken) {
             await this.usersRepository.revokeRefreshToken(refreshToken);
         }
         else {
             await this.usersRepository.revokeAllUserRefreshTokens(userId);
         }
+        await this.auditService.logLogout(userId, ipAddress, userAgent, allDevices);
         return {
             success: true,
             message: refreshToken
@@ -266,7 +283,7 @@ let AuthService = class AuthService {
         };
         return result;
     }
-    async changePassword(userId, changePasswordDto) {
+    async changePassword(userId, changePasswordDto, ipAddress, userAgent) {
         const user = await this.usersRepository.findById(userId);
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException("User not found");
@@ -279,10 +296,15 @@ let AuthService = class AuthService {
         if (isSamePassword) {
             throw new common_1.BadRequestException("New password must be different from current password");
         }
+        const isCompromised = await this.hibpService.isPasswordCompromised(changePasswordDto.newPassword);
+        if (isCompromised) {
+            throw new common_1.BadRequestException("This password has been exposed in a data breach. Please choose a different password.");
+        }
         const saltRounds = 12;
         const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
         await this.usersRepository.updatePassword(userId, newPasswordHash);
         await this.usersRepository.revokeAllUserRefreshTokens(userId);
+        await this.auditService.logPasswordChange(userId, ipAddress, userAgent);
         return {
             success: true,
             message: "Password changed successfully. Please log in again on all devices.",
@@ -293,6 +315,8 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [users_repository_1.UsersRepository,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        audit_service_1.AuditService,
+        hibp_service_1.HibpService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

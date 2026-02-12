@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { UsersService } from "../../users/users.service";
+import { SecretsService } from "../../common/services/secrets.service";
 
 export interface JwtPayload {
   userId?: string; // For tokens with userId field
@@ -14,10 +15,13 @@ export interface JwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private usersService: UsersService) {
-    const jwtSecret = process.env.JWT_SECRET;
+  constructor(
+    private usersService: UsersService,
+    private secretsService: SecretsService,
+  ) {
+    const jwtSecret = secretsService.get("JWT_SECRET");
     if (!jwtSecret) {
-      throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start.');
+      throw new Error("FATAL: JWT_SECRET is not set. Application cannot start.");
     }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

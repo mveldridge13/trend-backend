@@ -11,7 +11,26 @@ async function bootstrap() {
     if (isProduction && !process.env.FRONTEND_URL) {
         throw new Error('FATAL: FRONTEND_URL environment variable is required in production');
     }
-    app.use((0, helmet_1.default)());
+    app.use((0, helmet_1.default)({
+        hsts: isProduction
+            ? {
+                maxAge: 31536000,
+                includeSubDomains: true,
+                preload: true,
+            }
+            : false,
+        contentSecurityPolicy: isProduction
+            ? {
+                directives: {
+                    defaultSrc: ["'none'"],
+                    frameAncestors: ["'none'"],
+                },
+            }
+            : false,
+        frameguard: { action: 'deny' },
+        noSniff: true,
+        hidePoweredBy: true,
+    }));
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         transform: true,

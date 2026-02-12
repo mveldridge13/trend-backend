@@ -16,7 +16,7 @@ export declare class AuthController {
     }>;
     logout(body: {
         refreshToken?: string;
-    }, req: any): Promise<{
+    }, req: any, ip: string, userAgent: string): Promise<{
         success: boolean;
         message: string;
     }>;
@@ -62,7 +62,7 @@ export declare class AuthController {
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
     }>;
-    changePassword(req: any, changePasswordDto: ChangePasswordDto): Promise<{
+    changePassword(req: any, changePasswordDto: ChangePasswordDto, ip: string, userAgent: string): Promise<{
         success: boolean;
         message: string;
     }>;
