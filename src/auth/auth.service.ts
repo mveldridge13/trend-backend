@@ -3,9 +3,11 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
+import * as crypto from "crypto";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -14,6 +16,11 @@ import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { IncomeFrequency } from "@prisma/client";
 
+// Security constants
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const ACCOUNT_LOCK_DURATION_MINUTES = 15;
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,7 +28,20 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  private generateRefreshToken(): string {
+    return crypto.randomBytes(64).toString("hex");
+  }
+
+  private isAccountLocked(lockedUntil: Date | null): boolean {
+    if (!lockedUntil) return false;
+    return new Date() < lockedUntil;
+  }
+
+  async register(
+    registerDto: RegisterDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
     // Check if user already exists
     const existingUser = await this.usersRepository.findByEmail(
       registerDto.email,
@@ -50,7 +70,7 @@ export class AuthService {
       passwordHash,
     });
 
-    // Generate JWT token
+    // Generate tokens
     const payload = {
       sub: user.id,
       email: user.email,
@@ -58,8 +78,24 @@ export class AuthService {
     };
     const access_token = this.jwtService.sign(payload);
 
+    // Generate refresh token
+    const refreshToken = this.generateRefreshToken();
+    const refreshTokenExpiry = new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    await this.usersRepository.createRefreshToken({
+      userId: user.id,
+      token: refreshToken,
+      expiresAt: refreshTokenExpiry,
+      ipAddress,
+      userAgent,
+    });
+
     return {
       access_token,
+      refresh_token: refreshToken,
+      expires_in: 900, // 15 minutes in seconds
       user: {
         id: user.id,
         email: user.email,
@@ -81,7 +117,11 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(
+    loginDto: LoginDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
     // Find user
     const user = await this.usersRepository.findByEmail(loginDto.email);
 
@@ -89,21 +129,47 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    // Verify password
+    // Check if account is locked
+    if (this.isAccountLocked(user.lockedUntil)) {
+      const remainingMinutes = Math.ceil(
+        (user.lockedUntil!.getTime() - Date.now()) / 60000
+      );
+      throw new ForbiddenException(
+        `Account is locked. Please try again in ${remainingMinutes} minute(s).`
+      );
+    }
 
+    // Verify password
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
       user.passwordHash || "",
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException("Invalid credentials");
+      // Record failed attempt
+      const updatedUser = await this.usersRepository.recordFailedLogin(user.id);
+
+      // Lock account if max attempts exceeded
+      if (updatedUser.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+        await this.usersRepository.lockAccount(user.id, ACCOUNT_LOCK_DURATION_MINUTES);
+        throw new ForbiddenException(
+          `Account locked due to too many failed login attempts. Please try again in ${ACCOUNT_LOCK_DURATION_MINUTES} minutes.`
+        );
+      }
+
+      const remainingAttempts = MAX_FAILED_LOGIN_ATTEMPTS - updatedUser.failedLoginAttempts;
+      throw new UnauthorizedException(
+        `Invalid credentials. ${remainingAttempts} attempt(s) remaining before account lockout.`
+      );
     }
+
+    // Reset failed login attempts on successful login
+    await this.usersRepository.resetFailedLoginAttempts(user.id);
 
     // Update last login
     await this.usersRepository.updateLastLogin(user.id);
 
-    // Generate JWT token
+    // Generate access token
     const payload = {
       sub: user.id,
       email: user.email,
@@ -111,8 +177,24 @@ export class AuthService {
     };
     const access_token = this.jwtService.sign(payload);
 
+    // Generate refresh token
+    const refreshToken = this.generateRefreshToken();
+    const refreshTokenExpiry = new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    await this.usersRepository.createRefreshToken({
+      userId: user.id,
+      token: refreshToken,
+      expiresAt: refreshTokenExpiry,
+      ipAddress,
+      userAgent,
+    });
+
     return {
       access_token,
+      refresh_token: refreshToken,
+      expires_in: 900, // 15 minutes in seconds
       user: {
         id: user.id,
         email: user.email,
@@ -131,6 +213,86 @@ export class AuthService {
         hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
         hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
       },
+    };
+  }
+
+  async refreshToken(
+    refreshToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
+    // Find the refresh token
+    const storedToken = await this.usersRepository.findRefreshToken(refreshToken);
+
+    if (!storedToken) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    // Check if token is revoked
+    if (storedToken.revokedAt) {
+      throw new UnauthorizedException("Refresh token has been revoked");
+    }
+
+    // Check if token is expired
+    if (new Date() > storedToken.expiresAt) {
+      throw new UnauthorizedException("Refresh token has expired");
+    }
+
+    // Get user
+    const user = await this.usersRepository.findById(storedToken.userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("User not found or inactive");
+    }
+
+    // Revoke old refresh token (rotation)
+    await this.usersRepository.revokeRefreshToken(refreshToken);
+
+    // Generate new access token
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    };
+    const access_token = this.jwtService.sign(payload);
+
+    // Generate new refresh token
+    const newRefreshToken = this.generateRefreshToken();
+    const refreshTokenExpiry = new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    await this.usersRepository.createRefreshToken({
+      userId: user.id,
+      token: newRefreshToken,
+      expiresAt: refreshTokenExpiry,
+      ipAddress,
+      userAgent,
+    });
+
+    return {
+      access_token,
+      refresh_token: newRefreshToken,
+      expires_in: 900,
+    };
+  }
+
+  async logout(
+    userId: string,
+    refreshToken?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    if (refreshToken) {
+      // Revoke specific refresh token
+      await this.usersRepository.revokeRefreshToken(refreshToken);
+    } else {
+      // Revoke all refresh tokens for user (logout everywhere)
+      await this.usersRepository.revokeAllUserRefreshTokens(userId);
+    }
+
+    return {
+      success: true,
+      message: refreshToken
+        ? "Logged out successfully"
+        : "Logged out from all devices",
     };
   }
 
@@ -302,9 +464,12 @@ export class AuthService {
     // 5. Update password in database
     await this.usersRepository.updatePassword(userId, newPasswordHash);
 
+    // 6. Revoke all refresh tokens (force re-login on all devices)
+    await this.usersRepository.revokeAllUserRefreshTokens(userId);
+
     return {
       success: true,
-      message: "Password changed successfully",
+      message: "Password changed successfully. Please log in again on all devices.",
     };
   }
 }

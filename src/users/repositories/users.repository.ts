@@ -4,6 +4,7 @@ import {
   RolloverEntry,
   RolloverType,
   RolloverNotification,
+  RefreshToken,
 } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
@@ -200,6 +201,118 @@ export class UsersRepository extends BaseRepository<User> {
         },
         data: {
           dismissedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  // ============================================================================
+  // SECURITY METHODS - Account Lockout
+  // ============================================================================
+
+  async recordFailedLogin(userId: string): Promise<User> {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          failedLoginAttempts: { increment: 1 },
+          lastFailedLogin: new Date(),
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async lockAccount(userId: string, lockDurationMinutes: number = 15): Promise<User> {
+    try {
+      const lockedUntil = new Date(Date.now() + lockDurationMinutes * 60 * 1000);
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: { lockedUntil },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async resetFailedLoginAttempts(userId: string): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          lastFailedLogin: null,
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  // ============================================================================
+  // REFRESH TOKEN METHODS
+  // ============================================================================
+
+  async createRefreshToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<RefreshToken> {
+    try {
+      return await this.prisma.refreshToken.create({
+        data,
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async findRefreshToken(token: string): Promise<RefreshToken | null> {
+    try {
+      return await this.prisma.refreshToken.findUnique({
+        where: { token },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async revokeRefreshToken(token: string): Promise<void> {
+    try {
+      await this.prisma.refreshToken.update({
+        where: { token },
+        data: { revokedAt: new Date() },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
+    try {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async cleanupExpiredRefreshTokens(): Promise<void> {
+    try {
+      await this.prisma.refreshToken.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: new Date() } },
+            { revokedAt: { not: null } },
+          ],
         },
       });
     } catch (error) {

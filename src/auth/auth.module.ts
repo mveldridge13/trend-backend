@@ -14,7 +14,7 @@ import { UsersModule } from "../users/users.module";
         }
         return process.env.JWT_SECRET;
       })(),
-      signOptions: { expiresIn: "7d" },
+      signOptions: { expiresIn: "15m" }, // Short-lived access tokens (15 minutes)
     }),
     UsersModule,
   ],

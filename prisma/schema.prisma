@@ -20,6 +20,10 @@ model User {
   updatedAt                   DateTime               @updatedAt
   isActive                    Boolean                @default(true)
   hasSeenWelcome              Boolean                @default(false)
+  // Security fields
+  failedLoginAttempts         Int                    @default(0)
+  lockedUntil                 DateTime?
+  lastFailedLogin             DateTime?
   income                      Decimal?               @db.Decimal(12, 2)
   setupComplete               Boolean                @default(false)
   hasSeenAddTransactionTour   Boolean                @default(false)
@@ -40,8 +44,25 @@ model User {
   rolloverHistory             RolloverEntry[]
   rolloverNotification        RolloverNotification?
   transactions                Transaction[]
+  refreshTokens               RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  revokedAt   DateTime?
+  userAgent   String?
+  ipAddress   String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
 }
 
 model Budget {
