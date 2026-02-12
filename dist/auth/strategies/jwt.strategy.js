@@ -16,10 +16,14 @@ const passport_jwt_1 = require("passport-jwt");
 const users_service_1 = require("../../users/users.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(usersService) {
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start.');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET || "your-secret-key",
+            secretOrKey: jwtSecret,
         });
         this.usersService = usersService;
     }

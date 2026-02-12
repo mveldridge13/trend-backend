@@ -20,7 +20,12 @@ exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
             jwt_1.JwtModule.register({
-                secret: process.env.JWT_SECRET || "your-secret-key",
+                secret: (() => {
+                    if (!process.env.JWT_SECRET) {
+                        throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start.');
+                    }
+                    return process.env.JWT_SECRET;
+                })(),
                 signOptions: { expiresIn: "7d" },
             }),
             users_module_1.UsersModule,

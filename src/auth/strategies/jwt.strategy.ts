@@ -15,10 +15,14 @@ export interface JwtPayload {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private usersService: UsersService) {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start.');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || "your-secret-key",
+      secretOrKey: jwtSecret,
     });
   }
 

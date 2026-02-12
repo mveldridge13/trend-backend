@@ -21,7 +21,11 @@ __decorate([
 ], ChangePasswordDto.prototype, "currentPassword", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(8, { message: "New password must be at least 8 characters long" }),
+    (0, class_validator_1.MinLength)(12, { message: "New password must be at least 12 characters long" }),
+    (0, class_validator_1.MaxLength)(128, { message: "New password cannot exceed 128 characters" }),
+    (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+        message: "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
+    }),
     __metadata("design:type", String)
 ], ChangePasswordDto.prototype, "newPassword", void 0);
 //# sourceMappingURL=change-password.dto.js.map
