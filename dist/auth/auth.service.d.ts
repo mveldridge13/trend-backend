@@ -7,6 +7,7 @@ import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { SessionListResponseDto, RevokeSessionResponseDto, RevokeOtherSessionsResponseDto } from "./dto/session.dto";
 import { IncomeFrequency } from "@prisma/client";
 export declare class AuthService {
     private readonly usersRepository;
@@ -74,4 +75,7 @@ export declare class AuthService {
         success: boolean;
         message: string;
     }>;
+    getActiveSessions(userId: string, currentToken?: string): Promise<SessionListResponseDto>;
+    revokeSession(userId: string, sessionId: string, currentToken?: string): Promise<RevokeSessionResponseDto>;
+    revokeOtherSessions(userId: string, currentToken: string, ipAddress?: string, userAgent?: string): Promise<RevokeOtherSessionsResponseDto>;
 }

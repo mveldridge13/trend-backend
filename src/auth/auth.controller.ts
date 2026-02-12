@@ -3,7 +3,9 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Body,
+  Param,
   Request,
   UseGuards,
   Ip,
@@ -93,5 +95,41 @@ export class AuthController {
     @Headers("user-agent") userAgent: string,
   ) {
     return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
+  }
+
+  // Session management endpoints
+  @Get("sessions")
+  @UseGuards(JwtAuthGuard)
+  async getSessions(
+    @Request() req,
+    @Body() body: { currentToken?: string },
+  ) {
+    return this.authService.getActiveSessions(req.user.id, body.currentToken);
+  }
+
+  @Delete("sessions/:sessionId")
+  @UseGuards(JwtAuthGuard)
+  async revokeSession(
+    @Request() req,
+    @Param("sessionId") sessionId: string,
+    @Body() body: { currentToken?: string },
+  ) {
+    return this.authService.revokeSession(req.user.id, sessionId, body.currentToken);
+  }
+
+  @Post("sessions/revoke-others")
+  @UseGuards(JwtAuthGuard)
+  async revokeOtherSessions(
+    @Request() req,
+    @Body() body: { currentToken: string },
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.revokeOtherSessions(
+      req.user.id,
+      body.currentToken,
+      ip,
+      userAgent,
+    );
   }
 }

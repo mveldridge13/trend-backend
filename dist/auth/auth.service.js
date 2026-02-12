@@ -17,9 +17,11 @@ const crypto = require("crypto");
 const users_repository_1 = require("../users/repositories/users.repository");
 const audit_service_1 = require("../audit/audit.service");
 const hibp_service_1 = require("../common/services/hibp.service");
+const user_agent_parser_1 = require("../common/utils/user-agent-parser");
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const PASSWORD_HISTORY_COUNT = 5;
 let AuthService = class AuthService {
     constructor(usersRepository, jwtService, auditService, hibpService) {
         this.usersRepository = usersRepository;
@@ -56,6 +58,7 @@ let AuthService = class AuthService {
             ...registerDto,
             passwordHash,
         });
+        await this.usersRepository.addPasswordToHistory(user.id, passwordHash);
         const payload = {
             sub: user.id,
             email: user.email,
@@ -70,6 +73,7 @@ let AuthService = class AuthService {
             expiresAt: refreshTokenExpiry,
             ipAddress,
             userAgent,
+            deviceName: (0, user_agent_parser_1.parseUserAgent)(userAgent),
         });
         await this.auditService.logRegister(user.id, user.email, ipAddress, userAgent);
         return {
@@ -135,6 +139,7 @@ let AuthService = class AuthService {
             expiresAt: refreshTokenExpiry,
             ipAddress,
             userAgent,
+            deviceName: (0, user_agent_parser_1.parseUserAgent)(userAgent),
         });
         await this.auditService.logLoginSuccess(user.id, ipAddress, userAgent);
         return {
@@ -191,6 +196,7 @@ let AuthService = class AuthService {
             expiresAt: refreshTokenExpiry,
             ipAddress,
             userAgent,
+            deviceName: (0, user_agent_parser_1.parseUserAgent)(userAgent),
         });
         await this.auditService.logTokenRefresh(user.id, ipAddress, userAgent);
         return {
@@ -296,6 +302,13 @@ let AuthService = class AuthService {
         if (isSamePassword) {
             throw new common_1.BadRequestException("New password must be different from current password");
         }
+        const passwordHistory = await this.usersRepository.getPasswordHistory(userId, PASSWORD_HISTORY_COUNT);
+        for (const oldHash of passwordHistory) {
+            const matchesOld = await bcrypt.compare(changePasswordDto.newPassword, oldHash);
+            if (matchesOld) {
+                throw new common_1.BadRequestException(`Cannot reuse any of your last ${PASSWORD_HISTORY_COUNT} passwords. Please choose a different password.`);
+            }
+        }
         const isCompromised = await this.hibpService.isPasswordCompromised(changePasswordDto.newPassword);
         if (isCompromised) {
             throw new common_1.BadRequestException("This password has been exposed in a data breach. Please choose a different password.");
@@ -303,11 +316,62 @@ let AuthService = class AuthService {
         const saltRounds = 12;
         const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
         await this.usersRepository.updatePassword(userId, newPasswordHash);
+        await this.usersRepository.addPasswordToHistory(userId, newPasswordHash);
+        await this.usersRepository.cleanupOldPasswordHistory(userId, PASSWORD_HISTORY_COUNT);
         await this.usersRepository.revokeAllUserRefreshTokens(userId);
         await this.auditService.logPasswordChange(userId, ipAddress, userAgent);
         return {
             success: true,
             message: "Password changed successfully. Please log in again on all devices.",
+        };
+    }
+    async getActiveSessions(userId, currentToken) {
+        const sessions = await this.usersRepository.getActiveSessions(userId);
+        const sessionDtos = sessions.map((session) => ({
+            id: session.id,
+            createdAt: session.createdAt,
+            lastUsedAt: session.lastUsedAt,
+            expiresAt: session.expiresAt,
+            ipAddress: session.ipAddress,
+            userAgent: session.userAgent,
+            deviceName: session.deviceName || (0, user_agent_parser_1.parseUserAgent)(session.userAgent),
+            isCurrent: currentToken === session.token,
+        }));
+        return {
+            sessions: sessionDtos,
+            totalCount: sessionDtos.length,
+        };
+    }
+    async revokeSession(userId, sessionId, currentToken) {
+        const sessions = await this.usersRepository.getActiveSessions(userId);
+        const targetSession = sessions.find((s) => s.id === sessionId);
+        if (!targetSession) {
+            return {
+                success: false,
+                message: "Session not found or already revoked",
+            };
+        }
+        if (currentToken && targetSession.token === currentToken) {
+            return {
+                success: false,
+                message: "Cannot revoke current session. Use logout instead.",
+            };
+        }
+        const revoked = await this.usersRepository.revokeSessionById(userId, sessionId);
+        return {
+            success: revoked,
+            message: revoked ? "Session revoked successfully" : "Failed to revoke session",
+        };
+    }
+    async revokeOtherSessions(userId, currentToken, ipAddress, userAgent) {
+        const revokedCount = await this.usersRepository.revokeOtherSessions(userId, currentToken);
+        await this.auditService.logLogout(userId, ipAddress, userAgent, true);
+        return {
+            success: true,
+            revokedCount,
+            message: revokedCount > 0
+                ? `Successfully revoked ${revokedCount} other session(s)`
+                : "No other sessions to revoke",
         };
     }
 };

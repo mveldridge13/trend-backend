@@ -16,12 +16,20 @@ import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import {
+  SessionDto,
+  SessionListResponseDto,
+  RevokeSessionResponseDto,
+  RevokeOtherSessionsResponseDto,
+} from "./dto/session.dto";
+import { parseUserAgent } from "../common/utils/user-agent-parser";
 import { IncomeFrequency } from "@prisma/client";
 
 // Security constants
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const PASSWORD_HISTORY_COUNT = 5; // Prevent reuse of last N passwords
 
 @Injectable()
 export class AuthService {
@@ -82,6 +90,9 @@ export class AuthService {
       passwordHash,
     });
 
+    // Add initial password to history
+    await this.usersRepository.addPasswordToHistory(user.id, passwordHash);
+
     // Generate tokens
     const payload = {
       sub: user.id,
@@ -102,6 +113,7 @@ export class AuthService {
       expiresAt: refreshTokenExpiry,
       ipAddress,
       userAgent,
+      deviceName: parseUserAgent(userAgent),
     });
 
     // Audit log: successful registration
@@ -213,6 +225,7 @@ export class AuthService {
       expiresAt: refreshTokenExpiry,
       ipAddress,
       userAgent,
+      deviceName: parseUserAgent(userAgent),
     });
 
     // Audit log: successful login
@@ -294,6 +307,7 @@ export class AuthService {
       expiresAt: refreshTokenExpiry,
       ipAddress,
       userAgent,
+      deviceName: parseUserAgent(userAgent),
     });
 
     // Audit log: token refresh
@@ -493,7 +507,21 @@ export class AuthService {
       );
     }
 
-    // 4. Check new password against breach database (HaveIBeenPwned)
+    // 4. Check against password history
+    const passwordHistory = await this.usersRepository.getPasswordHistory(
+      userId,
+      PASSWORD_HISTORY_COUNT,
+    );
+    for (const oldHash of passwordHistory) {
+      const matchesOld = await bcrypt.compare(changePasswordDto.newPassword, oldHash);
+      if (matchesOld) {
+        throw new BadRequestException(
+          `Cannot reuse any of your last ${PASSWORD_HISTORY_COUNT} passwords. Please choose a different password.`,
+        );
+      }
+    }
+
+    // 5. Check new password against breach database (HaveIBeenPwned)
     const isCompromised = await this.hibpService.isPasswordCompromised(changePasswordDto.newPassword);
     if (isCompromised) {
       throw new BadRequestException(
@@ -508,10 +536,14 @@ export class AuthService {
       saltRounds,
     );
 
-    // 6. Update password in database
+    // 7. Update password in database
     await this.usersRepository.updatePassword(userId, newPasswordHash);
 
-    // 7. Revoke all refresh tokens (force re-login on all devices)
+    // 8. Add new password to history
+    await this.usersRepository.addPasswordToHistory(userId, newPasswordHash);
+    await this.usersRepository.cleanupOldPasswordHistory(userId, PASSWORD_HISTORY_COUNT);
+
+    // 9. Revoke all refresh tokens (force re-login on all devices)
     await this.usersRepository.revokeAllUserRefreshTokens(userId);
 
     // Audit log: password change
@@ -520,6 +552,85 @@ export class AuthService {
     return {
       success: true,
       message: "Password changed successfully. Please log in again on all devices.",
+    };
+  }
+
+  // Session management methods
+  async getActiveSessions(
+    userId: string,
+    currentToken?: string,
+  ): Promise<SessionListResponseDto> {
+    const sessions = await this.usersRepository.getActiveSessions(userId);
+
+    const sessionDtos: SessionDto[] = sessions.map((session) => ({
+      id: session.id,
+      createdAt: session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+      expiresAt: session.expiresAt,
+      ipAddress: session.ipAddress,
+      userAgent: session.userAgent,
+      deviceName: session.deviceName || parseUserAgent(session.userAgent),
+      isCurrent: currentToken === session.token,
+    }));
+
+    return {
+      sessions: sessionDtos,
+      totalCount: sessionDtos.length,
+    };
+  }
+
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    currentToken?: string,
+  ): Promise<RevokeSessionResponseDto> {
+    // Find the session to check if it's the current one
+    const sessions = await this.usersRepository.getActiveSessions(userId);
+    const targetSession = sessions.find((s) => s.id === sessionId);
+
+    if (!targetSession) {
+      return {
+        success: false,
+        message: "Session not found or already revoked",
+      };
+    }
+
+    if (currentToken && targetSession.token === currentToken) {
+      return {
+        success: false,
+        message: "Cannot revoke current session. Use logout instead.",
+      };
+    }
+
+    const revoked = await this.usersRepository.revokeSessionById(userId, sessionId);
+
+    return {
+      success: revoked,
+      message: revoked ? "Session revoked successfully" : "Failed to revoke session",
+    };
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<RevokeOtherSessionsResponseDto> {
+    const revokedCount = await this.usersRepository.revokeOtherSessions(
+      userId,
+      currentToken,
+    );
+
+    // Audit log
+    await this.auditService.logLogout(userId, ipAddress, userAgent, true);
+
+    return {
+      success: true,
+      revokedCount,
+      message:
+        revokedCount > 0
+          ? `Successfully revoked ${revokedCount} other session(s)`
+          : "No other sessions to revoke",
     };
   }
 }

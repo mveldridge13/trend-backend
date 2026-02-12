@@ -279,6 +279,124 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             this.handleDatabaseError(error);
         }
     }
+    async getActiveSessions(userId) {
+        try {
+            return await this.prisma.refreshToken.findMany({
+                where: {
+                    userId,
+                    revokedAt: null,
+                    expiresAt: { gt: new Date() },
+                },
+                orderBy: { lastUsedAt: "desc" },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async revokeSessionById(userId, sessionId) {
+        try {
+            const result = await this.prisma.refreshToken.updateMany({
+                where: {
+                    id: sessionId,
+                    userId,
+                    revokedAt: null,
+                },
+                data: { revokedAt: new Date() },
+            });
+            return result.count > 0;
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async revokeOtherSessions(userId, currentToken) {
+        try {
+            const result = await this.prisma.refreshToken.updateMany({
+                where: {
+                    userId,
+                    token: { not: currentToken },
+                    revokedAt: null,
+                },
+                data: { revokedAt: new Date() },
+            });
+            return result.count;
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async updateSessionLastUsed(token) {
+        try {
+            await this.prisma.refreshToken.update({
+                where: { token },
+                data: { lastUsedAt: new Date() },
+            });
+        }
+        catch (error) {
+            console.error("Failed to update session lastUsedAt:", error);
+        }
+    }
+    async updateSessionDeviceName(token, deviceName) {
+        try {
+            await this.prisma.refreshToken.update({
+                where: { token },
+                data: { deviceName },
+            });
+        }
+        catch (error) {
+            console.error("Failed to update session deviceName:", error);
+        }
+    }
+    async addPasswordToHistory(userId, passwordHash) {
+        try {
+            await this.prisma.passwordHistory.create({
+                data: {
+                    userId,
+                    passwordHash,
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async getPasswordHistory(userId, limit = 5) {
+        try {
+            const history = await this.prisma.passwordHistory.findMany({
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+                take: limit,
+                select: { passwordHash: true },
+            });
+            return history.map((h) => h.passwordHash);
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async cleanupOldPasswordHistory(userId, keepCount = 5) {
+        try {
+            const toKeep = await this.prisma.passwordHistory.findMany({
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+                take: keepCount,
+                select: { id: true },
+            });
+            const keepIds = toKeep.map((p) => p.id);
+            if (keepIds.length > 0) {
+                await this.prisma.passwordHistory.deleteMany({
+                    where: {
+                        userId,
+                        id: { notIn: keepIds },
+                    },
+                });
+            }
+        }
+        catch (error) {
+            console.error("Failed to cleanup password history:", error);
+        }
+    }
 };
 exports.UsersRepository = UsersRepository;
 exports.UsersRepository = UsersRepository = __decorate([

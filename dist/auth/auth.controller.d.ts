@@ -66,4 +66,13 @@ export declare class AuthController {
         success: boolean;
         message: string;
     }>;
+    getSessions(req: any, body: {
+        currentToken?: string;
+    }): Promise<import("./dto/session.dto").SessionListResponseDto>;
+    revokeSession(req: any, sessionId: string, body: {
+        currentToken?: string;
+    }): Promise<import("./dto/session.dto").RevokeSessionResponseDto>;
+    revokeOtherSessions(req: any, body: {
+        currentToken: string;
+    }, ip: string, userAgent: string): Promise<import("./dto/session.dto").RevokeOtherSessionsResponseDto>;
 }

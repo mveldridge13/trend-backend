@@ -263,6 +263,7 @@ export class UsersRepository extends BaseRepository<User> {
     expiresAt: Date;
     userAgent?: string;
     ipAddress?: string;
+    deviceName?: string;
   }): Promise<RefreshToken> {
     try {
       return await this.prisma.refreshToken.create({
@@ -317,6 +318,131 @@ export class UsersRepository extends BaseRepository<User> {
       });
     } catch (error) {
       this.handleDatabaseError(error);
+    }
+  }
+
+  // Session management methods
+  async getActiveSessions(userId: string): Promise<RefreshToken[]> {
+    try {
+      return await this.prisma.refreshToken.findMany({
+        where: {
+          userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { lastUsedAt: "desc" },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async revokeSessionById(userId: string, sessionId: string): Promise<boolean> {
+    try {
+      const result = await this.prisma.refreshToken.updateMany({
+        where: {
+          id: sessionId,
+          userId, // Ensure user can only revoke their own sessions
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+      return result.count > 0;
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async revokeOtherSessions(userId: string, currentToken: string): Promise<number> {
+    try {
+      const result = await this.prisma.refreshToken.updateMany({
+        where: {
+          userId,
+          token: { not: currentToken },
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+      return result.count;
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async updateSessionLastUsed(token: string): Promise<void> {
+    try {
+      await this.prisma.refreshToken.update({
+        where: { token },
+        data: { lastUsedAt: new Date() },
+      });
+    } catch (error) {
+      // Don't throw on update failure - not critical
+      console.error("Failed to update session lastUsedAt:", error);
+    }
+  }
+
+  async updateSessionDeviceName(token: string, deviceName: string): Promise<void> {
+    try {
+      await this.prisma.refreshToken.update({
+        where: { token },
+        data: { deviceName },
+      });
+    } catch (error) {
+      console.error("Failed to update session deviceName:", error);
+    }
+  }
+
+  // Password history methods
+  async addPasswordToHistory(userId: string, passwordHash: string): Promise<void> {
+    try {
+      await this.prisma.passwordHistory.create({
+        data: {
+          userId,
+          passwordHash,
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async getPasswordHistory(userId: string, limit: number = 5): Promise<string[]> {
+    try {
+      const history = await this.prisma.passwordHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { passwordHash: true },
+      });
+      return history.map((h) => h.passwordHash);
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async cleanupOldPasswordHistory(userId: string, keepCount: number = 5): Promise<void> {
+    try {
+      // Get IDs of passwords to keep
+      const toKeep = await this.prisma.passwordHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: keepCount,
+        select: { id: true },
+      });
+
+      const keepIds = toKeep.map((p) => p.id);
+
+      // Delete older entries
+      if (keepIds.length > 0) {
+        await this.prisma.passwordHistory.deleteMany({
+          where: {
+            userId,
+            id: { notIn: keepIds },
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to cleanup password history:", error);
     }
   }
 }

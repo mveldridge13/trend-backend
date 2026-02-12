@@ -47,6 +47,15 @@ let AuthController = class AuthController {
     async changePassword(req, changePasswordDto, ip, userAgent) {
         return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
     }
+    async getSessions(req, body) {
+        return this.authService.getActiveSessions(req.user.id, body.currentToken);
+    }
+    async revokeSession(req, sessionId, body) {
+        return this.authService.revokeSession(req.user.id, sessionId, body.currentToken);
+    }
+    async revokeOtherSessions(req, body, ip, userAgent) {
+        return this.authService.revokeOtherSessions(req.user.id, body.currentToken, ip, userAgent);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -118,6 +127,36 @@ __decorate([
     __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Get)("sessions"),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getSessions", null);
+__decorate([
+    (0, common_1.Delete)("sessions/:sessionId"),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)("sessionId")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "revokeSession", null);
+__decorate([
+    (0, common_1.Post)("sessions/revoke-others"),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Ip)()),
+    __param(3, (0, common_1.Headers)("user-agent")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, String, String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "revokeOtherSessions", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)("auth"),
     (0, common_1.UseGuards)(throttler_1.ThrottlerGuard),
