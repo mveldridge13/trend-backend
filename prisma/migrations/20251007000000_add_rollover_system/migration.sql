@@ -1,0 +1,2 @@
+-- This migration was applied directly to the database
+-- Placeholder file for migration history tracking
