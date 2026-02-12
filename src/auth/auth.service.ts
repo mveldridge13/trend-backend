@@ -76,7 +76,7 @@ export class AuthService {
     const isCompromised = await this.hibpService.isPasswordCompromised(registerDto.password);
     if (isCompromised) {
       throw new BadRequestException(
-        "This password has been exposed in a data breach. Please choose a different password."
+        "This password is commonly used and may be vulnerable. Please choose a more unique password."
       );
     }
 
@@ -525,7 +525,7 @@ export class AuthService {
     const isCompromised = await this.hibpService.isPasswordCompromised(changePasswordDto.newPassword);
     if (isCompromised) {
       throw new BadRequestException(
-        "This password has been exposed in a data breach. Please choose a different password."
+        "This password is commonly used and may be vulnerable. Please choose a more unique password."
       );
     }
 

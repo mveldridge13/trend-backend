@@ -50,7 +50,7 @@ let AuthService = class AuthService {
         }
         const isCompromised = await this.hibpService.isPasswordCompromised(registerDto.password);
         if (isCompromised) {
-            throw new common_1.BadRequestException("This password has been exposed in a data breach. Please choose a different password.");
+            throw new common_1.BadRequestException("This password is commonly used and may be vulnerable. Please choose a more unique password.");
         }
         const saltRounds = 12;
         const passwordHash = await bcrypt.hash(registerDto.password, saltRounds);
@@ -311,7 +311,7 @@ let AuthService = class AuthService {
         }
         const isCompromised = await this.hibpService.isPasswordCompromised(changePasswordDto.newPassword);
         if (isCompromised) {
-            throw new common_1.BadRequestException("This password has been exposed in a data breach. Please choose a different password.");
+            throw new common_1.BadRequestException("This password is commonly used and may be vulnerable. Please choose a more unique password.");
         }
         const saltRounds = 12;
         const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
