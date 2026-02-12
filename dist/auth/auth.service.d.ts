@@ -10,8 +10,19 @@ export declare class AuthService {
     private readonly usersRepository;
     private readonly jwtService;
     constructor(usersRepository: UsersRepository, jwtService: JwtService);
-    register(registerDto: RegisterDto): Promise<AuthResponseDto>;
-    login(loginDto: LoginDto): Promise<AuthResponseDto>;
+    private generateRefreshToken;
+    private isAccountLocked;
+    register(registerDto: RegisterDto, ipAddress?: string, userAgent?: string): Promise<AuthResponseDto>;
+    login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<AuthResponseDto>;
+    refreshToken(refreshToken: string, ipAddress?: string, userAgent?: string): Promise<{
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+    }>;
+    logout(userId: string, refreshToken?: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     validateUser(id: string): Promise<any>;
     getUserProfile(id: string): Promise<{
         id: string;

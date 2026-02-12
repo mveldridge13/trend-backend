@@ -26,7 +26,7 @@ exports.AuthModule = AuthModule = __decorate([
                     }
                     return process.env.JWT_SECRET;
                 })(),
-                signOptions: { expiresIn: "7d" },
+                signOptions: { expiresIn: "15m" },
             }),
             users_module_1.UsersModule,
         ],

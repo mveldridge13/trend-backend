@@ -1,4 +1,4 @@
-import { User, RolloverEntry, RolloverType, RolloverNotification } from "@prisma/client";
+import { User, RolloverEntry, RolloverType, RolloverNotification, RefreshToken } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "../../auth/dto/register.dto";
@@ -33,4 +33,18 @@ export declare class UsersRepository extends BaseRepository<User> {
         createdAt?: Date;
     }): Promise<RolloverNotification>;
     dismissRolloverNotification(userId: string): Promise<void>;
+    recordFailedLogin(userId: string): Promise<User>;
+    lockAccount(userId: string, lockDurationMinutes?: number): Promise<User>;
+    resetFailedLoginAttempts(userId: string): Promise<void>;
+    createRefreshToken(data: {
+        userId: string;
+        token: string;
+        expiresAt: Date;
+        userAgent?: string;
+        ipAddress?: string;
+    }): Promise<RefreshToken>;
+    findRefreshToken(token: string): Promise<RefreshToken | null>;
+    revokeRefreshToken(token: string): Promise<void>;
+    revokeAllUserRefreshTokens(userId: string): Promise<void>;
+    cleanupExpiredRefreshTokens(): Promise<void>;
 }

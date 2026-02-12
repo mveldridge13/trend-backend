@@ -181,6 +181,104 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             this.handleDatabaseError(error);
         }
     }
+    async recordFailedLogin(userId) {
+        try {
+            return await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    failedLoginAttempts: { increment: 1 },
+                    lastFailedLogin: new Date(),
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async lockAccount(userId, lockDurationMinutes = 15) {
+        try {
+            const lockedUntil = new Date(Date.now() + lockDurationMinutes * 60 * 1000);
+            return await this.prisma.user.update({
+                where: { id: userId },
+                data: { lockedUntil },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async resetFailedLoginAttempts(userId) {
+        try {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    failedLoginAttempts: 0,
+                    lockedUntil: null,
+                    lastFailedLogin: null,
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async createRefreshToken(data) {
+        try {
+            return await this.prisma.refreshToken.create({
+                data,
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async findRefreshToken(token) {
+        try {
+            return await this.prisma.refreshToken.findUnique({
+                where: { token },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async revokeRefreshToken(token) {
+        try {
+            await this.prisma.refreshToken.update({
+                where: { token },
+                data: { revokedAt: new Date() },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async revokeAllUserRefreshTokens(userId) {
+        try {
+            await this.prisma.refreshToken.updateMany({
+                where: { userId, revokedAt: null },
+                data: { revokedAt: new Date() },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async cleanupExpiredRefreshTokens() {
+        try {
+            await this.prisma.refreshToken.deleteMany({
+                where: {
+                    OR: [
+                        { expiresAt: { lt: new Date() } },
+                        { revokedAt: { not: null } },
+                    ],
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
 };
 exports.UsersRepository = UsersRepository;
 exports.UsersRepository = UsersRepository = __decorate([

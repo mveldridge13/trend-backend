@@ -3,11 +3,23 @@ import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    register(registerDto: RegisterDto): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
-    login(loginDto: LoginDto): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
+    register(registerDto: RegisterDto, ip: string, userAgent: string): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
+    login(loginDto: LoginDto, ip: string, userAgent: string): Promise<import("./dto/auth-response.dto").AuthResponseDto>;
+    refreshToken(refreshTokenDto: RefreshTokenDto, ip: string, userAgent: string): Promise<{
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+    }>;
+    logout(body: {
+        refreshToken?: string;
+    }, req: any): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     getProfile(req: any): Promise<{
         id: string;
         email: string;
