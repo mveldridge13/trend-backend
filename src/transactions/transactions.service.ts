@@ -274,7 +274,27 @@ export class TransactionsService {
       sortOrder: "desc",
     } as TransactionFilterDto);
 
-    return this.calculateAnalytics(transactions, filters, userProfile);
+    // Calculate previous period date range for comparison
+    let previousPeriodTransactions: any[] = [];
+    if (filters.startDate && filters.endDate) {
+      const startDate = new Date(filters.startDate);
+      const endDate = new Date(filters.endDate);
+      const periodLengthMs = endDate.getTime() - startDate.getTime();
+
+      const previousEndDate = new Date(startDate.getTime() - 1); // Day before current start
+      const previousStartDate = new Date(previousEndDate.getTime() - periodLengthMs);
+
+      previousPeriodTransactions = await this.transactionsRepository.findMany(userId, {
+        startDate: previousStartDate.toISOString(),
+        endDate: previousEndDate.toISOString(),
+        limit: 10000,
+        offset: 0,
+        sortBy: "date",
+        sortOrder: "desc",
+      } as TransactionFilterDto);
+    }
+
+    return this.calculateAnalytics(transactions, filters, userProfile, previousPeriodTransactions);
   }
 
   // ✅ FIXED: Get discretionary breakdown for daily spending analysis
@@ -2268,6 +2288,7 @@ export class TransactionsService {
     transactions: any[],
     filters: Partial<TransactionFilterDto> = {},
     userProfile?: any,
+    previousPeriodTransactions: any[] = [],
   ): TransactionAnalyticsDto {
     const income = transactions
       .filter((t) => t.type === TransactionType.INCOME)
@@ -2276,6 +2297,25 @@ export class TransactionsService {
     const expenses = transactions
       .filter((t) => t.type === TransactionType.EXPENSE)
       .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Calculate current period discretionary (non-recurring expenses)
+    const discretionaryExpenses = transactions
+      .filter((t) => t.type === TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Calculate previous period totals
+    const previousPeriodExpenses = previousPeriodTransactions
+      .filter((t) => t.type === TransactionType.EXPENSE)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const previousPeriodDiscretionary = previousPeriodTransactions
+      .filter((t) => t.type === TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Calculate percentage change
+    const expensesPercentageChange = previousPeriodExpenses > 0
+      ? ((expenses - previousPeriodExpenses) / previousPeriodExpenses) * 100
+      : 0;
 
     const transactionCount = transactions.length;
     const averageTransaction =
@@ -2356,6 +2396,9 @@ export class TransactionsService {
         topCategories: categoryBreakdown.slice(0, 3).map((c) => c.categoryName),
       },
       budgetPerformance: [],
+      previousPeriodExpenses,
+      previousPeriodDiscretionary,
+      expensesPercentageChange,
     };
   }
 

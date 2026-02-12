@@ -4,6 +4,9 @@ export declare class TransactionAnalyticsDto {
     netIncome: number;
     transactionCount: number;
     averageTransaction: number;
+    previousPeriodExpenses: number;
+    previousPeriodDiscretionary: number;
+    expensesPercentageChange: number;
     categoryBreakdown: {
         categoryId: string;
         categoryName: string;

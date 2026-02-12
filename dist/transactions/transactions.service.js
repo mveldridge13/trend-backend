@@ -112,7 +112,23 @@ let TransactionsService = class TransactionsService {
             sortBy: "date",
             sortOrder: "desc",
         });
-        return this.calculateAnalytics(transactions, filters, userProfile);
+        let previousPeriodTransactions = [];
+        if (filters.startDate && filters.endDate) {
+            const startDate = new Date(filters.startDate);
+            const endDate = new Date(filters.endDate);
+            const periodLengthMs = endDate.getTime() - startDate.getTime();
+            const previousEndDate = new Date(startDate.getTime() - 1);
+            const previousStartDate = new Date(previousEndDate.getTime() - periodLengthMs);
+            previousPeriodTransactions = await this.transactionsRepository.findMany(userId, {
+                startDate: previousStartDate.toISOString(),
+                endDate: previousEndDate.toISOString(),
+                limit: 10000,
+                offset: 0,
+                sortBy: "date",
+                sortOrder: "desc",
+            });
+        }
+        return this.calculateAnalytics(transactions, filters, userProfile, previousPeriodTransactions);
     }
     async getDiscretionaryBreakdown(userId, filters = {}) {
         const user = await this.usersRepository.findById(userId);
@@ -1538,13 +1554,25 @@ let TransactionsService = class TransactionsService {
         }
         return trends.sort((a, b) => a.month.localeCompare(b.month));
     }
-    calculateAnalytics(transactions, filters = {}, userProfile) {
+    calculateAnalytics(transactions, filters = {}, userProfile, previousPeriodTransactions = []) {
         const income = transactions
             .filter((t) => t.type === client_1.TransactionType.INCOME)
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const expenses = transactions
             .filter((t) => t.type === client_1.TransactionType.EXPENSE)
             .reduce((sum, t) => sum + Number(t.amount), 0);
+        const discretionaryExpenses = transactions
+            .filter((t) => t.type === client_1.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        const previousPeriodExpenses = previousPeriodTransactions
+            .filter((t) => t.type === client_1.TransactionType.EXPENSE)
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        const previousPeriodDiscretionary = previousPeriodTransactions
+            .filter((t) => t.type === client_1.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        const expensesPercentageChange = previousPeriodExpenses > 0
+            ? ((expenses - previousPeriodExpenses) / previousPeriodExpenses) * 100
+            : 0;
         const transactionCount = transactions.length;
         const averageTransaction = transactionCount > 0 ? (income + expenses) / transactionCount : 0;
         const categoryMap = new Map();
@@ -1600,6 +1628,9 @@ let TransactionsService = class TransactionsService {
                 topCategories: categoryBreakdown.slice(0, 3).map((c) => c.categoryName),
             },
             budgetPerformance: [],
+            previousPeriodExpenses,
+            previousPeriodDiscretionary,
+            expensesPercentageChange,
         };
     }
     async getIncomeAnalytics(userId, filters = {}) {

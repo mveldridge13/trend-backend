@@ -5,6 +5,11 @@ export class TransactionAnalyticsDto {
   transactionCount: number;
   averageTransaction: number;
 
+  // Period-to-period comparison
+  previousPeriodExpenses: number;
+  previousPeriodDiscretionary: number;
+  expensesPercentageChange: number;
+
   // Category breakdown
   categoryBreakdown: {
     categoryId: string;
