@@ -33,7 +33,7 @@ let AuthController = class AuthController {
         return this.authService.login(loginDto, ip, userAgent);
     }
     async refreshToken(refreshTokenDto, ip, userAgent) {
-        return this.authService.refreshToken(refreshTokenDto.refreshToken, ip, userAgent);
+        return this.authService.refreshToken(refreshTokenDto.refresh_token, ip, userAgent);
     }
     async logout(body, req, ip, userAgent) {
         return this.authService.logout(req.user.id, body.refreshToken, ip, userAgent);

@@ -55,7 +55,7 @@ export class AuthController {
     @Ip() ip: string,
     @Headers("user-agent") userAgent: string,
   ) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken, ip, userAgent);
+    return this.authService.refreshToken(refreshTokenDto.refresh_token, ip, userAgent);
   }
 
   // Logout - revoke refresh token

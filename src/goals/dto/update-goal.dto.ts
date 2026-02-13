@@ -97,4 +97,10 @@ export class UpdateGoalDto {
   @Type(() => Number)
   @Min(0)
   minimumPayment?: number;
+
+  // Frontend-only field - accepted but not persisted to database
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true)
+  showOnBalanceCard?: boolean;
 }

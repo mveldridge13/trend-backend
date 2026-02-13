@@ -118,4 +118,10 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateGoalDto.prototype, "minimumPayment", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_transformer_1.Transform)(({ value }) => value === "true" || value === true),
+    __metadata("design:type", Boolean)
+], UpdateGoalDto.prototype, "showOnBalanceCard", void 0);
 //# sourceMappingURL=update-goal.dto.js.map

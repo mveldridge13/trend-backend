@@ -110,4 +110,22 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateGoalDto.prototype, "minimumPayment", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_transformer_1.Transform)(({ value }) => value === "true" || value === true),
+    __metadata("design:type", Boolean)
+], CreateGoalDto.prototype, "isActive", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_transformer_1.Transform)(({ value }) => value === "true" || value === true),
+    __metadata("design:type", Boolean)
+], CreateGoalDto.prototype, "isCompleted", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_transformer_1.Transform)(({ value }) => value === "true" || value === true),
+    __metadata("design:type", Boolean)
+], CreateGoalDto.prototype, "showOnBalanceCard", void 0);
 //# sourceMappingURL=create-goal.dto.js.map

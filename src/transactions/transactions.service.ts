@@ -1625,9 +1625,10 @@ export class TransactionsService {
    * Dynamically calculates the correct transaction status based on current date and due date.
    * - PAID transactions remain PAID
    * - Transactions with dueDate in the past (and not PAID) are marked OVERDUE
-   * - All others keep their current status (typically UPCOMING)
+   * - Transactions with dueDate or existing status keep their status (typically UPCOMING)
+   * - Discretionary transactions (no status, no dueDate) return null
    */
-  private calculateTransactionStatus(transaction: any): PaymentStatus {
+  private calculateTransactionStatus(transaction: any): PaymentStatus | null {
     // If already paid, keep it as PAID
     if (transaction.status === 'PAID') {
       return 'PAID';
@@ -1638,8 +1639,18 @@ export class TransactionsService {
       return 'OVERDUE';
     }
 
-    // Otherwise, return the current status (typically UPCOMING)
-    return transaction.status || 'UPCOMING';
+    // If has an existing status, return it
+    if (transaction.status) {
+      return transaction.status;
+    }
+
+    // If has a due date but no status, it's a bill - default to UPCOMING
+    if (transaction.dueDate) {
+      return 'UPCOMING';
+    }
+
+    // Discretionary transactions (no status, no dueDate) - return null
+    return null;
   }
 
   private async mapToDto(transaction: any, userTimezone?: string): Promise<TransactionDto> {

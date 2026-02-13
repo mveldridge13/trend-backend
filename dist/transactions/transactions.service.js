@@ -1076,7 +1076,13 @@ let TransactionsService = class TransactionsService {
         if (transaction.dueDate && new Date(transaction.dueDate) < new Date()) {
             return 'OVERDUE';
         }
-        return transaction.status || 'UPCOMING';
+        if (transaction.status) {
+            return transaction.status;
+        }
+        if (transaction.dueDate) {
+            return 'UPCOMING';
+        }
+        return null;
     }
     async mapToDto(transaction, userTimezone) {
         if (!userTimezone) {

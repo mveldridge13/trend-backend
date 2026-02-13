@@ -17,4 +17,5 @@ export declare class UpdateGoalDto {
     loanTerm?: LoanTerm;
     interestRate?: number;
     minimumPayment?: number;
+    showOnBalanceCard?: boolean;
 }

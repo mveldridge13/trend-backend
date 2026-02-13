@@ -86,4 +86,20 @@ export class CreateGoalDto {
   @Type(() => Number)
   @Min(0)
   minimumPayment?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true)
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true)
+  isCompleted?: boolean;
+
+  // Frontend-only field - accepted but not persisted to database
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true)
+  showOnBalanceCard?: boolean;
 }
