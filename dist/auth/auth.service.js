@@ -17,17 +17,20 @@ const crypto = require("crypto");
 const users_repository_1 = require("../users/repositories/users.repository");
 const audit_service_1 = require("../audit/audit.service");
 const hibp_service_1 = require("../common/services/hibp.service");
+const email_service_1 = require("../email/email.service");
 const user_agent_parser_1 = require("../common/utils/user-agent-parser");
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const PASSWORD_HISTORY_COUNT = 5;
+const PASSWORD_RESET_EXPIRY_HOURS = 1;
 let AuthService = class AuthService {
-    constructor(usersRepository, jwtService, auditService, hibpService) {
+    constructor(usersRepository, jwtService, auditService, hibpService, emailService) {
         this.usersRepository = usersRepository;
         this.jwtService = jwtService;
         this.auditService = auditService;
         this.hibpService = hibpService;
+        this.emailService = emailService;
     }
     generateRefreshToken() {
         return crypto.randomBytes(64).toString("hex");
@@ -374,6 +377,51 @@ let AuthService = class AuthService {
                 : "No other sessions to revoke",
         };
     }
+    async forgotPassword(forgotPasswordDto, ipAddress, userAgent) {
+        const user = await this.usersRepository.findByEmail(forgotPasswordDto.email);
+        const successMessage = "If an account exists with this email, you will receive a password reset link.";
+        if (!user || !user.isActive) {
+            return { success: true, message: successMessage };
+        }
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+        const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_HOURS * 60 * 60 * 1000);
+        await this.usersRepository.setPasswordResetToken(user.id, hashedToken, expiresAt);
+        await this.emailService.sendPasswordResetEmail(user.email, resetToken, user.firstName);
+        await this.auditService.logPasswordResetRequest(user.id, ipAddress, userAgent);
+        return { success: true, message: successMessage };
+    }
+    async resetPassword(resetPasswordDto, ipAddress, userAgent) {
+        const hashedToken = crypto.createHash("sha256").update(resetPasswordDto.token).digest("hex");
+        const user = await this.usersRepository.findByPasswordResetToken(hashedToken);
+        if (!user) {
+            throw new common_1.BadRequestException("Invalid or expired reset token");
+        }
+        const isCompromised = await this.hibpService.isPasswordCompromised(resetPasswordDto.newPassword);
+        if (isCompromised) {
+            throw new common_1.BadRequestException("This password is commonly used and may be vulnerable. Please choose a more unique password.");
+        }
+        const passwordHistory = await this.usersRepository.getPasswordHistory(user.id, PASSWORD_HISTORY_COUNT);
+        for (const oldHash of passwordHistory) {
+            const matchesOld = await bcrypt.compare(resetPasswordDto.newPassword, oldHash);
+            if (matchesOld) {
+                throw new common_1.BadRequestException(`Cannot reuse any of your last ${PASSWORD_HISTORY_COUNT} passwords.`);
+            }
+        }
+        const saltRounds = 12;
+        const newPasswordHash = await bcrypt.hash(resetPasswordDto.newPassword, saltRounds);
+        await this.usersRepository.updatePassword(user.id, newPasswordHash);
+        await this.usersRepository.addPasswordToHistory(user.id, newPasswordHash);
+        await this.usersRepository.cleanupOldPasswordHistory(user.id, PASSWORD_HISTORY_COUNT);
+        await this.usersRepository.clearPasswordResetToken(user.id);
+        await this.usersRepository.revokeAllUserRefreshTokens(user.id);
+        await this.emailService.sendPasswordChangedEmail(user.email, user.firstName);
+        await this.auditService.logPasswordResetComplete(user.id, ipAddress, userAgent);
+        return {
+            success: true,
+            message: "Password reset successfully. Please log in with your new password.",
+        };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
@@ -381,6 +429,7 @@ exports.AuthService = AuthService = __decorate([
     __metadata("design:paramtypes", [users_repository_1.UsersRepository,
         jwt_1.JwtService,
         audit_service_1.AuditService,
-        hibp_service_1.HibpService])
+        hibp_service_1.HibpService,
+        email_service_1.EmailService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

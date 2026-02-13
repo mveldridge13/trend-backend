@@ -11,9 +11,12 @@ import * as crypto from "crypto";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { AuditService } from "../audit/audit.service";
 import { HibpService } from "../common/services/hibp.service";
+import { EmailService } from "../email/email.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import {
@@ -30,6 +33,7 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const PASSWORD_HISTORY_COUNT = 5; // Prevent reuse of last N passwords
+const PASSWORD_RESET_EXPIRY_HOURS = 1;
 
 @Injectable()
 export class AuthService {
@@ -38,6 +42,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly auditService: AuditService,
     private readonly hibpService: HibpService,
+    private readonly emailService: EmailService,
   ) {}
 
   private generateRefreshToken(): string {
@@ -631,6 +636,109 @@ export class AuthService {
         revokedCount > 0
           ? `Successfully revoked ${revokedCount} other session(s)`
           : "No other sessions to revoke",
+    };
+  }
+
+  // ============================================================================
+  // PASSWORD RESET METHODS
+  // ============================================================================
+
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.usersRepository.findByEmail(forgotPasswordDto.email);
+
+    // Always return success to prevent email enumeration
+    const successMessage = "If an account exists with this email, you will receive a password reset link.";
+
+    if (!user || !user.isActive) {
+      // Don't reveal that user doesn't exist
+      return { success: true, message: successMessage };
+    }
+
+    // Generate secure reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_HOURS * 60 * 60 * 1000);
+
+    // Save hashed token to database
+    await this.usersRepository.setPasswordResetToken(user.id, hashedToken, expiresAt);
+
+    // Send email with unhashed token
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      resetToken,
+      user.firstName,
+    );
+
+    // Audit log
+    await this.auditService.logPasswordResetRequest(user.id, ipAddress, userAgent);
+
+    return { success: true, message: successMessage };
+  }
+
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // Hash the provided token to compare with stored hash
+    const hashedToken = crypto.createHash("sha256").update(resetPasswordDto.token).digest("hex");
+
+    // Find user with valid reset token
+    const user = await this.usersRepository.findByPasswordResetToken(hashedToken);
+
+    if (!user) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    // Check password against breach database
+    const isCompromised = await this.hibpService.isPasswordCompromised(resetPasswordDto.newPassword);
+    if (isCompromised) {
+      throw new BadRequestException(
+        "This password is commonly used and may be vulnerable. Please choose a more unique password."
+      );
+    }
+
+    // Check against password history
+    const passwordHistory = await this.usersRepository.getPasswordHistory(user.id, PASSWORD_HISTORY_COUNT);
+    for (const oldHash of passwordHistory) {
+      const matchesOld = await bcrypt.compare(resetPasswordDto.newPassword, oldHash);
+      if (matchesOld) {
+        throw new BadRequestException(
+          `Cannot reuse any of your last ${PASSWORD_HISTORY_COUNT} passwords.`
+        );
+      }
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const newPasswordHash = await bcrypt.hash(resetPasswordDto.newPassword, saltRounds);
+
+    // Update password
+    await this.usersRepository.updatePassword(user.id, newPasswordHash);
+
+    // Add to password history
+    await this.usersRepository.addPasswordToHistory(user.id, newPasswordHash);
+    await this.usersRepository.cleanupOldPasswordHistory(user.id, PASSWORD_HISTORY_COUNT);
+
+    // Clear reset token
+    await this.usersRepository.clearPasswordResetToken(user.id);
+
+    // Revoke all refresh tokens (force re-login)
+    await this.usersRepository.revokeAllUserRefreshTokens(user.id);
+
+    // Send confirmation email
+    await this.emailService.sendPasswordChangedEmail(user.email, user.firstName);
+
+    // Audit log
+    await this.auditService.logPasswordResetComplete(user.id, ipAddress, userAgent);
+
+    return {
+      success: true,
+      message: "Password reset successfully. Please log in with your new password.",
     };
   }
 }

@@ -56,4 +56,7 @@ export declare class UsersRepository extends BaseRepository<User> {
     addPasswordToHistory(userId: string, passwordHash: string): Promise<void>;
     getPasswordHistory(userId: string, limit?: number): Promise<string[]>;
     cleanupOldPasswordHistory(userId: string, keepCount?: number): Promise<void>;
+    setPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+    findByPasswordResetToken(token: string): Promise<User | null>;
+    clearPasswordResetToken(userId: string): Promise<void>;
 }

@@ -25,6 +25,7 @@ const goals_module_1 = require("./goals/goals.module");
 const poker_module_1 = require("./poker/poker.module");
 const common_module_1 = require("./common/common.module");
 const audit_module_1 = require("./audit/audit.module");
+const email_module_1 = require("./email/email.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -43,6 +44,7 @@ exports.AppModule = AppModule = __decorate([
             ]),
             audit_module_1.AuditModule,
             common_module_1.CommonModule,
+            email_module_1.EmailModule,
             database_module_1.DatabaseModule,
             health_module_1.HealthModule,
             auth_module_1.AuthModule,

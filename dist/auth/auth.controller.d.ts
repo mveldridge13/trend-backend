@@ -4,6 +4,8 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -63,6 +65,14 @@ export declare class AuthController {
         hasSeenTransactionSwipeTour: boolean;
     }>;
     changePassword(req: any, changePasswordDto: ChangePasswordDto, ip: string, userAgent: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto, ip: string, userAgent: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(resetPasswordDto: ResetPasswordDto, ip: string, userAgent: string): Promise<{
         success: boolean;
         message: string;
     }>;

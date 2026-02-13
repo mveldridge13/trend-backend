@@ -445,4 +445,49 @@ export class UsersRepository extends BaseRepository<User> {
       console.error("Failed to cleanup password history:", error);
     }
   }
+
+  // ============================================================================
+  // PASSWORD RESET METHODS
+  // ============================================================================
+
+  async setPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordResetToken: token,
+          passwordResetExpires: expiresAt,
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    try {
+      return await this.prisma.user.findFirst({
+        where: {
+          passwordResetToken: token,
+          passwordResetExpires: { gt: new Date() },
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordResetToken: null,
+          passwordResetExpires: null,
+        },
+      });
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
+  }
 }

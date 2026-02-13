@@ -2,9 +2,12 @@ import { JwtService } from "@nestjs/jwt";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { AuditService } from "../audit/audit.service";
 import { HibpService } from "../common/services/hibp.service";
+import { EmailService } from "../email/email.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { SessionListResponseDto, RevokeSessionResponseDto, RevokeOtherSessionsResponseDto } from "./dto/session.dto";
@@ -14,7 +17,8 @@ export declare class AuthService {
     private readonly jwtService;
     private readonly auditService;
     private readonly hibpService;
-    constructor(usersRepository: UsersRepository, jwtService: JwtService, auditService: AuditService, hibpService: HibpService);
+    private readonly emailService;
+    constructor(usersRepository: UsersRepository, jwtService: JwtService, auditService: AuditService, hibpService: HibpService, emailService: EmailService);
     private generateRefreshToken;
     private isAccountLocked;
     register(registerDto: RegisterDto, ipAddress?: string, userAgent?: string): Promise<AuthResponseDto>;
@@ -78,4 +82,12 @@ export declare class AuthService {
     getActiveSessions(userId: string, currentToken?: string): Promise<SessionListResponseDto>;
     revokeSession(userId: string, sessionId: string, currentToken?: string): Promise<RevokeSessionResponseDto>;
     revokeOtherSessions(userId: string, currentToken: string, ipAddress?: string, userAgent?: string): Promise<RevokeOtherSessionsResponseDto>;
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto, ipAddress?: string, userAgent?: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(resetPasswordDto: ResetPasswordDto, ipAddress?: string, userAgent?: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
 }

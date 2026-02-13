@@ -22,6 +22,8 @@ const change_password_dto_1 = require("./dto/change-password.dto");
 const register_dto_1 = require("./dto/register.dto");
 const login_dto_1 = require("./dto/login.dto");
 const refresh_token_dto_1 = require("./dto/refresh-token.dto");
+const forgot_password_dto_1 = require("./dto/forgot-password.dto");
+const reset_password_dto_1 = require("./dto/reset-password.dto");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -46,6 +48,12 @@ let AuthController = class AuthController {
     }
     async changePassword(req, changePasswordDto, ip, userAgent) {
         return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
+    }
+    async forgotPassword(forgotPasswordDto, ip, userAgent) {
+        return this.authService.forgotPassword(forgotPasswordDto, ip, userAgent);
+    }
+    async resetPassword(resetPasswordDto, ip, userAgent) {
+        return this.authService.resetPassword(resetPasswordDto, ip, userAgent);
     }
     async getSessions(req, body) {
         return this.authService.getActiveSessions(req.user.id, body.currentToken);
@@ -127,6 +135,26 @@ __decorate([
     __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Post)("forgot-password"),
+    (0, throttler_1.Throttle)({ default: { limit: 3, ttl: 60000 } }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Headers)("user-agent")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto, String, String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)("reset-password"),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 60000 } }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Headers)("user-agent")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [reset_password_dto_1.ResetPasswordDto, String, String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPassword", null);
 __decorate([
     (0, common_1.Get)("sessions"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

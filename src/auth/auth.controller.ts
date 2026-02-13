@@ -19,6 +19,8 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @Controller("auth")
 @UseGuards(ThrottlerGuard)
@@ -95,6 +97,27 @@ export class AuthController {
     @Headers("user-agent") userAgent: string,
   ) {
     return this.authService.changePassword(req.user.id, changePasswordDto, ip, userAgent);
+  }
+
+  // Password reset endpoints (no auth required)
+  @Post("forgot-password")
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.forgotPassword(forgotPasswordDto, ip, userAgent);
+  }
+
+  @Post("reset-password")
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.resetPassword(resetPasswordDto, ip, userAgent);
   }
 
   // Session management endpoints

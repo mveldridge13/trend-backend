@@ -107,6 +107,26 @@ export class AuditService {
     });
   }
 
+  async logPasswordResetRequest(userId: string, ipAddress?: string, userAgent?: string): Promise<void> {
+    await this.log({
+      userId,
+      eventType: AuditEventType.PASSWORD_RESET_REQUEST,
+      ipAddress,
+      userAgent,
+      success: true,
+    });
+  }
+
+  async logPasswordResetComplete(userId: string, ipAddress?: string, userAgent?: string): Promise<void> {
+    await this.log({
+      userId,
+      eventType: AuditEventType.PASSWORD_RESET_COMPLETE,
+      ipAddress,
+      userAgent,
+      success: true,
+    });
+  }
+
   // Query methods for security monitoring
   async getRecentFailedLogins(ipAddress: string, minutes: number = 15): Promise<number> {
     const since = new Date(Date.now() - minutes * 60 * 1000);

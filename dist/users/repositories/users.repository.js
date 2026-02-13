@@ -397,6 +397,47 @@ let UsersRepository = class UsersRepository extends base_repository_1.BaseReposi
             console.error("Failed to cleanup password history:", error);
         }
     }
+    async setPasswordResetToken(userId, token, expiresAt) {
+        try {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    passwordResetToken: token,
+                    passwordResetExpires: expiresAt,
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async findByPasswordResetToken(token) {
+        try {
+            return await this.prisma.user.findFirst({
+                where: {
+                    passwordResetToken: token,
+                    passwordResetExpires: { gt: new Date() },
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
+    async clearPasswordResetToken(userId) {
+        try {
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: {
+                    passwordResetToken: null,
+                    passwordResetExpires: null,
+                },
+            });
+        }
+        catch (error) {
+            this.handleDatabaseError(error);
+        }
+    }
 };
 exports.UsersRepository = UsersRepository;
 exports.UsersRepository = UsersRepository = __decorate([

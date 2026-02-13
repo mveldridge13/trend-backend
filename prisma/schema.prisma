@@ -24,6 +24,8 @@ model User {
   failedLoginAttempts         Int                    @default(0)
   lockedUntil                 DateTime?
   lastFailedLogin             DateTime?
+  passwordResetToken          String?
+  passwordResetExpires        DateTime?
   income                      Decimal?               @db.Decimal(12, 2)
   setupComplete               Boolean                @default(false)
   hasSeenAddTransactionTour   Boolean                @default(false)

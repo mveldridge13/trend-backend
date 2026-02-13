@@ -17,6 +17,7 @@ import { GoalsModule } from "./goals/goals.module";
 import { PokerModule } from "./poker/poker.module";
 import { CommonModule } from "./common/common.module";
 import { AuditModule } from "./audit/audit.module";
+import { EmailModule } from "./email/email.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AuditModule } from "./audit/audit.module";
     ]),
     AuditModule,
     CommonModule,
+    EmailModule,
     DatabaseModule,
     HealthModule,
     AuthModule,
