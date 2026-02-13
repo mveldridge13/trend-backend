@@ -24,8 +24,9 @@ let GoalsService = class GoalsService {
             createGoalDto.currentAmount === undefined) {
             initialCurrentAmount = createGoalDto.targetAmount;
         }
+        const { showOnBalanceCard, ...dtoWithoutFrontendFields } = createGoalDto;
         const goalData = {
-            ...createGoalDto,
+            ...dtoWithoutFrontendFields,
             currentAmount: initialCurrentAmount,
             targetDate: createGoalDto.targetDate
                 ? new Date(createGoalDto.targetDate)
@@ -71,8 +72,9 @@ let GoalsService = class GoalsService {
         if (!existingGoal) {
             throw new common_1.NotFoundException("Goal not found");
         }
+        const { showOnBalanceCard, ...dtoWithoutFrontendFields } = updateGoalDto;
         const updateData = {
-            ...updateGoalDto,
+            ...dtoWithoutFrontendFields,
             targetDate: updateGoalDto.targetDate
                 ? new Date(updateGoalDto.targetDate)
                 : undefined,

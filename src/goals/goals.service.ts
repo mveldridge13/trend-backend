@@ -52,8 +52,11 @@ export class GoalsService {
       initialCurrentAmount = createGoalDto.targetAmount;
     }
 
+    // Strip out frontend-only fields before saving to database
+    const { showOnBalanceCard, ...dtoWithoutFrontendFields } = createGoalDto;
+
     const goalData = {
-      ...createGoalDto,
+      ...dtoWithoutFrontendFields,
       currentAmount: initialCurrentAmount,
       targetDate: createGoalDto.targetDate
         ? new Date(createGoalDto.targetDate)
@@ -136,9 +139,12 @@ export class GoalsService {
       throw new NotFoundException("Goal not found");
     }
 
+    // Strip out frontend-only fields before saving to database
+    const { showOnBalanceCard, ...dtoWithoutFrontendFields } = updateGoalDto;
+
     // Handle completion
     const updateData: any = {
-      ...updateGoalDto,
+      ...dtoWithoutFrontendFields,
       targetDate: updateGoalDto.targetDate
         ? new Date(updateGoalDto.targetDate)
         : undefined,
