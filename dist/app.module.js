@@ -8,8 +8,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const config_1 = require("@nestjs/config");
 const throttler_1 = require("@nestjs/throttler");
+const setup_1 = require("@sentry/nestjs/setup");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const database_module_1 = require("./database/database.module");
@@ -29,6 +31,7 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            setup_1.SentryModule.forRoot(),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
             }),
@@ -51,7 +54,13 @@ exports.AppModule = AppModule = __decorate([
             poker_module_1.PokerModule,
         ],
         controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService],
+        providers: [
+            {
+                provide: core_1.APP_FILTER,
+                useClass: setup_1.SentryGlobalFilter,
+            },
+            app_service_1.AppService,
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map
