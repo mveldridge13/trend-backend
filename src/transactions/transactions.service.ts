@@ -250,7 +250,75 @@ export class TransactionsService {
       updateTransactionDto,
     );
 
+    // Auto-create next recurring transaction when marked as PAID
+    if (
+      updateTransactionDto.status === 'PAID' &&
+      existingTransaction.status !== 'PAID' &&
+      existingTransaction.recurrence &&
+      existingTransaction.recurrence !== 'none' &&
+      existingTransaction.dueDate
+    ) {
+      await this.createNextRecurringTransaction(existingTransaction, userId);
+    }
+
     return await this.mapToDto(updatedTransaction, userTimezone);
+  }
+
+  /**
+   * Creates the next occurrence of a recurring transaction when the current one is marked as PAID.
+   * Calculates the next due date based on the recurrence pattern and creates a new UPCOMING transaction.
+   */
+  private async createNextRecurringTransaction(
+    paidTransaction: any,
+    userId: string,
+  ): Promise<void> {
+    const currentDueDate = new Date(paidTransaction.dueDate);
+    const nextDueDate = this.calculateNextDueDate(currentDueDate, paidTransaction.recurrence);
+
+    // Create the next recurring transaction
+    await this.transactionsRepository.create(userId, {
+      description: paidTransaction.description,
+      amount: Number(paidTransaction.amount),
+      currency: paidTransaction.currency || 'USD',
+      date: nextDueDate.toISOString(),
+      dueDate: nextDueDate.toISOString(),
+      type: paidTransaction.type,
+      status: 'UPCOMING' as PaymentStatus,
+      budgetId: paidTransaction.budgetId || undefined,
+      categoryId: paidTransaction.categoryId || undefined,
+      subcategoryId: paidTransaction.subcategoryId || undefined,
+      recurrence: paidTransaction.recurrence,
+    });
+  }
+
+  /**
+   * Calculates the next due date based on the recurrence pattern.
+   */
+  private calculateNextDueDate(currentDueDate: Date, recurrence: string): Date {
+    const nextDate = new Date(currentDueDate);
+
+    switch (recurrence) {
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case 'fortnightly':
+        nextDate.setDate(nextDate.getDate() + 14);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      case 'sixmonths':
+        nextDate.setMonth(nextDate.getMonth() + 6);
+        break;
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+        break;
+      default:
+        // If unknown recurrence, default to monthly
+        nextDate.setMonth(nextDate.getMonth() + 1);
+    }
+
+    return nextDate;
   }
 
   async remove(id: string, userId: string): Promise<void> {

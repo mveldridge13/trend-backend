@@ -94,7 +94,54 @@ let TransactionsService = class TransactionsService {
             updateTransactionDto.date = utcDate.toISOString();
         }
         const updatedTransaction = await this.transactionsRepository.update(id, userId, updateTransactionDto);
+        if (updateTransactionDto.status === 'PAID' &&
+            existingTransaction.status !== 'PAID' &&
+            existingTransaction.recurrence &&
+            existingTransaction.recurrence !== 'none' &&
+            existingTransaction.dueDate) {
+            await this.createNextRecurringTransaction(existingTransaction, userId);
+        }
         return await this.mapToDto(updatedTransaction, userTimezone);
+    }
+    async createNextRecurringTransaction(paidTransaction, userId) {
+        const currentDueDate = new Date(paidTransaction.dueDate);
+        const nextDueDate = this.calculateNextDueDate(currentDueDate, paidTransaction.recurrence);
+        await this.transactionsRepository.create(userId, {
+            description: paidTransaction.description,
+            amount: Number(paidTransaction.amount),
+            currency: paidTransaction.currency || 'USD',
+            date: nextDueDate.toISOString(),
+            dueDate: nextDueDate.toISOString(),
+            type: paidTransaction.type,
+            status: 'UPCOMING',
+            budgetId: paidTransaction.budgetId || undefined,
+            categoryId: paidTransaction.categoryId || undefined,
+            subcategoryId: paidTransaction.subcategoryId || undefined,
+            recurrence: paidTransaction.recurrence,
+        });
+    }
+    calculateNextDueDate(currentDueDate, recurrence) {
+        const nextDate = new Date(currentDueDate);
+        switch (recurrence) {
+            case 'weekly':
+                nextDate.setDate(nextDate.getDate() + 7);
+                break;
+            case 'fortnightly':
+                nextDate.setDate(nextDate.getDate() + 14);
+                break;
+            case 'monthly':
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                break;
+            case 'sixmonths':
+                nextDate.setMonth(nextDate.getMonth() + 6);
+                break;
+            case 'yearly':
+                nextDate.setFullYear(nextDate.getFullYear() + 1);
+                break;
+            default:
+                nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+        return nextDate;
     }
     async remove(id, userId) {
         const transaction = await this.transactionsRepository.findById(id, userId);

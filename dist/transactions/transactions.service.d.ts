@@ -110,6 +110,8 @@ export declare class TransactionsService {
     }>;
     findOne(id: string, userId: string): Promise<TransactionDto>;
     update(id: string, userId: string, updateTransactionDto: UpdateTransactionDto): Promise<TransactionDto>;
+    private createNextRecurringTransaction;
+    private calculateNextDueDate;
     remove(id: string, userId: string): Promise<void>;
     getAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<TransactionAnalyticsDto>;
     getDiscretionaryBreakdown(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DiscretionaryBreakdownDto>;
