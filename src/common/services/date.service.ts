@@ -295,27 +295,34 @@ export class DateService {
   /**
    * Calculate pay period boundaries (start and end dates)
    * The period runs from previous pay date (inclusive) to day before next pay date (inclusive)
+   * All calculations are done in the user's timezone to ensure correct date boundaries
    */
   calculatePayPeriodBoundaries(
     nextPayDate: Date,
     frequency: IncomeFrequency,
     userTimezone: string = 'UTC'
   ): PayPeriodBoundaries {
-    const now = this.getNowInUserTimezone(userTimezone);
+    // Convert nextPayDate to user's timezone for calculations
+    const nextPayDateInUserTz = new TZDate(nextPayDate, userTimezone);
+    const nowInUserTz = this.getNowInUserTimezone(userTimezone);
 
-    // Period starts on the previous pay date
-    const periodStart = startOfDay(this.calculatePreviousPayDate(nextPayDate, frequency));
+    // Calculate previous pay date in user's timezone
+    const previousPayDateInUserTz = this.calculatePreviousPayDate(nextPayDateInUserTz, frequency);
 
-    // Period ends the day BEFORE the next pay date (at 23:59:59.999)
-    const periodEnd = endOfDay(subDays(nextPayDate, 1));
+    // Period starts at start of day on previous pay date (in user's timezone)
+    const periodStartInUserTz = startOfDay(previousPayDateInUserTz);
 
-    // Calculate days remaining and total
-    const daysRemaining = Math.max(0, differenceInDays(periodEnd, now) + 1);
-    const daysTotal = differenceInDays(periodEnd, periodStart) + 1;
+    // Period ends at end of day on the day BEFORE next pay date (in user's timezone)
+    const dayBeforeNextPayInUserTz = subDays(nextPayDateInUserTz, 1);
+    const periodEndInUserTz = endOfDay(dayBeforeNextPayInUserTz);
+
+    // Calculate days remaining and total (using user's timezone dates)
+    const daysRemaining = Math.max(0, differenceInDays(periodEndInUserTz, nowInUserTz) + 1);
+    const daysTotal = differenceInDays(periodEndInUserTz, periodStartInUserTz) + 1;
 
     return {
-      start: periodStart,
-      end: periodEnd,
+      start: periodStartInUserTz,
+      end: periodEndInUserTz,
       frequency,
       daysRemaining,
       daysTotal

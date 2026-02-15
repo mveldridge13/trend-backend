@@ -13,6 +13,7 @@ exports.TransactionsRepository = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../database/prisma.service");
 const client_1 = require("@prisma/client");
+const date_fns_1 = require("date-fns");
 let TransactionsRepository = class TransactionsRepository {
     constructor(prisma) {
         this.prisma = prisma;
@@ -52,10 +53,10 @@ let TransactionsRepository = class TransactionsRepository {
         };
         const dateFilter = {};
         if (filters.startDate) {
-            dateFilter.gte = new Date(filters.startDate);
+            dateFilter.gte = (0, date_fns_1.startOfDay)(new Date(filters.startDate));
         }
         if (filters.endDate) {
-            dateFilter.lte = new Date(filters.endDate);
+            dateFilter.lte = (0, date_fns_1.endOfDay)(new Date(filters.endDate));
         }
         if (Object.keys(dateFilter).length > 0) {
             where.date = dateFilter;
@@ -156,10 +157,10 @@ let TransactionsRepository = class TransactionsRepository {
         };
         const dateFilter = {};
         if (filters.startDate) {
-            dateFilter.gte = new Date(filters.startDate);
+            dateFilter.gte = (0, date_fns_1.startOfDay)(new Date(filters.startDate));
         }
         if (filters.endDate) {
-            dateFilter.lte = new Date(filters.endDate);
+            dateFilter.lte = (0, date_fns_1.endOfDay)(new Date(filters.endDate));
         }
         if (Object.keys(dateFilter).length > 0) {
             where.date = dateFilter;

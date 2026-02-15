@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DateService, PayPeriodBoundaries } from '../common/services/date.service';
 import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType } from '@prisma/client';
+import { format } from 'date-fns';
 import {
   HomeSummaryResponse,
   IncomeInfo,
@@ -61,8 +62,9 @@ export class HomeService {
 
     return {
       period: {
-        start: periodBoundaries.start.toISOString(),
-        end: periodBoundaries.end.toISOString(),
+        // Return date-only strings (YYYY-MM-DD) to avoid timezone issues
+        start: format(periodBoundaries.start, 'yyyy-MM-dd'),
+        end: format(periodBoundaries.end, 'yyyy-MM-dd'),
         frequency: periodBoundaries.frequency,
         daysRemaining: periodBoundaries.daysRemaining,
         daysTotal: periodBoundaries.daysTotal,
@@ -357,10 +359,11 @@ export class HomeService {
    * Return empty summary when user hasn't set up pay period
    */
   private getEmptySummary(): HomeSummaryResponse {
+    const today = format(new Date(), 'yyyy-MM-dd');
     return {
       period: {
-        start: new Date().toISOString(),
-        end: new Date().toISOString(),
+        start: today,
+        end: today,
         frequency: IncomeFrequency.MONTHLY,
         daysRemaining: 0,
         daysTotal: 0,

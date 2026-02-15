@@ -163,14 +163,17 @@ let DateService = class DateService {
         }
     }
     calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone = 'UTC') {
-        const now = this.getNowInUserTimezone(userTimezone);
-        const periodStart = (0, date_fns_1.startOfDay)(this.calculatePreviousPayDate(nextPayDate, frequency));
-        const periodEnd = (0, date_fns_1.endOfDay)((0, date_fns_1.subDays)(nextPayDate, 1));
-        const daysRemaining = Math.max(0, (0, date_fns_1.differenceInDays)(periodEnd, now) + 1);
-        const daysTotal = (0, date_fns_1.differenceInDays)(periodEnd, periodStart) + 1;
+        const nextPayDateInUserTz = new tz_1.TZDate(nextPayDate, userTimezone);
+        const nowInUserTz = this.getNowInUserTimezone(userTimezone);
+        const previousPayDateInUserTz = this.calculatePreviousPayDate(nextPayDateInUserTz, frequency);
+        const periodStartInUserTz = (0, date_fns_1.startOfDay)(previousPayDateInUserTz);
+        const dayBeforeNextPayInUserTz = (0, date_fns_1.subDays)(nextPayDateInUserTz, 1);
+        const periodEndInUserTz = (0, date_fns_1.endOfDay)(dayBeforeNextPayInUserTz);
+        const daysRemaining = Math.max(0, (0, date_fns_1.differenceInDays)(periodEndInUserTz, nowInUserTz) + 1);
+        const daysTotal = (0, date_fns_1.differenceInDays)(periodEndInUserTz, periodStartInUserTz) + 1;
         return {
-            start: periodStart,
-            end: periodEnd,
+            start: periodStartInUserTz,
+            end: periodEndInUserTz,
             frequency,
             daysRemaining,
             daysTotal

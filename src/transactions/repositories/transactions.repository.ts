@@ -4,6 +4,7 @@ import { Transaction, Prisma } from "@prisma/client";
 import { CreateTransactionDto } from "../dto/create-transaction.dto";
 import { UpdateTransactionDto } from "../dto/update-transaction.dto";
 import { TransactionFilterDto } from "../dto/transaction-filter.dto";
+import { startOfDay, endOfDay } from "date-fns";
 
 @Injectable()
 export class TransactionsRepository {
@@ -51,12 +52,13 @@ export class TransactionsRepository {
     };
 
     // Build date filter object
+    // Use startOfDay/endOfDay to ensure full day coverage regardless of time component
     const dateFilter: any = {};
     if (filters.startDate) {
-      dateFilter.gte = new Date(filters.startDate);
+      dateFilter.gte = startOfDay(new Date(filters.startDate));
     }
     if (filters.endDate) {
-      dateFilter.lte = new Date(filters.endDate);
+      dateFilter.lte = endOfDay(new Date(filters.endDate));
     }
     if (Object.keys(dateFilter).length > 0) {
       where.date = dateFilter;
@@ -179,12 +181,13 @@ export class TransactionsRepository {
     };
 
     // Build date filter object
+    // Use startOfDay/endOfDay to ensure full day coverage regardless of time component
     const dateFilter: any = {};
     if (filters.startDate) {
-      dateFilter.gte = new Date(filters.startDate);
+      dateFilter.gte = startOfDay(new Date(filters.startDate));
     }
     if (filters.endDate) {
-      dateFilter.lte = new Date(filters.endDate);
+      dateFilter.lte = endOfDay(new Date(filters.endDate));
     }
     if (Object.keys(dateFilter).length > 0) {
       where.date = dateFilter;
