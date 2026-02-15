@@ -86,4 +86,17 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   hasSeenTransactionSwipeTour?: boolean;
+
+  // ============================================================================
+  // ROLLOVER FIELDS
+  // ============================================================================
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rolloverAmount?: number;
+
+  @IsOptional()
+  @IsDateString()
+  lastRolloverDate?: string;
 }
