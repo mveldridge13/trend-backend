@@ -330,7 +330,9 @@ export class HomeService {
 
   /**
    * Calculate final totals
-   * leftToSpendSafe = totalInflow - committed.remaining - goals.remaining - discretionary.spentSoFar
+   * totalExpensesAllocated = committed.plannedTotal + discretionary.spentSoFar + goals.paidSoFar
+   * leftToSpendSafe = totalInflow - totalExpensesAllocated
+   *                 = totalInflow - committed.plannedTotal - discretionary.spentSoFar - goals.paidSoFar
    */
   private calculateTotals(
     income: IncomeInfo,
@@ -338,17 +340,15 @@ export class HomeService {
     discretionary: DiscretionaryInfo,
     goals: GoalsInfo
   ): TotalsInfo {
-    const totalExpensesSpentSoFar =
-      committed.paidSoFar + discretionary.spentSoFar + goals.paidSoFar;
+    // Total allocated: planned committed + actual discretionary + actual goal contributions
+    const totalExpensesAllocated =
+      committed.plannedTotal + discretionary.spentSoFar + goals.paidSoFar;
 
-    const leftToSpendSafe =
-      income.totalInflow -
-      committed.remaining -
-      goals.remaining -
-      discretionary.spentSoFar;
+    // Left to spend = income minus everything allocated
+    const leftToSpendSafe = income.totalInflow - totalExpensesAllocated;
 
     return {
-      totalExpensesSpentSoFar: Math.round(totalExpensesSpentSoFar * 100) / 100,
+      totalExpensesAllocated: Math.round(totalExpensesAllocated * 100) / 100,
       leftToSpendSafe: Math.round(leftToSpendSafe * 100) / 100,
     };
   }
@@ -391,7 +391,7 @@ export class HomeService {
         },
       },
       totals: {
-        totalExpensesSpentSoFar: 0,
+        totalExpensesAllocated: 0,
         leftToSpendSafe: 0,
       },
     };

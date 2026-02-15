@@ -71,7 +71,7 @@ export interface OutflowsInfo {
  * Final totals for the balance card
  */
 export interface TotalsInfo {
-  totalExpensesSpentSoFar: number;
+  totalExpensesAllocated: number;  // committed.plannedTotal + discretionary.spentSoFar + goals.paidSoFar
   leftToSpendSafe: number;
 }
 
