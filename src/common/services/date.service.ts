@@ -1,19 +1,41 @@
 import { Injectable } from '@nestjs/common';
 import { TZDate, tz } from '@date-fns/tz';
-import { 
-  parseISO, 
-  startOfDay, 
-  endOfDay, 
+import {
+  parseISO,
+  startOfDay,
+  endOfDay,
   isValid,
   differenceInDays,
   addDays,
   subDays,
+  addWeeks,
+  subWeeks,
+  addMonths,
+  subMonths,
+  addYears,
+  subYears,
   startOfWeek,
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  format
+  format,
+  isWithinInterval,
+  isBefore,
+  isAfter,
+  isSameDay
 } from 'date-fns';
+import { IncomeFrequency } from '@prisma/client';
+
+/**
+ * Pay period boundaries interface
+ */
+export interface PayPeriodBoundaries {
+  start: Date;
+  end: Date;
+  frequency: IncomeFrequency;
+  daysRemaining: number;
+  daysTotal: number;
+}
 
 @Injectable()
 export class DateService {
@@ -232,5 +254,112 @@ export class DateService {
       return 'UTC';
     }
     return userTimezone;
+  }
+
+  // ============================================================================
+  // PAY PERIOD CALCULATIONS
+  // ============================================================================
+
+  /**
+   * Calculate previous pay date based on next pay date and frequency
+   */
+  calculatePreviousPayDate(nextPayDate: Date, frequency: IncomeFrequency): Date {
+    switch (frequency) {
+      case IncomeFrequency.WEEKLY:
+        return subWeeks(nextPayDate, 1);
+      case IncomeFrequency.FORTNIGHTLY:
+        return subWeeks(nextPayDate, 2);
+      case IncomeFrequency.MONTHLY:
+        return subMonths(nextPayDate, 1);
+      default:
+        return subMonths(nextPayDate, 1);
+    }
+  }
+
+  /**
+   * Calculate next pay date by advancing current pay date based on frequency
+   */
+  calculateNextPayDateFromCurrent(currentPayDate: Date, frequency: IncomeFrequency): Date {
+    switch (frequency) {
+      case IncomeFrequency.WEEKLY:
+        return addWeeks(currentPayDate, 1);
+      case IncomeFrequency.FORTNIGHTLY:
+        return addWeeks(currentPayDate, 2);
+      case IncomeFrequency.MONTHLY:
+        return addMonths(currentPayDate, 1);
+      default:
+        return addMonths(currentPayDate, 1);
+    }
+  }
+
+  /**
+   * Calculate pay period boundaries (start and end dates)
+   * The period runs from previous pay date (inclusive) to day before next pay date (inclusive)
+   */
+  calculatePayPeriodBoundaries(
+    nextPayDate: Date,
+    frequency: IncomeFrequency,
+    userTimezone: string = 'UTC'
+  ): PayPeriodBoundaries {
+    const now = this.getNowInUserTimezone(userTimezone);
+
+    // Period starts on the previous pay date
+    const periodStart = startOfDay(this.calculatePreviousPayDate(nextPayDate, frequency));
+
+    // Period ends the day BEFORE the next pay date (at 23:59:59.999)
+    const periodEnd = endOfDay(subDays(nextPayDate, 1));
+
+    // Calculate days remaining and total
+    const daysRemaining = Math.max(0, differenceInDays(periodEnd, now) + 1);
+    const daysTotal = differenceInDays(periodEnd, periodStart) + 1;
+
+    return {
+      start: periodStart,
+      end: periodEnd,
+      frequency,
+      daysRemaining,
+      daysTotal
+    };
+  }
+
+  /**
+   * Check if a date falls within a pay period
+   */
+  isWithinPayPeriod(date: Date, periodStart: Date, periodEnd: Date): boolean {
+    return isWithinInterval(date, { start: periodStart, end: periodEnd });
+  }
+
+  /**
+   * Check if we need to transition to a new pay period
+   * Returns true if today is on or after the next pay date
+   */
+  shouldTransitionPayPeriod(nextPayDate: Date, userTimezone: string = 'UTC'): boolean {
+    const todayStart = startOfDay(this.getNowInUserTimezone(userTimezone));
+    const nextPayDateStart = startOfDay(nextPayDate);
+    return !isBefore(todayStart, nextPayDateStart);
+  }
+
+  /**
+   * Get proration multiplier for converting monthly amounts to pay period amounts
+   * Used for goal targets, recurring estimates, etc.
+   */
+  getPayPeriodMultiplier(frequency: IncomeFrequency): number {
+    switch (frequency) {
+      case IncomeFrequency.WEEKLY:
+        return 12 / 52; // ~0.231 of monthly
+      case IncomeFrequency.FORTNIGHTLY:
+        return 12 / 26; // ~0.462 of monthly
+      case IncomeFrequency.MONTHLY:
+        return 1;
+      default:
+        return 1;
+    }
+  }
+
+  /**
+   * Prorate a monthly amount to the user's pay period frequency
+   */
+  prorateMonthlyAmount(monthlyAmount: number, frequency: IncomeFrequency): number {
+    return monthlyAmount * this.getPayPeriodMultiplier(frequency);
   }
 }

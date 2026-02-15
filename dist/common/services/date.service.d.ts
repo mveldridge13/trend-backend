@@ -1,3 +1,11 @@
+import { IncomeFrequency } from '@prisma/client';
+export interface PayPeriodBoundaries {
+    start: Date;
+    end: Date;
+    frequency: IncomeFrequency;
+    daysRemaining: number;
+    daysTotal: number;
+}
 export declare class DateService {
     toUtc(dateString: string, userTimezone: string): Date;
     toUserTimezone(utcDate: Date, userTimezone: string): Date;
@@ -28,4 +36,11 @@ export declare class DateService {
     };
     isValidTimezone(timezone: string): boolean;
     getValidTimezone(userTimezone?: string): string;
+    calculatePreviousPayDate(nextPayDate: Date, frequency: IncomeFrequency): Date;
+    calculateNextPayDateFromCurrent(currentPayDate: Date, frequency: IncomeFrequency): Date;
+    calculatePayPeriodBoundaries(nextPayDate: Date, frequency: IncomeFrequency, userTimezone?: string): PayPeriodBoundaries;
+    isWithinPayPeriod(date: Date, periodStart: Date, periodEnd: Date): boolean;
+    shouldTransitionPayPeriod(nextPayDate: Date, userTimezone?: string): boolean;
+    getPayPeriodMultiplier(frequency: IncomeFrequency): number;
+    prorateMonthlyAmount(monthlyAmount: number, frequency: IncomeFrequency): number;
 }

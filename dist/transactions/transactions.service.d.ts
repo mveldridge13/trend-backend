@@ -135,7 +135,6 @@ export declare class TransactionsService {
     private calculateTransactionStatus;
     private mapToDto;
     private calculateDailyBurnRate;
-    private calculateMonthlyRecurringExpenses;
     private calculateDiscretionaryTrends;
     private calculateSpendingVelocity;
     private calculateTrends;

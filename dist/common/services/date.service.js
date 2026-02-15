@@ -10,6 +10,7 @@ exports.DateService = void 0;
 const common_1 = require("@nestjs/common");
 const tz_1 = require("@date-fns/tz");
 const date_fns_1 = require("date-fns");
+const client_1 = require("@prisma/client");
 let DateService = class DateService {
     toUtc(dateString, userTimezone) {
         if (!dateString) {
@@ -136,6 +137,67 @@ let DateService = class DateService {
             return 'UTC';
         }
         return userTimezone;
+    }
+    calculatePreviousPayDate(nextPayDate, frequency) {
+        switch (frequency) {
+            case client_1.IncomeFrequency.WEEKLY:
+                return (0, date_fns_1.subWeeks)(nextPayDate, 1);
+            case client_1.IncomeFrequency.FORTNIGHTLY:
+                return (0, date_fns_1.subWeeks)(nextPayDate, 2);
+            case client_1.IncomeFrequency.MONTHLY:
+                return (0, date_fns_1.subMonths)(nextPayDate, 1);
+            default:
+                return (0, date_fns_1.subMonths)(nextPayDate, 1);
+        }
+    }
+    calculateNextPayDateFromCurrent(currentPayDate, frequency) {
+        switch (frequency) {
+            case client_1.IncomeFrequency.WEEKLY:
+                return (0, date_fns_1.addWeeks)(currentPayDate, 1);
+            case client_1.IncomeFrequency.FORTNIGHTLY:
+                return (0, date_fns_1.addWeeks)(currentPayDate, 2);
+            case client_1.IncomeFrequency.MONTHLY:
+                return (0, date_fns_1.addMonths)(currentPayDate, 1);
+            default:
+                return (0, date_fns_1.addMonths)(currentPayDate, 1);
+        }
+    }
+    calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone = 'UTC') {
+        const now = this.getNowInUserTimezone(userTimezone);
+        const periodStart = (0, date_fns_1.startOfDay)(this.calculatePreviousPayDate(nextPayDate, frequency));
+        const periodEnd = (0, date_fns_1.endOfDay)((0, date_fns_1.subDays)(nextPayDate, 1));
+        const daysRemaining = Math.max(0, (0, date_fns_1.differenceInDays)(periodEnd, now) + 1);
+        const daysTotal = (0, date_fns_1.differenceInDays)(periodEnd, periodStart) + 1;
+        return {
+            start: periodStart,
+            end: periodEnd,
+            frequency,
+            daysRemaining,
+            daysTotal
+        };
+    }
+    isWithinPayPeriod(date, periodStart, periodEnd) {
+        return (0, date_fns_1.isWithinInterval)(date, { start: periodStart, end: periodEnd });
+    }
+    shouldTransitionPayPeriod(nextPayDate, userTimezone = 'UTC') {
+        const todayStart = (0, date_fns_1.startOfDay)(this.getNowInUserTimezone(userTimezone));
+        const nextPayDateStart = (0, date_fns_1.startOfDay)(nextPayDate);
+        return !(0, date_fns_1.isBefore)(todayStart, nextPayDateStart);
+    }
+    getPayPeriodMultiplier(frequency) {
+        switch (frequency) {
+            case client_1.IncomeFrequency.WEEKLY:
+                return 12 / 52;
+            case client_1.IncomeFrequency.FORTNIGHTLY:
+                return 12 / 26;
+            case client_1.IncomeFrequency.MONTHLY:
+                return 1;
+            default:
+                return 1;
+        }
+    }
+    prorateMonthlyAmount(monthlyAmount, frequency) {
+        return monthlyAmount * this.getPayPeriodMultiplier(frequency);
     }
 };
 exports.DateService = DateService;

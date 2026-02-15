@@ -1129,6 +1129,10 @@ let TransactionsService = class TransactionsService {
         if (transaction.dueDate) {
             return 'UPCOMING';
         }
+        const isRecurring = transaction.recurrence && transaction.recurrence !== 'none';
+        if (isRecurring) {
+            return 'UPCOMING';
+        }
         return null;
     }
     async mapToDto(transaction, userTimezone) {
@@ -1213,9 +1217,8 @@ let TransactionsService = class TransactionsService {
                 default:
                     monthlyIncomeCapacity = income;
             }
-            const monthlyRecurringExpenses = this.calculateMonthlyRecurringExpenses(transactions);
             const userFixedExpenses = Number(userProfile.fixedExpenses) || 0;
-            monthlyIncomeCapacity -= userFixedExpenses + monthlyRecurringExpenses;
+            monthlyIncomeCapacity -= userFixedExpenses;
             sustainableDailyRate = (monthlyIncomeCapacity * 0.8) / 30;
         }
         const weeklyTrend = [];
@@ -1283,48 +1286,6 @@ let TransactionsService = class TransactionsService {
             projectedMonthlySpending,
             monthlyIncomeCapacity,
         };
-    }
-    calculateMonthlyRecurringExpenses(transactions) {
-        const now = new Date();
-        const lastThreeMonths = new Date();
-        lastThreeMonths.setMonth(now.getMonth() - 3);
-        const recurringTransactions = transactions.filter((t) => {
-            const transactionDate = new Date(t.date);
-            return (transactionDate >= lastThreeMonths &&
-                transactionDate <= now &&
-                t.type === "EXPENSE" &&
-                t.recurrence &&
-                t.recurrence !== "none");
-        });
-        let monthlyRecurringTotal = 0;
-        const recurrenceGroups = {
-            weekly: [],
-            fortnightly: [],
-            monthly: [],
-            sixmonths: [],
-            yearly: [],
-        };
-        recurringTransactions.forEach((t) => {
-            if (recurrenceGroups[t.recurrence]) {
-                recurrenceGroups[t.recurrence].push(t);
-            }
-        });
-        const weeklyMonthly = recurrenceGroups.weekly.reduce((sum, t) => sum + Number(t.amount), 0) *
-            (52 / 12);
-        const fortnightlyMonthly = recurrenceGroups.fortnightly.reduce((sum, t) => sum + Number(t.amount), 0) *
-            (26 / 12);
-        const monthlyMonthly = recurrenceGroups.monthly.reduce((sum, t) => sum + Number(t.amount), 0);
-        const sixMonthsMonthly = recurrenceGroups.sixmonths.reduce((sum, t) => sum + Number(t.amount), 0) /
-            6;
-        const yearlyMonthly = recurrenceGroups.yearly.reduce((sum, t) => sum + Number(t.amount), 0) /
-            12;
-        monthlyRecurringTotal =
-            weeklyMonthly +
-                fortnightlyMonthly +
-                monthlyMonthly +
-                sixMonthsMonthly +
-                yearlyMonthly;
-        return monthlyRecurringTotal;
     }
     calculateDiscretionaryTrends(transactions, startDate, endDate) {
         if (!startDate || !endDate) {
@@ -1764,24 +1725,12 @@ let TransactionsService = class TransactionsService {
             let totalIncomeThisWeek = 0;
             if (userProfile.nextPayDate && userProfile.incomeFrequency) {
                 const nextPayDate = new Date(userProfile.nextPayDate);
-                let currentPeriodStart;
-                switch (userProfile.incomeFrequency) {
-                    case client_1.IncomeFrequency.WEEKLY:
-                        currentPeriodStart = new Date(nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-                        break;
-                    case client_1.IncomeFrequency.FORTNIGHTLY:
-                        currentPeriodStart = new Date(nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000);
-                        break;
-                    case client_1.IncomeFrequency.MONTHLY:
-                        currentPeriodStart = new Date(nextPayDate.getFullYear(), nextPayDate.getMonth() - 1, nextPayDate.getDate());
-                        break;
-                    default:
-                        currentPeriodStart = startDate;
-                }
+                const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
+                const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
                 const payPeriodTransactions = currentIncomeTransactions.filter((t) => {
                     const transactionDate = new Date(t.date);
-                    return (transactionDate >= currentPeriodStart &&
-                        transactionDate <= nextPayDate);
+                    return (transactionDate >= periodBoundaries.start &&
+                        transactionDate <= periodBoundaries.end);
                 });
                 totalIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
                     const amount = Number(t.amount);
@@ -1929,32 +1878,14 @@ let TransactionsService = class TransactionsService {
             return null;
         }
         const nextPayDate = new Date(userProfile.nextPayDate);
-        const now = new Date();
-        const daysUntilNextPay = Math.ceil((nextPayDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        let currentPeriodStart;
-        let frequency;
-        switch (userProfile.incomeFrequency) {
-            case client_1.IncomeFrequency.WEEKLY:
-                currentPeriodStart = new Date(nextPayDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-                frequency = "weekly";
-                break;
-            case client_1.IncomeFrequency.FORTNIGHTLY:
-                currentPeriodStart = new Date(nextPayDate.getTime() - 14 * 24 * 60 * 60 * 1000);
-                frequency = "fortnightly";
-                break;
-            case client_1.IncomeFrequency.MONTHLY:
-                currentPeriodStart = new Date(nextPayDate.getFullYear(), nextPayDate.getMonth() - 1, nextPayDate.getDate());
-                frequency = "monthly";
-                break;
-            default:
-                return null;
-        }
+        const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
+        const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
         return {
-            frequency,
+            frequency: userProfile.incomeFrequency.toLowerCase(),
             nextPayDate: nextPayDate.toISOString(),
-            daysUntilNextPay: Math.max(0, daysUntilNextPay),
-            currentPeriodStart: currentPeriodStart.toISOString(),
-            currentPeriodEnd: nextPayDate.toISOString(),
+            daysUntilNextPay: periodBoundaries.daysRemaining,
+            currentPeriodStart: periodBoundaries.start.toISOString(),
+            currentPeriodEnd: periodBoundaries.end.toISOString(),
         };
     }
     generateIncomeInsights(transactions, changePercentage, incomeBySource, incomeBreakdown, hasProfileData = false) {

@@ -18,6 +18,7 @@ import { PokerModule } from "./poker/poker.module";
 import { CommonModule } from "./common/common.module";
 import { AuditModule } from "./audit/audit.module";
 import { EmailModule } from "./email/email.module";
+import { HomeModule } from "./home/home.module";
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { EmailModule } from "./email/email.module";
     TransactionsModule,
     GoalsModule,
     PokerModule,
+    HomeModule,
   ],
   controllers: [AppController],
   providers: [
