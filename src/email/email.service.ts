@@ -1,18 +1,25 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { Resend } from "resend";
+import { SecretsService } from "../common/services/secrets.service";
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly sesClient: SESClient;
-  private readonly fromEmail: string;
+  private resend: Resend | null = null;
   private readonly appName = "Trend";
 
-  constructor() {
-    this.sesClient = new SESClient({
-      region: process.env.AWS_REGION || "ap-southeast-2",
-    });
-    this.fromEmail = process.env.SES_FROM_EMAIL || "noreply@trend.app";
+  constructor(private readonly secretsService: SecretsService) {}
+
+  private getResendClient(): Resend {
+    if (!this.resend) {
+      const apiKey = this.secretsService.get("RESEND_API_KEY");
+      this.resend = new Resend(apiKey);
+    }
+    return this.resend;
+  }
+
+  private getFromEmail(): string {
+    return this.secretsService.get("EMAIL_FROM") || "Trend <noreply@trendapp.co>";
   }
 
   async sendPasswordResetEmail(
@@ -96,37 +103,28 @@ If you didn't make this change, please contact support immediately and reset you
     htmlBody: string,
     textBody: string,
   ): Promise<boolean> {
-    // Skip sending in development if SES is not configured
-    if (!process.env.AWS_ACCESS_KEY_ID && process.env.NODE_ENV !== "production") {
+    const apiKey = this.secretsService.get("RESEND_API_KEY");
+
+    // Skip sending in development if Resend is not configured
+    if (!apiKey && process.env.NODE_ENV !== "production") {
       this.logger.warn(`[DEV] Would send email to ${toEmail}: ${subject}`);
       return true;
     }
 
     try {
-      const command = new SendEmailCommand({
-        Source: this.fromEmail,
-        Destination: {
-          ToAddresses: [toEmail],
-        },
-        Message: {
-          Subject: {
-            Data: subject,
-            Charset: "UTF-8",
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: "UTF-8",
-            },
-            Text: {
-              Data: textBody,
-              Charset: "UTF-8",
-            },
-          },
-        },
+      const { error } = await this.getResendClient().emails.send({
+        from: this.getFromEmail(),
+        to: toEmail,
+        subject,
+        html: htmlBody,
+        text: textBody,
       });
 
-      await this.sesClient.send(command);
+      if (error) {
+        this.logger.error(`Failed to send email to ${toEmail}:`, error);
+        return false;
+      }
+
       this.logger.log(`Email sent to ${toEmail}: ${subject}`);
       return true;
     } catch (error) {
