@@ -238,10 +238,22 @@ export class TransactionsService {
 
     if (updateTransactionDto.date !== undefined) {
       this.dateService.validateTransactionDate(updateTransactionDto.date, userTimezone);
-      
+
       // Convert date from user timezone to UTC for storage
       const utcDate = this.dateService.toUtc(updateTransactionDto.date, userTimezone);
       updateTransactionDto.date = utcDate.toISOString();
+    }
+
+    // FIX: When marking a bill as PAID, update the date to today if not explicitly provided
+    // This prevents double-counting: the bill was counted by dueDate in future period,
+    // and would be counted again by original date in past period
+    if (
+      updateTransactionDto.status === 'PAID' &&
+      existingTransaction.status !== 'PAID' &&
+      updateTransactionDto.date === undefined
+    ) {
+      // Set the payment date to now (in UTC)
+      updateTransactionDto.date = new Date().toISOString();
     }
 
     const updatedTransaction = await this.transactionsRepository.update(

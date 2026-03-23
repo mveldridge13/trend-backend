@@ -169,7 +169,34 @@ export class HomeService {
     let plannedTotal = 0;
     let paidSoFar = 0;
 
-    for (const t of committedTransactions) {
+    // Filter transactions to avoid double-counting:
+    // - PAID transactions: count by date (payment date), NOT dueDate
+    // - UPCOMING/OVERDUE: count by dueDate (when it's due)
+    const filteredTransactions = committedTransactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+
+      const dateInPeriod = transactionDate >= period.start && transactionDate <= period.end;
+      const dueDateInPeriod = dueDate && dueDate >= period.start && dueDate <= period.end;
+
+      if (t.status === PaymentStatus.PAID) {
+        // For PAID transactions, only count if the payment DATE is in this period
+        // This prevents counting a bill paid in a previous period just because dueDate is in this period
+        if (!dateInPeriod && dueDateInPeriod) {
+          return false;
+        }
+      } else {
+        // For UPCOMING/OVERDUE, only count if dueDate is in this period
+        // This prevents counting a future bill just because it was created (date) in this period
+        if (dateInPeriod && !dueDateInPeriod) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    for (const t of filteredTransactions) {
       const amount = Number(t.amount);
       plannedTotal += amount;
 

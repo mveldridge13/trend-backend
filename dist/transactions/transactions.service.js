@@ -93,6 +93,11 @@ let TransactionsService = class TransactionsService {
             const utcDate = this.dateService.toUtc(updateTransactionDto.date, userTimezone);
             updateTransactionDto.date = utcDate.toISOString();
         }
+        if (updateTransactionDto.status === 'PAID' &&
+            existingTransaction.status !== 'PAID' &&
+            updateTransactionDto.date === undefined) {
+            updateTransactionDto.date = new Date().toISOString();
+        }
         const updatedTransaction = await this.transactionsRepository.update(id, userId, updateTransactionDto);
         if (updateTransactionDto.status === 'PAID' &&
             existingTransaction.status !== 'PAID' &&

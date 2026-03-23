@@ -51,15 +51,29 @@ let TransactionsRepository = class TransactionsRepository {
         const where = {
             userId,
         };
-        const dateFilter = {};
-        if (filters.startDate) {
-            dateFilter.gte = (0, date_fns_1.startOfDay)(new Date(filters.startDate));
-        }
-        if (filters.endDate) {
-            dateFilter.lte = (0, date_fns_1.endOfDay)(new Date(filters.endDate));
-        }
-        if (Object.keys(dateFilter).length > 0) {
-            where.date = dateFilter;
+        if (filters.startDate || filters.endDate) {
+            const periodStart = filters.startDate ? (0, date_fns_1.startOfDay)(new Date(filters.startDate)) : undefined;
+            const periodEnd = filters.endDate ? (0, date_fns_1.endOfDay)(new Date(filters.endDate)) : undefined;
+            const dateInPeriod = {};
+            const dueDateInPeriod = {};
+            if (periodStart && periodEnd) {
+                dateInPeriod.date = { gte: periodStart, lte: periodEnd };
+                dueDateInPeriod.dueDate = { gte: periodStart, lte: periodEnd };
+            }
+            else if (periodStart) {
+                dateInPeriod.date = { gte: periodStart };
+                dueDateInPeriod.dueDate = { gte: periodStart };
+            }
+            else if (periodEnd) {
+                dateInPeriod.date = { lte: periodEnd };
+                dueDateInPeriod.dueDate = { lte: periodEnd };
+            }
+            where.OR = [
+                { status: 'PAID', ...dateInPeriod },
+                { status: 'UPCOMING', ...dueDateInPeriod },
+                { status: 'OVERDUE', ...dueDateInPeriod },
+                { status: null, ...dateInPeriod },
+            ];
         }
         if (filters.categoryId) {
             where.categoryId = filters.categoryId;
@@ -155,15 +169,29 @@ let TransactionsRepository = class TransactionsRepository {
         const where = {
             userId,
         };
-        const dateFilter = {};
-        if (filters.startDate) {
-            dateFilter.gte = (0, date_fns_1.startOfDay)(new Date(filters.startDate));
-        }
-        if (filters.endDate) {
-            dateFilter.lte = (0, date_fns_1.endOfDay)(new Date(filters.endDate));
-        }
-        if (Object.keys(dateFilter).length > 0) {
-            where.date = dateFilter;
+        if (filters.startDate || filters.endDate) {
+            const periodStart = filters.startDate ? (0, date_fns_1.startOfDay)(new Date(filters.startDate)) : undefined;
+            const periodEnd = filters.endDate ? (0, date_fns_1.endOfDay)(new Date(filters.endDate)) : undefined;
+            const dateInPeriod = {};
+            const dueDateInPeriod = {};
+            if (periodStart && periodEnd) {
+                dateInPeriod.date = { gte: periodStart, lte: periodEnd };
+                dueDateInPeriod.dueDate = { gte: periodStart, lte: periodEnd };
+            }
+            else if (periodStart) {
+                dateInPeriod.date = { gte: periodStart };
+                dueDateInPeriod.dueDate = { gte: periodStart };
+            }
+            else if (periodEnd) {
+                dateInPeriod.date = { lte: periodEnd };
+                dueDateInPeriod.dueDate = { lte: periodEnd };
+            }
+            where.OR = [
+                { status: 'PAID', ...dateInPeriod },
+                { status: 'UPCOMING', ...dueDateInPeriod },
+                { status: 'OVERDUE', ...dueDateInPeriod },
+                { status: null, ...dateInPeriod },
+            ];
         }
         if (filters.categoryId) {
             where.categoryId = filters.categoryId;

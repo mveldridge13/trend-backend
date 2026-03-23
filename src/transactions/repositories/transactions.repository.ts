@@ -51,17 +51,43 @@ export class TransactionsRepository {
       userId,
     };
 
-    // Build date filter object
-    // Use startOfDay/endOfDay to ensure full day coverage regardless of time component
-    const dateFilter: any = {};
-    if (filters.startDate) {
-      dateFilter.gte = startOfDay(new Date(filters.startDate));
-    }
-    if (filters.endDate) {
-      dateFilter.lte = endOfDay(new Date(filters.endDate));
-    }
-    if (Object.keys(dateFilter).length > 0) {
-      where.date = dateFilter;
+    // Smart date filtering to properly show transactions for a pay period:
+    // - PAID transactions: filter by date (payment date)
+    // - UPCOMING/OVERDUE: filter by dueDate (when it's due)
+    // - No status (discretionary): filter by date
+    if (filters.startDate || filters.endDate) {
+      const periodStart = filters.startDate ? startOfDay(new Date(filters.startDate)) : undefined;
+      const periodEnd = filters.endDate ? endOfDay(new Date(filters.endDate)) : undefined;
+
+      // Build date range conditions
+      const dateInPeriod: Prisma.TransactionWhereInput = {};
+      const dueDateInPeriod: Prisma.TransactionWhereInput = {};
+
+      if (periodStart && periodEnd) {
+        dateInPeriod.date = { gte: periodStart, lte: periodEnd };
+        dueDateInPeriod.dueDate = { gte: periodStart, lte: periodEnd };
+      } else if (periodStart) {
+        dateInPeriod.date = { gte: periodStart };
+        dueDateInPeriod.dueDate = { gte: periodStart };
+      } else if (periodEnd) {
+        dateInPeriod.date = { lte: periodEnd };
+        dueDateInPeriod.dueDate = { lte: periodEnd };
+      }
+
+      // Smart filter:
+      // - PAID: use date (payment date)
+      // - UPCOMING/OVERDUE: use dueDate
+      // - No status: use date (discretionary transactions)
+      where.OR = [
+        // PAID transactions with date in period
+        { status: 'PAID', ...dateInPeriod },
+        // UPCOMING transactions with dueDate in period
+        { status: 'UPCOMING', ...dueDateInPeriod },
+        // OVERDUE transactions with dueDate in period
+        { status: 'OVERDUE', ...dueDateInPeriod },
+        // Discretionary transactions (no status) with date in period
+        { status: null, ...dateInPeriod },
+      ];
     }
 
     if (filters.categoryId) {
@@ -180,17 +206,34 @@ export class TransactionsRepository {
       userId,
     };
 
-    // Build date filter object
-    // Use startOfDay/endOfDay to ensure full day coverage regardless of time component
-    const dateFilter: any = {};
-    if (filters.startDate) {
-      dateFilter.gte = startOfDay(new Date(filters.startDate));
-    }
-    if (filters.endDate) {
-      dateFilter.lte = endOfDay(new Date(filters.endDate));
-    }
-    if (Object.keys(dateFilter).length > 0) {
-      where.date = dateFilter;
+    // Smart date filtering (same logic as findMany):
+    // - PAID: filter by date
+    // - UPCOMING/OVERDUE: filter by dueDate
+    // - No status: filter by date
+    if (filters.startDate || filters.endDate) {
+      const periodStart = filters.startDate ? startOfDay(new Date(filters.startDate)) : undefined;
+      const periodEnd = filters.endDate ? endOfDay(new Date(filters.endDate)) : undefined;
+
+      const dateInPeriod: Prisma.TransactionWhereInput = {};
+      const dueDateInPeriod: Prisma.TransactionWhereInput = {};
+
+      if (periodStart && periodEnd) {
+        dateInPeriod.date = { gte: periodStart, lte: periodEnd };
+        dueDateInPeriod.dueDate = { gte: periodStart, lte: periodEnd };
+      } else if (periodStart) {
+        dateInPeriod.date = { gte: periodStart };
+        dueDateInPeriod.dueDate = { gte: periodStart };
+      } else if (periodEnd) {
+        dateInPeriod.date = { lte: periodEnd };
+        dueDateInPeriod.dueDate = { lte: periodEnd };
+      }
+
+      where.OR = [
+        { status: 'PAID', ...dateInPeriod },
+        { status: 'UPCOMING', ...dueDateInPeriod },
+        { status: 'OVERDUE', ...dueDateInPeriod },
+        { status: null, ...dateInPeriod },
+      ];
     }
 
     if (filters.categoryId) {
