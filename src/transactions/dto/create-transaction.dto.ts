@@ -55,4 +55,8 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   recurrence?: string;
+
+  @IsString()
+  @IsOptional()
+  linkedGoalId?: string;
 }

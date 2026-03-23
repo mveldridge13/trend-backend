@@ -11,4 +11,5 @@ export declare class CreateTransactionDto {
     categoryId?: string;
     subcategoryId?: string;
     recurrence?: string;
+    linkedGoalId?: string;
 }

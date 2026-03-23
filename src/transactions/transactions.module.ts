@@ -1,17 +1,18 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { TransactionsController } from "./transactions.controller";
 import { TransactionsService } from "./transactions.service";
 import { TransactionsRepository } from "./repositories/transactions.repository";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { DatabaseModule } from "../database/database.module";
+import { GoalsModule } from "../goals/goals.module";
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, forwardRef(() => GoalsModule)],
   controllers: [TransactionsController],
   providers: [
     TransactionsService,
     TransactionsRepository,
-    UsersRepository, // ✅ ADD: Needed for Daily Burn Rate calculations
+    UsersRepository,
   ],
   exports: [TransactionsService, TransactionsRepository],
 })

@@ -33,6 +33,7 @@ let TransactionsRepository = class TransactionsRepository {
                 categoryId: data.categoryId,
                 subcategoryId: data.subcategoryId,
                 recurrence: data.recurrence,
+                linkedGoalId: data.linkedGoalId,
             },
             include: {
                 budget: {
@@ -43,6 +44,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 subcategory: {
                     select: { id: true, name: true, icon: true, color: true },
+                },
+                linkedGoal: {
+                    select: { id: true, name: true, type: true },
                 },
             },
         });
@@ -102,6 +106,9 @@ let TransactionsRepository = class TransactionsRepository {
                 subcategory: {
                     select: { id: true, name: true, icon: true, color: true },
                 },
+                linkedGoal: {
+                    select: { id: true, name: true, type: true },
+                },
             },
             orderBy: {
                 [filters.sortBy]: filters.sortOrder,
@@ -122,6 +129,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 subcategory: {
                     select: { id: true, name: true, icon: true, color: true },
+                },
+                linkedGoal: {
+                    select: { id: true, name: true, type: true },
                 },
             },
         });
@@ -152,6 +162,9 @@ let TransactionsRepository = class TransactionsRepository {
                 },
                 subcategory: {
                     select: { id: true, name: true, icon: true, color: true },
+                },
+                linkedGoal: {
+                    select: { id: true, name: true, type: true },
                 },
             },
         });

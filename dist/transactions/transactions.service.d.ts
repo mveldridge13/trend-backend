@@ -1,5 +1,6 @@
 import { TransactionsRepository } from "./repositories/transactions.repository";
 import { UsersRepository } from "../users/repositories/users.repository";
+import { GoalsService } from "../goals/goals.service";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionDto } from "./dto/transaction.dto";
@@ -99,7 +100,8 @@ export declare class TransactionsService {
     private readonly usersRepository;
     private readonly dateService;
     private readonly currencyService;
-    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService, currencyService: CurrencyService);
+    private readonly goalsService;
+    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService, currencyService: CurrencyService, goalsService: GoalsService);
     create(userId: string, createTransactionDto: CreateTransactionDto): Promise<TransactionDto>;
     findAll(userId: string, filters: TransactionFilterDto): Promise<{
         transactions: TransactionDto[];
@@ -110,6 +112,7 @@ export declare class TransactionsService {
     }>;
     findOne(id: string, userId: string): Promise<TransactionDto>;
     update(id: string, userId: string, updateTransactionDto: UpdateTransactionDto): Promise<TransactionDto>;
+    private createGoalContributionFromPayment;
     private createNextRecurringTransaction;
     private calculateNextDueDate;
     remove(id: string, userId: string): Promise<void>;

@@ -8,21 +8,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsService = void 0;
 const common_1 = require("@nestjs/common");
 const transactions_repository_1 = require("./repositories/transactions.repository");
 const users_repository_1 = require("../users/repositories/users.repository");
-const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
+const goals_service_1 = require("../goals/goals.service");
 const client_1 = require("@prisma/client");
+const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
+const client_2 = require("@prisma/client");
 const date_service_1 = require("../common/services/date.service");
 const currency_service_1 = require("../common/services/currency.service");
 let TransactionsService = class TransactionsService {
-    constructor(transactionsRepository, usersRepository, dateService, currencyService) {
+    constructor(transactionsRepository, usersRepository, dateService, currencyService, goalsService) {
         this.transactionsRepository = transactionsRepository;
         this.usersRepository = usersRepository;
         this.dateService = dateService;
         this.currencyService = currencyService;
+        this.goalsService = goalsService;
     }
     async create(userId, createTransactionDto) {
         const user = await this.usersRepository.findById(userId);
@@ -106,7 +112,27 @@ let TransactionsService = class TransactionsService {
             existingTransaction.dueDate) {
             await this.createNextRecurringTransaction(existingTransaction, userId);
         }
+        if (updateTransactionDto.status === 'PAID' &&
+            existingTransaction.status !== 'PAID' &&
+            existingTransaction.linkedGoalId) {
+            await this.createGoalContributionFromPayment(updatedTransaction, userId);
+        }
         return await this.mapToDto(updatedTransaction, userTimezone);
+    }
+    async createGoalContributionFromPayment(transaction, userId) {
+        try {
+            await this.goalsService.addContribution(userId, transaction.linkedGoalId, {
+                amount: Number(transaction.amount),
+                currency: transaction.currency || 'USD',
+                date: new Date().toISOString(),
+                description: `Payment: ${transaction.description}`,
+                type: client_1.ContributionType.TRANSACTION,
+                transactionId: transaction.id,
+            });
+        }
+        catch (error) {
+            console.error('Failed to create goal contribution from payment:', error);
+        }
     }
     async createNextRecurringTransaction(paidTransaction, userId) {
         const currentDueDate = new Date(paidTransaction.dueDate);
@@ -123,6 +149,7 @@ let TransactionsService = class TransactionsService {
             categoryId: paidTransaction.categoryId || undefined,
             subcategoryId: paidTransaction.subcategoryId || undefined,
             recurrence: paidTransaction.recurrence,
+            linkedGoalId: paidTransaction.linkedGoalId || undefined,
         });
     }
     calculateNextDueDate(currentDueDate, recurrence) {
@@ -193,7 +220,7 @@ let TransactionsService = class TransactionsService {
         const transactions = await this.transactionsRepository.findMany(userId, {
             startDate,
             endDate,
-            type: client_1.TransactionType.EXPENSE,
+            type: client_2.TransactionType.EXPENSE,
             limit: 10000,
             offset: 0,
             sortBy: "date",
@@ -447,7 +474,7 @@ let TransactionsService = class TransactionsService {
         const transactions = await this.transactionsRepository.findMany(userId, {
             startDate,
             endDate,
-            type: client_1.TransactionType.EXPENSE,
+            type: client_2.TransactionType.EXPENSE,
             limit: 10000,
             offset: 0,
             sortBy: "date",
@@ -712,7 +739,7 @@ let TransactionsService = class TransactionsService {
         const previousTransactions = await this.transactionsRepository.findMany(userId, {
             startDate: previousStart.toISOString(),
             endDate: previousEnd.toISOString(),
-            type: client_1.TransactionType.EXPENSE,
+            type: client_2.TransactionType.EXPENSE,
             limit: 10000,
             offset: 0,
             sortBy: "date",
@@ -1210,13 +1237,13 @@ let TransactionsService = class TransactionsService {
             const income = Number(userProfile.income);
             const frequency = userProfile.incomeFrequency;
             switch (frequency) {
-                case client_1.IncomeFrequency.WEEKLY:
+                case client_2.IncomeFrequency.WEEKLY:
                     monthlyIncomeCapacity = (income * 52) / 12;
                     break;
-                case client_1.IncomeFrequency.FORTNIGHTLY:
+                case client_2.IncomeFrequency.FORTNIGHTLY:
                     monthlyIncomeCapacity = (income * 26) / 12;
                     break;
-                case client_1.IncomeFrequency.MONTHLY:
+                case client_2.IncomeFrequency.MONTHLY:
                     monthlyIncomeCapacity = income;
                     break;
                 default:
@@ -1575,19 +1602,19 @@ let TransactionsService = class TransactionsService {
     }
     calculateAnalytics(transactions, filters = {}, userProfile, previousPeriodTransactions = []) {
         const income = transactions
-            .filter((t) => t.type === client_1.TransactionType.INCOME)
+            .filter((t) => t.type === client_2.TransactionType.INCOME)
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const expenses = transactions
-            .filter((t) => t.type === client_1.TransactionType.EXPENSE)
+            .filter((t) => t.type === client_2.TransactionType.EXPENSE)
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const discretionaryExpenses = transactions
-            .filter((t) => t.type === client_1.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+            .filter((t) => t.type === client_2.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const previousPeriodExpenses = previousPeriodTransactions
-            .filter((t) => t.type === client_1.TransactionType.EXPENSE)
+            .filter((t) => t.type === client_2.TransactionType.EXPENSE)
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const previousPeriodDiscretionary = previousPeriodTransactions
-            .filter((t) => t.type === client_1.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
+            .filter((t) => t.type === client_2.TransactionType.EXPENSE && (t.recurrence === "none" || !t.recurrence))
             .reduce((sum, t) => sum + Number(t.amount), 0);
         const expensesPercentageChange = previousPeriodExpenses > 0
             ? ((expenses - previousPeriodExpenses) / previousPeriodExpenses) * 100
@@ -1683,7 +1710,7 @@ let TransactionsService = class TransactionsService {
             const currentIncomeTransactions = await this.transactionsRepository.findMany(userId, {
                 startDate: startDate.toISOString(),
                 endDate: endDate.toISOString(),
-                type: client_1.TransactionType.INCOME,
+                type: client_2.TransactionType.INCOME,
                 limit: 10000,
                 offset: 0,
                 sortBy: "date",
@@ -1692,7 +1719,7 @@ let TransactionsService = class TransactionsService {
             const previousIncomeTransactions = await this.transactionsRepository.findMany(userId, {
                 startDate: prevMonthStart.toISOString(),
                 endDate: prevMonthEnd.toISOString(),
-                type: client_1.TransactionType.INCOME,
+                type: client_2.TransactionType.INCOME,
                 limit: 10000,
                 offset: 0,
             });
@@ -1708,13 +1735,13 @@ let TransactionsService = class TransactionsService {
             if (userProfile.income && userProfile.incomeFrequency) {
                 const profileIncome = Number(userProfile.income);
                 switch (userProfile.incomeFrequency) {
-                    case client_1.IncomeFrequency.WEEKLY:
+                    case client_2.IncomeFrequency.WEEKLY:
                         projectedMonthlyIncome = (profileIncome * 52) / 12;
                         break;
-                    case client_1.IncomeFrequency.FORTNIGHTLY:
+                    case client_2.IncomeFrequency.FORTNIGHTLY:
                         projectedMonthlyIncome = (profileIncome * 26) / 12;
                         break;
-                    case client_1.IncomeFrequency.MONTHLY:
+                    case client_2.IncomeFrequency.MONTHLY:
                         projectedMonthlyIncome = profileIncome;
                         break;
                 }
@@ -1939,9 +1966,11 @@ let TransactionsService = class TransactionsService {
 exports.TransactionsService = TransactionsService;
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
+    __param(4, (0, common_1.Inject)((0, common_1.forwardRef)(() => goals_service_1.GoalsService))),
     __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository,
         users_repository_1.UsersRepository,
         date_service_1.DateService,
-        currency_service_1.CurrencyService])
+        currency_service_1.CurrencyService,
+        goals_service_1.GoalsService])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

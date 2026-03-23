@@ -2,9 +2,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from "@nestjs/common";
 import { TransactionsRepository } from "./repositories/transactions.repository";
 import { UsersRepository } from "../users/repositories/users.repository";
+import { GoalsService } from "../goals/goals.service";
+import { ContributionType } from "@prisma/client";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { TransactionDto } from "./dto/transaction.dto";
@@ -126,6 +130,8 @@ export class TransactionsService {
     private readonly usersRepository: UsersRepository,
     private readonly dateService: DateService,
     private readonly currencyService: CurrencyService,
+    @Inject(forwardRef(() => GoalsService))
+    private readonly goalsService: GoalsService,
   ) {}
 
   async create(
@@ -273,7 +279,43 @@ export class TransactionsService {
       await this.createNextRecurringTransaction(existingTransaction, userId);
     }
 
+    // Auto-create goal contribution when a linked debt payment is marked as PAID
+    if (
+      updateTransactionDto.status === 'PAID' &&
+      existingTransaction.status !== 'PAID' &&
+      existingTransaction.linkedGoalId
+    ) {
+      await this.createGoalContributionFromPayment(updatedTransaction, userId);
+    }
+
     return await this.mapToDto(updatedTransaction, userTimezone);
+  }
+
+  /**
+   * Creates a goal contribution when a linked debt payment transaction is marked as PAID.
+   * This automatically updates the debt goal's balance.
+   */
+  private async createGoalContributionFromPayment(
+    transaction: any,
+    userId: string,
+  ): Promise<void> {
+    try {
+      await this.goalsService.addContribution(
+        userId,
+        transaction.linkedGoalId,
+        {
+          amount: Number(transaction.amount),
+          currency: transaction.currency || 'USD',
+          date: new Date().toISOString(),
+          description: `Payment: ${transaction.description}`,
+          type: ContributionType.TRANSACTION,
+          transactionId: transaction.id,
+        },
+      );
+    } catch (error) {
+      // Log but don't fail the transaction update if contribution creation fails
+      console.error('Failed to create goal contribution from payment:', error);
+    }
   }
 
   /**
@@ -300,6 +342,7 @@ export class TransactionsService {
       categoryId: paidTransaction.categoryId || undefined,
       subcategoryId: paidTransaction.subcategoryId || undefined,
       recurrence: paidTransaction.recurrence,
+      linkedGoalId: paidTransaction.linkedGoalId || undefined,
     });
   }
 

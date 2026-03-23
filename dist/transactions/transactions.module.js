@@ -13,12 +13,13 @@ const transactions_service_1 = require("./transactions.service");
 const transactions_repository_1 = require("./repositories/transactions.repository");
 const users_repository_1 = require("../users/repositories/users.repository");
 const database_module_1 = require("../database/database.module");
+const goals_module_1 = require("../goals/goals.module");
 let TransactionsModule = class TransactionsModule {
 };
 exports.TransactionsModule = TransactionsModule;
 exports.TransactionsModule = TransactionsModule = __decorate([
     (0, common_1.Module)({
-        imports: [database_module_1.DatabaseModule],
+        imports: [database_module_1.DatabaseModule, (0, common_1.forwardRef)(() => goals_module_1.GoalsModule)],
         controllers: [transactions_controller_1.TransactionsController],
         providers: [
             transactions_service_1.TransactionsService,

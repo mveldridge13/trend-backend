@@ -26,8 +26,9 @@ export class TransactionsRepository {
         status: data.status,
         budgetId: data.budgetId,
         categoryId: data.categoryId,
-        subcategoryId: data.subcategoryId, // ✅ Include subcategoryId
-        recurrence: data.recurrence, // ✅ Include recurrence
+        subcategoryId: data.subcategoryId,
+        recurrence: data.recurrence,
+        linkedGoalId: data.linkedGoalId,
       },
       include: {
         budget: {
@@ -38,6 +39,9 @@ export class TransactionsRepository {
         },
         subcategory: {
           select: { id: true, name: true, icon: true, color: true },
+        },
+        linkedGoal: {
+          select: { id: true, name: true, type: true },
         },
       },
     });
@@ -123,6 +127,9 @@ export class TransactionsRepository {
         subcategory: {
           select: { id: true, name: true, icon: true, color: true },
         },
+        linkedGoal: {
+          select: { id: true, name: true, type: true },
+        },
       },
       orderBy: {
         [filters.sortBy]: filters.sortOrder,
@@ -144,6 +151,9 @@ export class TransactionsRepository {
         },
         subcategory: {
           select: { id: true, name: true, icon: true, color: true },
+        },
+        linkedGoal: {
+          select: { id: true, name: true, type: true },
         },
       },
     });
@@ -170,7 +180,7 @@ export class TransactionsRepository {
     const result = await this.prisma.transaction.update({
       where: {
         id,
-        userId, // ✅ CRITICAL FIX: Ensure user can only update their own transactions
+        userId,
       },
       data: updateData,
       include: {
@@ -182,6 +192,9 @@ export class TransactionsRepository {
         },
         subcategory: {
           select: { id: true, name: true, icon: true, color: true },
+        },
+        linkedGoal: {
+          select: { id: true, name: true, type: true },
         },
       },
     });
