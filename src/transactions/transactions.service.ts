@@ -147,7 +147,12 @@ export class TransactionsService {
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
 
     this.validateTransactionAmount(createTransactionDto.amount);
-    this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+
+    // Skip date validation for UPCOMING/OVERDUE transactions (bills with future due dates)
+    const isScheduledTransaction = createTransactionDto.status === 'UPCOMING' || createTransactionDto.status === 'OVERDUE';
+    if (!isScheduledTransaction) {
+      this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+    }
 
     // Detect user's currency if not provided
     let currency = createTransactionDto.currency;

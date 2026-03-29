@@ -37,7 +37,10 @@ let TransactionsService = class TransactionsService {
         }
         const userTimezone = this.dateService.getValidTimezone(user.timezone);
         this.validateTransactionAmount(createTransactionDto.amount);
-        this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+        const isScheduledTransaction = createTransactionDto.status === 'UPCOMING' || createTransactionDto.status === 'OVERDUE';
+        if (!isScheduledTransaction) {
+            this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
+        }
         let currency = createTransactionDto.currency;
         if (!currency) {
             const detectedCurrency = this.currencyService.detectCurrencyFromUser(user.timezone, user.currency?.substring(0, 2));
