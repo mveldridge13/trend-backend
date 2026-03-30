@@ -48,6 +48,10 @@ export class TransactionFilterDto {
   search?: string; // For description/merchant search
 
   @IsOptional()
+  @IsString()
+  linkedGoalId?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(10000)

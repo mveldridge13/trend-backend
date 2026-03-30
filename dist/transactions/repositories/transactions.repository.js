@@ -56,8 +56,12 @@ let TransactionsRepository = class TransactionsRepository {
             userId,
         };
         if (filters.startDate || filters.endDate) {
-            const periodStart = filters.startDate ? (0, date_fns_1.startOfDay)(new Date(filters.startDate)) : undefined;
-            const periodEnd = filters.endDate ? (0, date_fns_1.endOfDay)(new Date(filters.endDate)) : undefined;
+            const periodStart = filters.startDate
+                ? (0, date_fns_1.startOfDay)(new Date(filters.startDate))
+                : undefined;
+            const periodEnd = filters.endDate
+                ? (0, date_fns_1.endOfDay)(new Date(filters.endDate))
+                : undefined;
             const dateInPeriod = {};
             const dueDateInPeriod = {};
             if (periodStart && periodEnd) {
@@ -73,9 +77,9 @@ let TransactionsRepository = class TransactionsRepository {
                 dueDateInPeriod.dueDate = { lte: periodEnd };
             }
             where.OR = [
-                { status: 'PAID', ...dateInPeriod },
-                { status: 'UPCOMING', ...dueDateInPeriod },
-                { status: 'OVERDUE', ...dueDateInPeriod },
+                { status: "PAID", ...dateInPeriod },
+                { status: "UPCOMING", ...dueDateInPeriod },
+                { status: "OVERDUE", ...dueDateInPeriod },
                 { status: null, ...dateInPeriod },
             ];
         }
@@ -93,6 +97,9 @@ let TransactionsRepository = class TransactionsRepository {
         }
         if (filters.subcategoryId) {
             where.subcategoryId = filters.subcategoryId;
+        }
+        if (filters.linkedGoalId) {
+            where.linkedGoalId = filters.linkedGoalId;
         }
         return this.prisma.transaction.findMany({
             where,
@@ -183,8 +190,12 @@ let TransactionsRepository = class TransactionsRepository {
             userId,
         };
         if (filters.startDate || filters.endDate) {
-            const periodStart = filters.startDate ? (0, date_fns_1.startOfDay)(new Date(filters.startDate)) : undefined;
-            const periodEnd = filters.endDate ? (0, date_fns_1.endOfDay)(new Date(filters.endDate)) : undefined;
+            const periodStart = filters.startDate
+                ? (0, date_fns_1.startOfDay)(new Date(filters.startDate))
+                : undefined;
+            const periodEnd = filters.endDate
+                ? (0, date_fns_1.endOfDay)(new Date(filters.endDate))
+                : undefined;
             const dateInPeriod = {};
             const dueDateInPeriod = {};
             if (periodStart && periodEnd) {
@@ -200,9 +211,9 @@ let TransactionsRepository = class TransactionsRepository {
                 dueDateInPeriod.dueDate = { lte: periodEnd };
             }
             where.OR = [
-                { status: 'PAID', ...dateInPeriod },
-                { status: 'UPCOMING', ...dueDateInPeriod },
-                { status: 'OVERDUE', ...dueDateInPeriod },
+                { status: "PAID", ...dateInPeriod },
+                { status: "UPCOMING", ...dueDateInPeriod },
+                { status: "OVERDUE", ...dueDateInPeriod },
                 { status: null, ...dateInPeriod },
             ];
         }
@@ -217,6 +228,9 @@ let TransactionsRepository = class TransactionsRepository {
         }
         if (filters.subcategoryId) {
             where.subcategoryId = filters.subcategoryId;
+        }
+        if (filters.linkedGoalId) {
+            where.linkedGoalId = filters.linkedGoalId;
         }
         return this.prisma.transaction.count({ where });
     }

@@ -9,6 +9,7 @@ export declare class TransactionFilterDto {
     status?: PaymentStatus;
     recurrence?: string;
     search?: string;
+    linkedGoalId?: string;
     limit?: number;
     offset?: number;
     sortBy?: string;

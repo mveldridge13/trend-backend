@@ -60,8 +60,12 @@ export class TransactionsRepository {
     // - UPCOMING/OVERDUE: filter by dueDate (when it's due)
     // - No status (discretionary): filter by date
     if (filters.startDate || filters.endDate) {
-      const periodStart = filters.startDate ? startOfDay(new Date(filters.startDate)) : undefined;
-      const periodEnd = filters.endDate ? endOfDay(new Date(filters.endDate)) : undefined;
+      const periodStart = filters.startDate
+        ? startOfDay(new Date(filters.startDate))
+        : undefined;
+      const periodEnd = filters.endDate
+        ? endOfDay(new Date(filters.endDate))
+        : undefined;
 
       // Build date range conditions
       const dateInPeriod: Prisma.TransactionWhereInput = {};
@@ -84,11 +88,11 @@ export class TransactionsRepository {
       // - No status: use date (discretionary transactions)
       where.OR = [
         // PAID transactions with date in period
-        { status: 'PAID', ...dateInPeriod },
+        { status: "PAID", ...dateInPeriod },
         // UPCOMING transactions with dueDate in period
-        { status: 'UPCOMING', ...dueDateInPeriod },
+        { status: "UPCOMING", ...dueDateInPeriod },
         // OVERDUE transactions with dueDate in period
-        { status: 'OVERDUE', ...dueDateInPeriod },
+        { status: "OVERDUE", ...dueDateInPeriod },
         // Discretionary transactions (no status) with date in period
         { status: null, ...dateInPeriod },
       ];
@@ -110,9 +114,14 @@ export class TransactionsRepository {
       where.description = { contains: filters.search, mode: "insensitive" };
     }
 
-    // ✅ Support for subcategoryId filter
+    // Support for subcategoryId filter
     if (filters.subcategoryId) {
       where.subcategoryId = filters.subcategoryId;
+    }
+
+    // Support for linkedGoalId filter
+    if (filters.linkedGoalId) {
+      where.linkedGoalId = filters.linkedGoalId;
     }
 
     return this.prisma.transaction.findMany({
@@ -224,8 +233,12 @@ export class TransactionsRepository {
     // - UPCOMING/OVERDUE: filter by dueDate
     // - No status: filter by date
     if (filters.startDate || filters.endDate) {
-      const periodStart = filters.startDate ? startOfDay(new Date(filters.startDate)) : undefined;
-      const periodEnd = filters.endDate ? endOfDay(new Date(filters.endDate)) : undefined;
+      const periodStart = filters.startDate
+        ? startOfDay(new Date(filters.startDate))
+        : undefined;
+      const periodEnd = filters.endDate
+        ? endOfDay(new Date(filters.endDate))
+        : undefined;
 
       const dateInPeriod: Prisma.TransactionWhereInput = {};
       const dueDateInPeriod: Prisma.TransactionWhereInput = {};
@@ -242,9 +255,9 @@ export class TransactionsRepository {
       }
 
       where.OR = [
-        { status: 'PAID', ...dateInPeriod },
-        { status: 'UPCOMING', ...dueDateInPeriod },
-        { status: 'OVERDUE', ...dueDateInPeriod },
+        { status: "PAID", ...dateInPeriod },
+        { status: "UPCOMING", ...dueDateInPeriod },
+        { status: "OVERDUE", ...dueDateInPeriod },
         { status: null, ...dateInPeriod },
       ];
     }
@@ -261,9 +274,14 @@ export class TransactionsRepository {
       where.type = filters.type;
     }
 
-    // ✅ Support for subcategoryId filter in count
+    // Support for subcategoryId filter in count
     if (filters.subcategoryId) {
       where.subcategoryId = filters.subcategoryId;
+    }
+
+    // Support for linkedGoalId filter in count
+    if (filters.linkedGoalId) {
+      where.linkedGoalId = filters.linkedGoalId;
     }
 
     return this.prisma.transaction.count({ where });
