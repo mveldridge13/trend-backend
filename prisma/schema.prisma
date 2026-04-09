@@ -107,7 +107,7 @@ model Category {
   transactions            Transaction[]
   subcategoryTransactions Transaction[] @relation("TransactionSubcategory")
 
-  @@unique([name, userId, isSystem])
+  @@unique([name, userId, isSystem, parentId])
   @@map("categories")
 }
 
