@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DateService, PayPeriodBoundaries } from '../common/services/date.service';
-import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType } from '@prisma/client';
+import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType, RolloverType } from '@prisma/client';
 import { format } from 'date-fns';
 import {
   HomeSummaryResponse,
@@ -14,6 +14,8 @@ import {
 
 @Injectable()
 export class HomeService {
+  private readonly logger = new Logger(HomeService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly dateService: DateService,
@@ -25,7 +27,7 @@ export class HomeService {
    */
   async getSummary(userId: string): Promise<HomeSummaryResponse> {
     // Get user profile
-    const user = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
@@ -39,8 +41,27 @@ export class HomeService {
     }
 
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
-    const nextPayDate = new Date(user.nextPayDate);
+    let nextPayDate = new Date(user.nextPayDate);
     const frequency = user.incomeFrequency;
+
+    // Check if pay period transition is needed and process it atomically
+    // Loop to handle multiple missed periods (e.g., user away for a month, paid weekly)
+    let transitionCount = 0;
+    const maxTransitions = 12; // Safety limit to prevent infinite loops
+
+    while (
+      this.dateService.shouldTransitionPayPeriod(nextPayDate, userTimezone) &&
+      transitionCount < maxTransitions
+    ) {
+      this.logger.log(`Pay period transition ${transitionCount + 1} detected for user ${userId}`);
+      user = await this.processPayPeriodTransition(user, userTimezone);
+      nextPayDate = new Date(user.nextPayDate);
+      transitionCount++;
+    }
+
+    if (transitionCount > 0) {
+      this.logger.log(`Processed ${transitionCount} pay period transition(s) for user ${userId}`);
+    }
 
     // Calculate pay period boundaries
     const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(
@@ -425,5 +446,218 @@ export class HomeService {
         leftToSpendSafe: 0,
       },
     };
+  }
+
+  // ============================================================================
+  // PAY PERIOD TRANSITION - Automatic rollover calculation
+  // ============================================================================
+
+  /**
+   * Process pay period transition atomically
+   * Calculates surplus from the previous period, updates rollover, and advances nextPayDate
+   *
+   * This runs automatically when getSummary() detects that nextPayDate is in the past,
+   * ensuring rollover is always calculated correctly regardless of when the app is opened.
+   */
+  private async processPayPeriodTransition(user: any, userTimezone: string): Promise<any> {
+    const nextPayDate = new Date(user.nextPayDate);
+    const frequency = user.incomeFrequency;
+
+    // Calculate the PREVIOUS period boundaries (the period that just ended)
+    const previousPeriodBoundaries = this.dateService.calculatePayPeriodBoundaries(
+      nextPayDate,
+      frequency,
+      userTimezone
+    );
+
+    this.logger.log(`Processing transition for period: ${format(previousPeriodBoundaries.start, 'yyyy-MM-dd')} to ${format(previousPeriodBoundaries.end, 'yyyy-MM-dd')}`);
+
+    // Current rollover amount (what was available from previous periods)
+    const currentRollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
+
+    // Calculate what was spent vs what was available in the previous period
+    const previousPeriodExpenses = await this.calculatePreviousPeriodExpenses(
+      user,
+      previousPeriodBoundaries
+    );
+
+    // Base income for that period
+    const baseIncome = user.income ? Number(user.income) : 0;
+
+    // Additional income in that period
+    const additionalIncome = await this.calculateAdditionalIncome(user.id, previousPeriodBoundaries);
+
+    // Total available = income + existing rollover
+    const totalAvailable = baseIncome + additionalIncome + currentRollover;
+
+    // New rollover = what remains after spending (can't go negative)
+    const newRolloverAmount = Math.max(0, totalAvailable - previousPeriodExpenses);
+
+    // Track how much was actually rolled over (for history)
+    const amountRolledOver = Math.max(0, newRolloverAmount);
+
+    // Calculate new next pay date
+    const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
+
+    this.logger.log(`Rollover calculation: available=${totalAvailable} (income=${baseIncome + additionalIncome}, rollover=${currentRollover}), spent=${previousPeriodExpenses}, newRollover=${newRolloverAmount}`);
+
+    // Perform atomic update - all or nothing
+    const updatedUser = await this.prisma.$transaction(async (tx) => {
+      // Update user record
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          rolloverAmount: newRolloverAmount,
+          nextPayDate: newNextPayDate,
+          lastRolloverDate: new Date(),
+        },
+      });
+
+      // Create rollover entry for history (only if there's something to roll over)
+      if (amountRolledOver > 0) {
+        await tx.rolloverEntry.create({
+          data: {
+            userId: user.id,
+            amount: amountRolledOver,
+            type: RolloverType.ROLLOVER,
+            periodStart: previousPeriodBoundaries.start,
+            periodEnd: previousPeriodBoundaries.end,
+            description: `Auto-rollover from ${format(previousPeriodBoundaries.start, 'MMM d')} - ${format(previousPeriodBoundaries.end, 'MMM d')}`,
+          },
+        });
+
+        // Create/update rollover notification for UI banner
+        await tx.rolloverNotification.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            amount: amountRolledOver,
+            fromPeriod: `${format(previousPeriodBoundaries.start, 'MMM d')} - ${format(previousPeriodBoundaries.end, 'MMM d')}`,
+          },
+          update: {
+            amount: amountRolledOver,
+            fromPeriod: `${format(previousPeriodBoundaries.start, 'MMM d')} - ${format(previousPeriodBoundaries.end, 'MMM d')}`,
+            createdAt: new Date(),
+            dismissedAt: null,
+          },
+        });
+
+        this.logger.log(`Created rollover entry: $${amountRolledOver} from previous period`);
+      }
+
+      return updated;
+    });
+
+    this.logger.log(`Pay period transition complete. New nextPayDate: ${format(newNextPayDate, 'yyyy-MM-dd')}`);
+
+    return updatedUser;
+  }
+
+  /**
+   * Calculate additional income (beyond base salary) for a period
+   */
+  private async calculateAdditionalIncome(
+    userId: string,
+    periodBoundaries: PayPeriodBoundaries
+  ): Promise<number> {
+    const additionalIncomeResult = await this.prisma.transaction.aggregate({
+      where: {
+        userId,
+        type: TransactionType.INCOME,
+        date: {
+          gte: periodBoundaries.start,
+          lte: periodBoundaries.end,
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    return additionalIncomeResult._sum.amount
+      ? Number(additionalIncomeResult._sum.amount)
+      : 0;
+  }
+
+  /**
+   * Calculate total expenses (committed + discretionary + goals) for a period
+   * For rollover purposes, only count ACTUAL money spent (PAID transactions),
+   * not planned/upcoming expenses that haven't been paid yet.
+   */
+  private async calculatePreviousPeriodExpenses(
+    user: any,
+    periodBoundaries: PayPeriodBoundaries
+  ): Promise<number> {
+    const userId = user.id;
+
+    // Calculate committed expenses - ONLY PAID transactions
+    // For rollover, we only count actual money spent, not upcoming/overdue bills
+    const committedResult = await this.prisma.transaction.aggregate({
+      where: {
+        userId,
+        type: TransactionType.EXPENSE,
+        status: PaymentStatus.PAID,
+        date: {
+          gte: periodBoundaries.start,
+          lte: periodBoundaries.end,
+        },
+        // Committed = has recurrence OR has dueDate
+        OR: [
+          { recurrence: { notIn: ['none', ''] } },
+          { dueDate: { not: null } },
+        ],
+      },
+      _sum: { amount: true },
+    });
+
+    const committedTotal = committedResult._sum.amount
+      ? Number(committedResult._sum.amount)
+      : 0;
+
+    // Calculate discretionary expenses for the period
+    const discretionaryResult = await this.prisma.transaction.aggregate({
+      where: {
+        userId,
+        type: TransactionType.EXPENSE,
+        date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
+        dueDate: null,
+        AND: [
+          {
+            OR: [
+              { recurrence: null },
+              { recurrence: 'none' },
+              { recurrence: '' },
+            ],
+          },
+          {
+            OR: [
+              { status: null },
+              { status: PaymentStatus.PAID },
+            ],
+          },
+        ],
+      },
+      _sum: { amount: true },
+    });
+    const discretionaryTotal = discretionaryResult._sum.amount
+      ? Number(discretionaryResult._sum.amount)
+      : 0;
+
+    // Calculate goal contributions for the period
+    const goalContributions = await this.prisma.goalContribution.aggregate({
+      where: {
+        goal: { userId },
+        date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
+        type: { in: [ContributionType.MANUAL, ContributionType.AUTOMATIC, ContributionType.TRANSACTION] },
+      },
+      _sum: { amount: true },
+    });
+    const goalsTotal = goalContributions._sum.amount
+      ? Number(goalContributions._sum.amount)
+      : 0;
+
+    const totalExpenses = committedTotal + discretionaryTotal + goalsTotal;
+
+    this.logger.log(`Previous period expenses (PAID only): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
+
+    return Math.round(totalExpenses * 100) / 100;
   }
 }
