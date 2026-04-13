@@ -513,21 +513,24 @@ export class TransactionsService {
     };
   }
 
-  // ✅ NEW: Get bills analytics
+  // ✅ UPDATED: Get bills analytics with pay period filtering
   async getBillsAnalytics(
     userId: string,
     filters: Partial<TransactionFilterDto> = {},
   ): Promise<any> {
     try {
       const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
       const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      // Support custom date range from filters, default to current month
+      // Get user's pay period info for proper filtering
+      const user = await this.usersRepository.findById(userId);
+      const userTimezone = user?.timezone || 'UTC';
+
       let startDate: Date;
       let endDate: Date;
+      let usePayPeriod = false;
 
+      // Priority 1: Use explicit date range from filters
       if (filters.startDate && filters.endDate) {
         startDate = new Date(filters.startDate);
         endDate = new Date(filters.endDate);
@@ -542,8 +545,22 @@ export class TransactionsService {
         if (endDate.getTime() - startDate.getTime() > oneYearInMs) {
           throw new BadRequestException("Date range cannot exceed one year");
         }
-      } else {
-        // Default to current month
+      }
+      // Priority 2: Use pay period if user has income settings configured
+      else if (user?.nextPayDate && user?.incomeFrequency) {
+        const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(
+          new Date(user.nextPayDate),
+          user.incomeFrequency as IncomeFrequency,
+          userTimezone
+        );
+        startDate = periodBoundaries.start;
+        endDate = periodBoundaries.end;
+        usePayPeriod = true;
+      }
+      // Priority 3: Fall back to current calendar month
+      else {
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
         startDate = new Date(currentYear, currentMonth, 1);
         endDate = new Date(currentYear, currentMonth + 1, 0);
       }
@@ -722,6 +739,14 @@ export class TransactionsService {
         .map(mapToBill);
 
       return {
+        // Pay period info (for display purposes)
+        period: {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          isPayPeriod: usePayPeriod,
+          frequency: usePayPeriod ? user?.incomeFrequency : null,
+        },
+
         // Summary counts
         totalBills,
         paidBills,

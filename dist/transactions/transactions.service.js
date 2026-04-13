@@ -263,11 +263,12 @@ let TransactionsService = class TransactionsService {
     async getBillsAnalytics(userId, filters = {}) {
         try {
             const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
             const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const user = await this.usersRepository.findById(userId);
+            const userTimezone = user?.timezone || 'UTC';
             let startDate;
             let endDate;
+            let usePayPeriod = false;
             if (filters.startDate && filters.endDate) {
                 startDate = new Date(filters.startDate);
                 endDate = new Date(filters.endDate);
@@ -279,7 +280,15 @@ let TransactionsService = class TransactionsService {
                     throw new common_1.BadRequestException("Date range cannot exceed one year");
                 }
             }
+            else if (user?.nextPayDate && user?.incomeFrequency) {
+                const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(new Date(user.nextPayDate), user.incomeFrequency, userTimezone);
+                startDate = periodBoundaries.start;
+                endDate = periodBoundaries.end;
+                usePayPeriod = true;
+            }
             else {
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
                 startDate = new Date(currentYear, currentMonth, 1);
                 endDate = new Date(currentYear, currentMonth + 1, 0);
             }
@@ -430,6 +439,12 @@ let TransactionsService = class TransactionsService {
             })
                 .map(mapToBill);
             return {
+                period: {
+                    start: startDate.toISOString(),
+                    end: endDate.toISOString(),
+                    isPayPeriod: usePayPeriod,
+                    frequency: usePayPeriod ? user?.incomeFrequency : null,
+                },
                 totalBills,
                 paidBills,
                 unpaidBills,
