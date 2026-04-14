@@ -76,6 +76,16 @@ export interface TotalsInfo {
 }
 
 /**
+ * Rollover notification for UI banner
+ * Shows when funds were automatically rolled over from previous period
+ */
+export interface RolloverNotificationInfo {
+  amount: number;
+  fromPeriod: string;
+  createdAt: string;
+}
+
+/**
  * Complete home summary response
  * This is the single source of truth for the Balance Card
  */
@@ -84,6 +94,7 @@ export interface HomeSummaryResponse {
   income: IncomeInfo;
   outflows: OutflowsInfo;
   totals: TotalsInfo;
+  rolloverNotification?: RolloverNotificationInfo;  // Present if rollover occurred and not dismissed
 }
 
 /**

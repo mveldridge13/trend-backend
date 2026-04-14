@@ -10,6 +10,7 @@ import {
   DiscretionaryInfo,
   GoalsInfo,
   TotalsInfo,
+  RolloverNotificationInfo,
 } from './dto/home-summary.dto';
 
 @Injectable()
@@ -70,18 +71,19 @@ export class HomeService {
       userTimezone
     );
 
-    // Calculate all components in parallel
-    const [income, committed, discretionary, goals] = await Promise.all([
+    // Calculate all components in parallel (including rollover notification)
+    const [income, committed, discretionary, goals, rolloverNotification] = await Promise.all([
       this.calculateIncome(user, periodBoundaries),
       this.calculateCommitted(userId, periodBoundaries),
       this.calculateDiscretionary(userId, periodBoundaries),
       this.calculateGoals(userId, periodBoundaries, frequency),
+      this.getRolloverNotification(userId),
     ]);
 
     // Calculate totals
     const totals = this.calculateTotals(income, committed, discretionary, goals);
 
-    return {
+    const response: HomeSummaryResponse = {
       period: {
         // Return date-only strings (YYYY-MM-DD) to avoid timezone issues
         start: format(periodBoundaries.start, 'yyyy-MM-dd'),
@@ -98,6 +100,13 @@ export class HomeService {
       },
       totals,
     };
+
+    // Include rollover notification if present (not dismissed)
+    if (rolloverNotification) {
+      response.rolloverNotification = rolloverNotification;
+    }
+
+    return response;
   }
 
   /**
@@ -463,6 +472,29 @@ export class HomeService {
     const nextPayDate = new Date(user.nextPayDate);
     const frequency = user.incomeFrequency;
 
+    // Check if this is a new user who hasn't completed a pay period yet
+    // New users have lastRolloverDate = null/undefined, meaning no rollover should be calculated
+    // We just need to advance their nextPayDate to the correct period
+    const isNewUser = !user.lastRolloverDate;
+
+    if (isNewUser) {
+      this.logger.log(`New user detected - skipping rollover calculation, just advancing pay period`);
+
+      const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          nextPayDate: newNextPayDate,
+          lastRolloverDate: new Date(), // Mark that we've handled initial setup
+          rolloverAmount: 0, // Ensure rollover starts at 0 for new users
+        },
+      });
+
+      this.logger.log(`New user pay period initialized. nextPayDate: ${format(newNextPayDate, 'yyyy-MM-dd')}`);
+      return updatedUser;
+    }
+
     // Calculate the PREVIOUS period boundaries (the period that just ended)
     const previousPeriodBoundaries = this.dateService.calculatePayPeriodBoundaries(
       nextPayDate,
@@ -659,5 +691,28 @@ export class HomeService {
     this.logger.log(`Previous period expenses (PAID only): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
 
     return Math.round(totalExpenses * 100) / 100;
+  }
+
+  /**
+   * Get rollover notification for the user (if not dismissed)
+   * Returns null if no notification or already dismissed
+   */
+  private async getRolloverNotification(userId: string): Promise<RolloverNotificationInfo | null> {
+    const notification = await this.prisma.rolloverNotification.findFirst({
+      where: {
+        userId,
+        dismissedAt: null,
+      },
+    });
+
+    if (!notification) {
+      return null;
+    }
+
+    return {
+      amount: Number(notification.amount),
+      fromPeriod: notification.fromPeriod,
+      createdAt: notification.createdAt.toISOString(),
+    };
   }
 }
