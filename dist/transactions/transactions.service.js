@@ -1772,20 +1772,54 @@ let TransactionsService = class TransactionsService {
                     100
                 : 0;
             let totalIncomeThisPayPeriod = 0;
+            let totalIncomePreviousPayPeriod = 0;
+            let payPeriodChangePercentage = 0;
             let totalIncomeThisWeek = 0;
+            let proratedPayPeriodIncome = 0;
+            let payPeriodTransactions = [];
             if (userProfile.nextPayDate && userProfile.incomeFrequency) {
                 const nextPayDate = new Date(userProfile.nextPayDate);
                 const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
+                if (projectedMonthlyIncome > 0) {
+                    proratedPayPeriodIncome = this.dateService.prorateMonthlyAmount(projectedMonthlyIncome, userProfile.incomeFrequency);
+                }
                 const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
-                const payPeriodTransactions = currentIncomeTransactions.filter((t) => {
+                const previousPeriodBoundaries = this.dateService.calculatePreviousPayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
+                const allRelevantTransactions = await this.transactionsRepository.findMany(userId, {
+                    startDate: previousPeriodBoundaries.start.toISOString(),
+                    endDate: periodBoundaries.end.toISOString(),
+                    type: client_2.TransactionType.INCOME,
+                    limit: 10000,
+                    offset: 0,
+                    sortBy: "date",
+                    sortOrder: "desc",
+                });
+                payPeriodTransactions = allRelevantTransactions.filter((t) => {
                     const transactionDate = new Date(t.date);
                     return (transactionDate >= periodBoundaries.start &&
                         transactionDate <= periodBoundaries.end);
                 });
-                totalIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
+                const previousPayPeriodTransactions = allRelevantTransactions.filter((t) => {
+                    const transactionDate = new Date(t.date);
+                    return (transactionDate >= previousPeriodBoundaries.start &&
+                        transactionDate <= previousPeriodBoundaries.end);
+                });
+                const transactionIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
                     const amount = Number(t.amount);
                     return sum + (isNaN(amount) ? 0 : Math.abs(amount));
                 }, 0);
+                const transactionIncomePreviousPayPeriod = previousPayPeriodTransactions.reduce((sum, t) => {
+                    const amount = Number(t.amount);
+                    return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+                }, 0);
+                totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod + proratedPayPeriodIncome;
+                totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod + proratedPayPeriodIncome;
+                payPeriodChangePercentage =
+                    totalIncomePreviousPayPeriod > 0
+                        ? ((totalIncomeThisPayPeriod - totalIncomePreviousPayPeriod) /
+                            totalIncomePreviousPayPeriod) *
+                            100
+                        : 0;
             }
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             const thisWeekTransactions = currentIncomeTransactions.filter((t) => {
@@ -1796,8 +1830,61 @@ let TransactionsService = class TransactionsService {
                 const amount = Number(t.amount);
                 return sum + (isNaN(amount) ? 0 : Math.abs(amount));
             }, 0);
+            const userSignupDate = new Date(userProfile.createdAt);
+            const signupMonth = userSignupDate.getMonth();
+            const signupDay = userSignupDate.getDate();
+            let currentAnniversaryStart = new Date(currentYear, signupMonth, signupDay);
+            if (currentAnniversaryStart > now) {
+                currentAnniversaryStart = new Date(currentYear - 1, signupMonth, signupDay);
+            }
+            const previousAnniversaryStart = new Date(currentAnniversaryStart.getFullYear() - 1, signupMonth, signupDay);
+            const daysIntoCurrentPeriod = Math.floor((now.getTime() - currentAnniversaryStart.getTime()) / (1000 * 60 * 60 * 24));
+            const previousAnniversaryEnd = new Date(previousAnniversaryStart);
+            previousAnniversaryEnd.setDate(previousAnniversaryEnd.getDate() + daysIntoCurrentPeriod);
+            const daysSinceSignup = Math.floor((now.getTime() - userSignupDate.getTime()) / (1000 * 60 * 60 * 24));
+            const hasFullYearData = daysSinceSignup >= 365;
+            const ytdTransactions = await this.transactionsRepository.findMany(userId, {
+                startDate: currentAnniversaryStart.toISOString(),
+                endDate: now.toISOString(),
+                type: client_2.TransactionType.INCOME,
+                limit: 10000,
+                offset: 0,
+            });
+            const transactionIncomeYTD = ytdTransactions.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
+            let transactionIncomeLastYearYTD = 0;
+            if (hasFullYearData) {
+                const lastYearYtdTransactions = await this.transactionsRepository.findMany(userId, {
+                    startDate: previousAnniversaryStart.toISOString(),
+                    endDate: previousAnniversaryEnd.toISOString(),
+                    type: client_2.TransactionType.INCOME,
+                    limit: 10000,
+                    offset: 0,
+                });
+                transactionIncomeLastYearYTD = lastYearYtdTransactions.reduce((sum, t) => {
+                    const amount = Number(t.amount);
+                    return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+                }, 0);
+            }
+            const monthsElapsed = daysIntoCurrentPeriod / 30;
+            const proratedYTDProfileIncome = projectedMonthlyIncome * monthsElapsed;
+            const totalIncomeYTD = transactionIncomeYTD + proratedYTDProfileIncome;
+            const totalIncomeLastYearYTD = hasFullYearData
+                ? transactionIncomeLastYearYTD + proratedYTDProfileIncome
+                : 0;
+            const ytdChangePercentage = hasFullYearData && totalIncomeLastYearYTD > 0
+                ? ((totalIncomeYTD - totalIncomeLastYearYTD) / totalIncomeLastYearYTD) * 100
+                : 0;
             const incomeBySourceMap = new Map();
-            currentIncomeTransactions.forEach((t) => {
+            const transactionsForBreakdown = payPeriodTransactions.length > 0
+                ? payPeriodTransactions
+                : currentIncomeTransactions;
+            const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
+                ? proratedPayPeriodIncome
+                : projectedMonthlyIncome;
+            transactionsForBreakdown.forEach((t) => {
                 const categoryId = t.categoryId || "uncategorized";
                 const categoryName = t.category?.name || "Uncategorized";
                 const amount = Math.abs(Number(t.amount)) || 0;
@@ -1818,12 +1905,12 @@ let TransactionsService = class TransactionsService {
                     });
                 }
             });
-            if (projectedMonthlyIncome > 0) {
+            if (profileIncomeForBreakdown > 0) {
                 incomeBySourceMap.set("profile_income", {
                     source: "Primary Income",
                     categoryId: "profile_income",
                     categoryName: "Primary Income",
-                    totalAmount: projectedMonthlyIncome,
+                    totalAmount: profileIncomeForBreakdown,
                     percentage: 0,
                     color: this.generateCategoryColor("Primary Income"),
                     transactionCount: 0,
@@ -1832,31 +1919,31 @@ let TransactionsService = class TransactionsService {
             const incomeBySource = Array.from(incomeBySourceMap.values())
                 .map((item) => ({
                 ...item,
-                percentage: totalIncomeThisMonth > 0
-                    ? (item.totalAmount / totalIncomeThisMonth) * 100
+                percentage: totalIncomeThisPayPeriod > 0
+                    ? (item.totalAmount / totalIncomeThisPayPeriod) * 100
                     : 0,
                 totalAmount: Math.round(item.totalAmount * 100) / 100,
             }))
                 .sort((a, b) => b.totalAmount - a.totalAmount);
-            const recurringIncome = currentIncomeTransactions.filter((t) => t.recurrence && t.recurrence !== "none");
-            const adhocIncome = currentIncomeTransactions.filter((t) => !t.recurrence || t.recurrence === "none");
+            const recurringIncome = transactionsForBreakdown.filter((t) => t.recurrence && t.recurrence !== "none");
+            const adhocIncome = transactionsForBreakdown.filter((t) => !t.recurrence || t.recurrence === "none");
             let recurringAmount = recurringIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
             let adhocAmount = adhocIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
-            if (projectedMonthlyIncome > 0) {
-                recurringAmount += projectedMonthlyIncome;
+            if (profileIncomeForBreakdown > 0) {
+                recurringAmount += profileIncomeForBreakdown;
             }
             const incomeBreakdown = {
                 recurring: {
                     amount: Math.round(recurringAmount * 100) / 100,
-                    percentage: totalIncomeThisMonth > 0
-                        ? (recurringAmount / totalIncomeThisMonth) * 100
+                    percentage: totalIncomeThisPayPeriod > 0
+                        ? (recurringAmount / totalIncomeThisPayPeriod) * 100
                         : 0,
                     transactionCount: recurringIncome.length,
                 },
                 adhoc: {
                     amount: Math.round(adhocAmount * 100) / 100,
-                    percentage: totalIncomeThisMonth > 0
-                        ? (adhocAmount / totalIncomeThisMonth) * 100
+                    percentage: totalIncomeThisPayPeriod > 0
+                        ? (adhocAmount / totalIncomeThisPayPeriod) * 100
                         : 0,
                     transactionCount: adhocIncome.length,
                 },
@@ -1878,7 +1965,15 @@ let TransactionsService = class TransactionsService {
                 totalIncomeThisPayPeriod: Math.round(totalIncomeThisPayPeriod * 100) / 100,
                 totalIncomeThisWeek: Math.round(totalIncomeThisWeek * 100) / 100,
                 previousMonthIncome: Math.round(previousMonthIncome * 100) / 100,
+                previousPayPeriodIncome: Math.round(totalIncomePreviousPayPeriod * 100) / 100,
                 monthChangePercentage: Math.round(monthChangePercentage * 100) / 100,
+                payPeriodChangePercentage: Math.round(payPeriodChangePercentage * 100) / 100,
+                totalIncomeYTD: Math.round(totalIncomeYTD * 100) / 100,
+                totalIncomeLastYearYTD: Math.round(totalIncomeLastYearYTD * 100) / 100,
+                ytdChangePercentage: Math.round(ytdChangePercentage * 100) / 100,
+                anniversaryStartDate: currentAnniversaryStart.toISOString(),
+                hasYearOverYearData: hasFullYearData,
+                daysSinceSignup,
                 incomeBySource,
                 incomeBreakdown,
                 recentIncomeEntries,
@@ -1905,7 +2000,15 @@ let TransactionsService = class TransactionsService {
                 totalIncomeThisPayPeriod: 0,
                 totalIncomeThisWeek: 0,
                 previousMonthIncome: 0,
+                previousPayPeriodIncome: 0,
                 monthChangePercentage: 0,
+                payPeriodChangePercentage: 0,
+                totalIncomeYTD: 0,
+                totalIncomeLastYearYTD: 0,
+                ytdChangePercentage: 0,
+                anniversaryStartDate: null,
+                hasYearOverYearData: false,
+                daysSinceSignup: 0,
                 incomeBySource: [],
                 incomeBreakdown: {
                     recurring: { amount: 0, percentage: 0, transactionCount: 0 },

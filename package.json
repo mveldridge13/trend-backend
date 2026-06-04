@@ -26,6 +26,7 @@
     "seed:categories": "npx ts-node scripts/seed-system-categories.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
     "@aws-sdk/client-secrets-manager": "^3.989.0",
     "@date-fns/tz": "^1.4.1",
     "@nestjs/common": "^10.0.0",

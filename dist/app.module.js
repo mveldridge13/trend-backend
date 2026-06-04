@@ -27,6 +27,7 @@ const common_module_1 = require("./common/common.module");
 const audit_module_1 = require("./audit/audit.module");
 const email_module_1 = require("./email/email.module");
 const home_module_1 = require("./home/home.module");
+const webhooks_module_1 = require("./webhooks/webhooks.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -56,6 +57,7 @@ exports.AppModule = AppModule = __decorate([
             goals_module_1.GoalsModule,
             poker_module_1.PokerModule,
             home_module_1.HomeModule,
+            webhooks_module_1.WebhooksModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

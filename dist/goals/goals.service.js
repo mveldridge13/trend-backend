@@ -8,15 +8,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var GoalsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GoalsService = void 0;
 const common_1 = require("@nestjs/common");
 const goals_repository_1 = require("./repositories/goals.repository");
+const prisma_service_1 = require("../database/prisma.service");
 const client_1 = require("@prisma/client");
 const date_fns_1 = require("date-fns");
-let GoalsService = class GoalsService {
-    constructor(goalsRepository) {
+let GoalsService = GoalsService_1 = class GoalsService {
+    constructor(goalsRepository, prisma) {
         this.goalsRepository = goalsRepository;
+        this.prisma = prisma;
+        this.logger = new common_1.Logger(GoalsService_1.name);
     }
     async createGoal(userId, createGoalDto) {
         let initialCurrentAmount = createGoalDto.currentAmount || 0;
@@ -557,12 +561,20 @@ let GoalsService = class GoalsService {
         return totalExpenses / 3;
     }
     async addRolloverContribution(userId, rolloverContributionDto) {
-        const { totalRolloverAmount, goalAllocations, description } = rolloverContributionDto;
-        const allocatedSum = goalAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-        if (Math.abs(allocatedSum - totalRolloverAmount) > 0.01) {
-            throw new common_1.BadRequestException(`Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`);
+        const { goalAllocations, description } = rolloverContributionDto;
+        const notification = await this.prisma.rolloverNotification.findFirst({
+            where: { userId, dismissedAt: null },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (!notification) {
+            throw new common_1.BadRequestException('No active rollover available to allocate');
         }
-        const contributionResults = [];
+        const availableRollover = Number(notification.amount);
+        const allocatedSum = goalAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+        if (allocatedSum > availableRollover + 0.01) {
+            throw new common_1.BadRequestException(`Cannot allocate ${allocatedSum} - only ${availableRollover} available in rollover`);
+        }
+        const goals = new Map();
         for (const allocation of goalAllocations) {
             const goal = await this.goalsRepository.findByUserAndGoalId(userId, allocation.goalId);
             if (!goal) {
@@ -571,53 +583,80 @@ let GoalsService = class GoalsService {
             if (goal.isCompleted) {
                 throw new common_1.BadRequestException(`Cannot add rollover contribution to completed goal: ${goal.name}`);
             }
-            const contributionData = {
-                amount: allocation.amount,
-                date: new Date(),
-                description: allocation.description || description || "Rollover contribution",
-                type: client_1.ContributionType.ROLLOVER,
-                goal: {
-                    connect: { id: allocation.goalId },
-                },
-                user: {
-                    connect: { id: userId },
-                },
-            };
-            const contribution = await this.goalsRepository.createContribution(contributionData);
-            let newCurrentAmount;
-            let isNowCompleted;
-            if (goal.type === "DEBT_PAYOFF") {
-                newCurrentAmount = goal.currentAmount.toNumber() - allocation.amount;
-                isNowCompleted = newCurrentAmount <= 0;
-                if (newCurrentAmount < 0) {
-                    newCurrentAmount = 0;
+            goals.set(allocation.goalId, goal);
+        }
+        const result = await this.prisma.$transaction(async (tx) => {
+            const contributionResults = [];
+            for (const allocation of goalAllocations) {
+                const goal = goals.get(allocation.goalId);
+                const contribution = await tx.goalContribution.create({
+                    data: {
+                        amount: allocation.amount,
+                        currency: goal.currency || 'USD',
+                        date: new Date(),
+                        description: allocation.description || description || 'Rollover contribution',
+                        type: client_1.ContributionType.ROLLOVER,
+                        goalId: allocation.goalId,
+                        userId: userId,
+                    },
+                });
+                let newCurrentAmount;
+                let isNowCompleted;
+                if (goal.type === 'DEBT_PAYOFF') {
+                    newCurrentAmount = Number(goal.currentAmount) - allocation.amount;
+                    isNowCompleted = newCurrentAmount <= 0;
+                    if (newCurrentAmount < 0) {
+                        newCurrentAmount = 0;
+                    }
                 }
+                else {
+                    newCurrentAmount = Number(goal.currentAmount) + allocation.amount;
+                    isNowCompleted = newCurrentAmount >= Number(goal.targetAmount);
+                }
+                await tx.goal.update({
+                    where: { id: allocation.goalId },
+                    data: {
+                        currentAmount: newCurrentAmount,
+                        isCompleted: isNowCompleted,
+                        completedAt: isNowCompleted ? new Date() : null,
+                    },
+                });
+                contributionResults.push({
+                    id: contribution.id,
+                    amount: Number(contribution.amount),
+                    currency: contribution.currency,
+                    date: contribution.date,
+                    description: contribution.description,
+                    type: contribution.type,
+                    transactionId: contribution.transactionId,
+                });
+            }
+            const remainingRollover = Math.max(0, availableRollover - allocatedSum);
+            if (remainingRollover < 0.01) {
+                await tx.rolloverNotification.update({
+                    where: { id: notification.id },
+                    data: { dismissedAt: new Date() },
+                });
+                this.logger.log(`Rollover fully allocated to goals. Notification dismissed.`);
             }
             else {
-                newCurrentAmount = goal.currentAmount.toNumber() + allocation.amount;
-                isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
+                await tx.rolloverNotification.update({
+                    where: { id: notification.id },
+                    data: { amount: remainingRollover },
+                });
+                this.logger.log(`Rollover partially allocated. ${remainingRollover} remaining.`);
             }
-            await this.goalsRepository.update(allocation.goalId, {
-                currentAmount: newCurrentAmount,
-                isCompleted: isNowCompleted,
-                completedAt: isNowCompleted ? new Date() : null,
-            });
-            contributionResults.push({
-                id: contribution.id,
-                amount: contribution.amount.toNumber(),
-                currency: contribution.currency,
-                date: contribution.date,
-                description: contribution.description,
-                type: contribution.type,
-                transactionId: contribution.transactionId,
-            });
-        }
-        return contributionResults;
+            this.logger.log(`Rollover allocation complete: ${allocatedSum} allocated to ${goalAllocations.length} goals. ` +
+                `Available: ${availableRollover}, Remaining: ${remainingRollover}`);
+            return contributionResults;
+        });
+        return result;
     }
 };
 exports.GoalsService = GoalsService;
-exports.GoalsService = GoalsService = __decorate([
+exports.GoalsService = GoalsService = GoalsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [goals_repository_1.GoalsRepository])
+    __metadata("design:paramtypes", [goals_repository_1.GoalsRepository,
+        prisma_service_1.PrismaService])
 ], GoalsService);
 //# sourceMappingURL=goals.service.js.map

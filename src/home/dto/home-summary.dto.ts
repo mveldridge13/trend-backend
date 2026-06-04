@@ -86,6 +86,24 @@ export interface RolloverNotificationInfo {
 }
 
 /**
+ * User subscription and profile info
+ */
+export interface UserInfo {
+  isPro: boolean;
+  proExpiresAt: string | null;
+}
+
+/**
+ * Feature flags based on subscription status
+ */
+export interface FeatureFlags {
+  spendingVelocityDetails: boolean;
+  advancedAnalytics: boolean;
+  exportData: boolean;
+  aiAssistant: boolean;
+}
+
+/**
  * Complete home summary response
  * This is the single source of truth for the Balance Card
  */
@@ -95,6 +113,8 @@ export interface HomeSummaryResponse {
   outflows: OutflowsInfo;
   totals: TotalsInfo;
   rolloverNotification?: RolloverNotificationInfo;  // Present if rollover occurred and not dismissed
+  user: UserInfo;
+  features: FeatureFlags;
 }
 
 /**

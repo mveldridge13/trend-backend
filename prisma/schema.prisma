@@ -36,6 +36,11 @@ model User {
   nextPayDate                 DateTime?
   rolloverAmount              Decimal?               @db.Decimal(12, 2)
   lastRolloverDate            DateTime?
+  // Subscription fields
+  isPro                       Boolean                @default(false)
+  proExpiresAt                DateTime?
+  subscriptionProvider        SubscriptionProvider?
+  rcCustomerId                String?                // RevenueCat customer ID
   budgets                     Budget[]
   categories                  Category[]
   goalContributions           GoalContribution[]
@@ -428,6 +433,12 @@ enum AuditEventType {
   PASSWORD_RESET_COMPLETE
   ACCOUNT_LOCKED
   TOKEN_REFRESH
+}
+
+enum SubscriptionProvider {
+  APPLE
+  GOOGLE
+  STRIPE
 }
 
 // Password history to prevent reuse

@@ -12,6 +12,7 @@ const client_1 = require("@prisma/client");
 const goals_controller_1 = require("./goals.controller");
 const goals_service_1 = require("./goals.service");
 const goals_repository_1 = require("./repositories/goals.repository");
+const prisma_service_1 = require("../database/prisma.service");
 let GoalsModule = class GoalsModule {
 };
 exports.GoalsModule = GoalsModule;
@@ -23,7 +24,7 @@ exports.GoalsModule = GoalsModule = __decorate([
             goals_repository_1.GoalsRepository,
             {
                 provide: client_1.PrismaClient,
-                useValue: new client_1.PrismaClient(),
+                useExisting: prisma_service_1.PrismaService,
             },
         ],
         exports: [goals_service_1.GoalsService, goals_repository_1.GoalsRepository],

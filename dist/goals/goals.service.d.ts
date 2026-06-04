@@ -1,4 +1,5 @@
 import { GoalsRepository } from "./repositories/goals.repository";
+import { PrismaService } from "../database/prisma.service";
 import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalFiltersDto } from "./dto/goal-filters.dto";
@@ -8,7 +9,9 @@ import { GoalResponseDto, GoalsListResponseDto, GoalAnalyticsDto, GoalContributi
 import { GoalSuggestionsResponseDto } from "./dto/goal-suggestions.dto";
 export declare class GoalsService {
     private readonly goalsRepository;
-    constructor(goalsRepository: GoalsRepository);
+    private readonly prisma;
+    private readonly logger;
+    constructor(goalsRepository: GoalsRepository, prisma: PrismaService);
     createGoal(userId: string, createGoalDto: CreateGoalDto): Promise<GoalResponseDto>;
     getGoals(userId: string, filters: GoalFiltersDto): Promise<GoalsListResponseDto>;
     getGoalById(userId: string, goalId: string): Promise<GoalResponseDto>;

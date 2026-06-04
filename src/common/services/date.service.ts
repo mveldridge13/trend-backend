@@ -341,8 +341,11 @@ export class DateService {
    * Returns true if today is on or after the next pay date
    */
   shouldTransitionPayPeriod(nextPayDate: Date, userTimezone: string = 'UTC'): boolean {
+    // Both dates must be in the same timezone for correct comparison
     const todayStart = startOfDay(this.getNowInUserTimezone(userTimezone));
-    const nextPayDateStart = startOfDay(nextPayDate);
+    // Convert nextPayDate to user's timezone before getting start of day
+    const nextPayDateInUserTz = new TZDate(nextPayDate, userTimezone);
+    const nextPayDateStart = startOfDay(nextPayDateInUserTz);
     return !isBefore(todayStart, nextPayDateStart);
   }
 
@@ -368,5 +371,36 @@ export class DateService {
    */
   prorateMonthlyAmount(monthlyAmount: number, frequency: IncomeFrequency): number {
     return monthlyAmount * this.getPayPeriodMultiplier(frequency);
+  }
+
+  /**
+   * Calculate the previous pay period boundaries (the period before the current one)
+   * Used for period-over-period comparisons
+   */
+  calculatePreviousPayPeriodBoundaries(
+    nextPayDate: Date,
+    frequency: IncomeFrequency,
+    userTimezone: string = 'UTC'
+  ): PayPeriodBoundaries {
+    const nextPayDateInUserTz = new TZDate(nextPayDate, userTimezone);
+
+    // Get the start of current period (which is the previous pay date)
+    const currentPeriodStart = this.calculatePreviousPayDate(nextPayDateInUserTz, frequency);
+
+    // The previous period ended the day before current period started
+    const previousPeriodEnd = endOfDay(subDays(currentPeriodStart, 1));
+
+    // The previous period started one frequency interval before that
+    const previousPeriodStart = startOfDay(this.calculatePreviousPayDate(currentPeriodStart, frequency));
+
+    const daysTotal = differenceInDays(previousPeriodEnd, previousPeriodStart) + 1;
+
+    return {
+      start: previousPeriodStart,
+      end: previousPeriodEnd,
+      frequency,
+      daysRemaining: 0,
+      daysTotal
+    };
   }
 }

@@ -43,4 +43,5 @@ export declare class DateService {
     shouldTransitionPayPeriod(nextPayDate: Date, userTimezone?: string): boolean;
     getPayPeriodMultiplier(frequency: IncomeFrequency): number;
     prorateMonthlyAmount(monthlyAmount: number, frequency: IncomeFrequency): number;
+    calculatePreviousPayPeriodBoundaries(nextPayDate: Date, frequency: IncomeFrequency, userTimezone?: string): PayPeriodBoundaries;
 }

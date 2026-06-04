@@ -184,7 +184,8 @@ let DateService = class DateService {
     }
     shouldTransitionPayPeriod(nextPayDate, userTimezone = 'UTC') {
         const todayStart = (0, date_fns_1.startOfDay)(this.getNowInUserTimezone(userTimezone));
-        const nextPayDateStart = (0, date_fns_1.startOfDay)(nextPayDate);
+        const nextPayDateInUserTz = new tz_1.TZDate(nextPayDate, userTimezone);
+        const nextPayDateStart = (0, date_fns_1.startOfDay)(nextPayDateInUserTz);
         return !(0, date_fns_1.isBefore)(todayStart, nextPayDateStart);
     }
     getPayPeriodMultiplier(frequency) {
@@ -201,6 +202,20 @@ let DateService = class DateService {
     }
     prorateMonthlyAmount(monthlyAmount, frequency) {
         return monthlyAmount * this.getPayPeriodMultiplier(frequency);
+    }
+    calculatePreviousPayPeriodBoundaries(nextPayDate, frequency, userTimezone = 'UTC') {
+        const nextPayDateInUserTz = new tz_1.TZDate(nextPayDate, userTimezone);
+        const currentPeriodStart = this.calculatePreviousPayDate(nextPayDateInUserTz, frequency);
+        const previousPeriodEnd = (0, date_fns_1.endOfDay)((0, date_fns_1.subDays)(currentPeriodStart, 1));
+        const previousPeriodStart = (0, date_fns_1.startOfDay)(this.calculatePreviousPayDate(currentPeriodStart, frequency));
+        const daysTotal = (0, date_fns_1.differenceInDays)(previousPeriodEnd, previousPeriodStart) + 1;
+        return {
+            start: previousPeriodStart,
+            end: previousPeriodEnd,
+            frequency,
+            daysRemaining: 0,
+            daysTotal
+        };
     }
 };
 exports.DateService = DateService;

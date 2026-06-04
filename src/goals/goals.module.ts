@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { GoalsController } from "./goals.controller";
 import { GoalsService } from "./goals.service";
 import { GoalsRepository } from "./repositories/goals.repository";
+import { PrismaService } from "../database/prisma.service";
 
 @Module({
   controllers: [GoalsController],
@@ -11,7 +12,7 @@ import { GoalsRepository } from "./repositories/goals.repository";
     GoalsRepository,
     {
       provide: PrismaClient,
-      useValue: new PrismaClient(),
+      useExisting: PrismaService,
     },
   ],
   exports: [GoalsService, GoalsRepository],

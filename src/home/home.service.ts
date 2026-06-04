@@ -11,6 +11,8 @@ import {
   GoalsInfo,
   TotalsInfo,
   RolloverNotificationInfo,
+  UserInfo,
+  FeatureFlags,
 } from './dto/home-summary.dto';
 
 @Injectable()
@@ -38,7 +40,7 @@ export class HomeService {
 
     // Check if user has pay period setup
     if (!user.nextPayDate || !user.incomeFrequency) {
-      return this.getEmptySummary();
+      return this.getEmptySummary(user);
     }
 
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
@@ -83,6 +85,9 @@ export class HomeService {
     // Calculate totals
     const totals = this.calculateTotals(income, committed, discretionary, goals);
 
+    // Check if Pro subscription is still valid
+    const isPro = this.isProActive(user);
+
     const response: HomeSummaryResponse = {
       period: {
         // Return date-only strings (YYYY-MM-DD) to avoid timezone issues
@@ -99,6 +104,11 @@ export class HomeService {
         goals,
       },
       totals,
+      user: {
+        isPro,
+        proExpiresAt: user.proExpiresAt?.toISOString() || null,
+      },
+      features: this.getFeatureFlags(isPro),
     };
 
     // Include rollover notification if present (not dismissed)
@@ -107,6 +117,27 @@ export class HomeService {
     }
 
     return response;
+  }
+
+  /**
+   * Check if user's Pro subscription is currently active
+   */
+  private isProActive(user: any): boolean {
+    if (!user.isPro) return false;
+    if (!user.proExpiresAt) return true;
+    return new Date(user.proExpiresAt) > new Date();
+  }
+
+  /**
+   * Get feature flags based on subscription status
+   */
+  private getFeatureFlags(isPro: boolean): FeatureFlags {
+    return {
+      spendingVelocityDetails: isPro,
+      advancedAnalytics: isPro,
+      exportData: isPro,
+      aiAssistant: isPro,
+    };
   }
 
   /**
@@ -151,10 +182,11 @@ export class HomeService {
 
   /**
    * Calculate committed expenses (recurring bills, scheduled payments)
-   * A transaction is committed if:
-   * - status is UPCOMING or OVERDUE
-   * - OR has recurrence (not 'none')
-   * - OR has a dueDate
+   * A transaction is committed if it has:
+   * - recurrence (not 'none' or empty)
+   * - OR a dueDate
+   * Note: status=PAID alone does NOT make a transaction committed.
+   * One-off paid expenses with no dueDate/recurrence are discretionary.
    */
   private async calculateCommitted(
     userId: string,
@@ -167,10 +199,10 @@ export class HomeService {
         userId,
         type: TransactionType.EXPENSE,
         AND: [
-          // Condition 1: Is a committed transaction (has status, recurrence, or dueDate)
+          // Condition 1: Is a committed transaction (recurring OR has a due date)
+          // Note: status alone doesn't make something committed - PAID one-off expenses are discretionary
           {
             OR: [
-              { status: { in: [PaymentStatus.UPCOMING, PaymentStatus.OVERDUE, PaymentStatus.PAID] } },
               { recurrence: { notIn: ['none', ''] } },
               { dueDate: { not: null } },
             ],
@@ -415,8 +447,9 @@ export class HomeService {
   /**
    * Return empty summary when user hasn't set up pay period
    */
-  private getEmptySummary(): HomeSummaryResponse {
+  private getEmptySummary(user?: any): HomeSummaryResponse {
     const today = format(new Date(), 'yyyy-MM-dd');
+    const isPro = user ? this.isProActive(user) : false;
     return {
       period: {
         start: today,
@@ -454,6 +487,11 @@ export class HomeService {
         totalExpensesAllocated: 0,
         leftToSpendSafe: 0,
       },
+      user: {
+        isPro,
+        proExpiresAt: user?.proExpiresAt?.toISOString() || null,
+      },
+      features: this.getFeatureFlags(isPro),
     };
   }
 
@@ -695,7 +733,10 @@ export class HomeService {
 
   /**
    * Get rollover notification for the user (if not dismissed)
-   * Returns null if no notification or already dismissed
+   * Returns null if no notification, already dismissed, or auto-expired (3+ days old)
+   *
+   * Auto-expiry: After 3 days, the notification is automatically dismissed
+   * and the rollover amount stays in the spendable pool.
    */
   private async getRolloverNotification(userId: string): Promise<RolloverNotificationInfo | null> {
     const notification = await this.prisma.rolloverNotification.findFirst({
@@ -706,6 +747,24 @@ export class HomeService {
     });
 
     if (!notification) {
+      return null;
+    }
+
+    // Check if notification is older than 3 days (auto-expiry)
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+    const notificationAge = Date.now() - notification.createdAt.getTime();
+
+    if (notificationAge > THREE_DAYS_MS) {
+      // Auto-dismiss expired notification
+      await this.prisma.rolloverNotification.update({
+        where: { id: notification.id },
+        data: { dismissedAt: new Date() },
+      });
+
+      this.logger.log(
+        `Rollover notification auto-dismissed after 3 days. Amount ${notification.amount} stays in spendable pool.`,
+      );
+
       return null;
     }
 

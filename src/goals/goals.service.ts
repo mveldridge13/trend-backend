@@ -2,8 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { GoalsRepository } from "./repositories/goals.repository";
+import { PrismaService } from "../database/prisma.service";
 import {
   Goal,
   GoalContribution,
@@ -33,7 +35,12 @@ import { differenceInMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
 @Injectable()
 export class GoalsService {
-  constructor(private readonly goalsRepository: GoalsRepository) {}
+  private readonly logger = new Logger(GoalsService.name);
+
+  constructor(
+    private readonly goalsRepository: GoalsRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // Core CRUD Operations
   async createGoal(
@@ -849,30 +856,44 @@ export class GoalsService {
   }
 
   // ============================================================================
-  // ROLLOVER CONTRIBUTION METHODS - NEW SECTION
+  // ROLLOVER CONTRIBUTION METHODS - Atomic rollover allocation to goals
   // ============================================================================
 
   async addRolloverContribution(
     userId: string,
     rolloverContributionDto: RolloverContributionDto,
   ): Promise<GoalContributionResponseDto[]> {
-    const { totalRolloverAmount, goalAllocations, description } =
-      rolloverContributionDto;
+    const { goalAllocations, description } = rolloverContributionDto;
 
-    // Verify the allocations sum to total rollover amount
+    // Get active rollover notification to check available amount
+    // We use notification.amount (not user.rolloverAmount) because:
+    // - user.rolloverAmount is part of totalInflow for the period
+    // - notification.amount tracks remaining allocation available
+    const notification = await this.prisma.rolloverNotification.findFirst({
+      where: { userId, dismissedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!notification) {
+      throw new BadRequestException('No active rollover available to allocate');
+    }
+
+    const availableRollover = Number(notification.amount);
+
+    // Validate allocation amount doesn't exceed available rollover
     const allocatedSum = goalAllocations.reduce(
       (sum, allocation) => sum + allocation.amount,
       0,
     );
-    if (Math.abs(allocatedSum - totalRolloverAmount) > 0.01) {
+
+    if (allocatedSum > availableRollover + 0.01) {
       throw new BadRequestException(
-        `Goal allocations (${allocatedSum}) must sum to total rollover amount (${totalRolloverAmount})`,
+        `Cannot allocate ${allocatedSum} - only ${availableRollover} available in rollover`,
       );
     }
 
-    const contributionResults: GoalContributionResponseDto[] = [];
-
-    // Process each goal allocation
+    // Validate all goals exist and are not completed before starting transaction
+    const goals: Map<string, any> = new Map();
     for (const allocation of goalAllocations) {
       const goal = await this.goalsRepository.findByUserAndGoalId(
         userId,
@@ -891,58 +912,97 @@ export class GoalsService {
         );
       }
 
-      // Create rollover contribution
-      const contributionData = {
-        amount: allocation.amount,
-        date: new Date(),
-        description:
-          allocation.description || description || "Rollover contribution",
-        type: ContributionType.ROLLOVER,
-        goal: {
-          connect: { id: allocation.goalId },
-        },
-        user: {
-          connect: { id: userId },
-        },
-      };
-
-      const contribution =
-        await this.goalsRepository.createContribution(contributionData);
-
-      // Update goal progress (same logic as regular contributions)
-      let newCurrentAmount: number;
-      let isNowCompleted: boolean;
-
-      if (goal.type === "DEBT_PAYOFF") {
-        // For debt goals, subtract the payment from current debt
-        newCurrentAmount = goal.currentAmount.toNumber() - allocation.amount;
-        isNowCompleted = newCurrentAmount <= 0;
-        if (newCurrentAmount < 0) {
-          newCurrentAmount = 0;
-        }
-      } else {
-        // For savings goals, add to current amount
-        newCurrentAmount = goal.currentAmount.toNumber() + allocation.amount;
-        isNowCompleted = newCurrentAmount >= goal.targetAmount.toNumber();
-      }
-
-      await this.goalsRepository.update(allocation.goalId, {
-        currentAmount: newCurrentAmount,
-        isCompleted: isNowCompleted,
-        completedAt: isNowCompleted ? new Date() : null,
-      });
-
-      contributionResults.push({
-        id: contribution.id,
-        amount: contribution.amount.toNumber(),
-        currency: contribution.currency,
-        date: contribution.date,
-        description: contribution.description,
-        type: contribution.type,
-        transactionId: contribution.transactionId,
-      });
+      goals.set(allocation.goalId, goal);
     }
 
-    return contributionResults;
+    // Execute everything in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const contributionResults: GoalContributionResponseDto[] = [];
+
+      // Process each goal allocation
+      for (const allocation of goalAllocations) {
+        const goal = goals.get(allocation.goalId);
+
+        // Create rollover contribution
+        const contribution = await tx.goalContribution.create({
+          data: {
+            amount: allocation.amount,
+            currency: goal.currency || 'USD',
+            date: new Date(),
+            description:
+              allocation.description || description || 'Rollover contribution',
+            type: ContributionType.ROLLOVER,
+            goalId: allocation.goalId,
+            userId: userId,
+          },
+        });
+
+        // Calculate new goal progress
+        let newCurrentAmount: number;
+        let isNowCompleted: boolean;
+
+        if (goal.type === 'DEBT_PAYOFF') {
+          newCurrentAmount = Number(goal.currentAmount) - allocation.amount;
+          isNowCompleted = newCurrentAmount <= 0;
+          if (newCurrentAmount < 0) {
+            newCurrentAmount = 0;
+          }
+        } else {
+          newCurrentAmount = Number(goal.currentAmount) + allocation.amount;
+          isNowCompleted = newCurrentAmount >= Number(goal.targetAmount);
+        }
+
+        // Update goal
+        await tx.goal.update({
+          where: { id: allocation.goalId },
+          data: {
+            currentAmount: newCurrentAmount,
+            isCompleted: isNowCompleted,
+            completedAt: isNowCompleted ? new Date() : null,
+          },
+        });
+
+        contributionResults.push({
+          id: contribution.id,
+          amount: Number(contribution.amount),
+          currency: contribution.currency,
+          date: contribution.date,
+          description: contribution.description,
+          type: contribution.type,
+          transactionId: contribution.transactionId,
+        });
+      }
+
+      // Calculate remaining rollover after allocation
+      // NOTE: We do NOT update user.rolloverAmount - that stays constant for the period
+      // because it's part of totalInflow. Reducing it would double-count against leftToSpend.
+      const remainingRollover = Math.max(0, availableRollover - allocatedSum);
+
+      // Handle rollover notification
+      if (remainingRollover < 0.01) {
+        // Fully allocated - dismiss notification
+        await tx.rolloverNotification.update({
+          where: { id: notification.id },
+          data: { dismissedAt: new Date() },
+        });
+        this.logger.log(`Rollover fully allocated to goals. Notification dismissed.`);
+      } else {
+        // Partially allocated - update notification with remaining amount
+        await tx.rolloverNotification.update({
+          where: { id: notification.id },
+          data: { amount: remainingRollover },
+        });
+        this.logger.log(`Rollover partially allocated. ${remainingRollover} remaining.`);
+      }
+
+      this.logger.log(
+        `Rollover allocation complete: ${allocatedSum} allocated to ${goalAllocations.length} goals. ` +
+        `Available: ${availableRollover}, Remaining: ${remainingRollover}`,
+      );
+
+      return contributionResults;
+    });
+
+    return result;
   }
 }

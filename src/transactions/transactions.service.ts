@@ -2624,22 +2624,53 @@ export class TransactionsService {
             100
           : 0;
 
-      // Calculate pay period income
+      // Calculate pay period income with period-over-period comparison
       let totalIncomeThisPayPeriod = 0;
+      let totalIncomePreviousPayPeriod = 0;
+      let payPeriodChangePercentage = 0;
       let totalIncomeThisWeek = 0;
+      let proratedPayPeriodIncome = 0;
+      let payPeriodTransactions: typeof currentIncomeTransactions = [];
 
       if (userProfile.nextPayDate && userProfile.incomeFrequency) {
         const nextPayDate = new Date(userProfile.nextPayDate);
         const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
 
-        // Use DateService for consistent pay period calculations
+        // Calculate prorated profile income for pay period
+        if (projectedMonthlyIncome > 0) {
+          proratedPayPeriodIncome = this.dateService.prorateMonthlyAmount(
+            projectedMonthlyIncome,
+            userProfile.incomeFrequency
+          );
+        }
+
+        // Current pay period boundaries
         const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(
           nextPayDate,
           userProfile.incomeFrequency,
           userTimezone
         );
 
-        const payPeriodTransactions = currentIncomeTransactions.filter((t) => {
+        // Previous pay period boundaries (for comparison)
+        const previousPeriodBoundaries = this.dateService.calculatePreviousPayPeriodBoundaries(
+          nextPayDate,
+          userProfile.incomeFrequency,
+          userTimezone
+        );
+
+        // Get all income transactions that could fall in either period
+        const allRelevantTransactions = await this.transactionsRepository.findMany(userId, {
+          startDate: previousPeriodBoundaries.start.toISOString(),
+          endDate: periodBoundaries.end.toISOString(),
+          type: TransactionType.INCOME,
+          limit: 10000,
+          offset: 0,
+          sortBy: "date",
+          sortOrder: "desc",
+        } as TransactionFilterDto);
+
+        // Filter for current pay period (store in outer scope variable)
+        payPeriodTransactions = allRelevantTransactions.filter((t) => {
           const transactionDate = new Date(t.date);
           return (
             transactionDate >= periodBoundaries.start &&
@@ -2647,10 +2678,36 @@ export class TransactionsService {
           );
         });
 
-        totalIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
+        // Filter for previous pay period
+        const previousPayPeriodTransactions = allRelevantTransactions.filter((t) => {
+          const transactionDate = new Date(t.date);
+          return (
+            transactionDate >= previousPeriodBoundaries.start &&
+            transactionDate <= previousPeriodBoundaries.end
+          );
+        });
+
+        const transactionIncomeThisPayPeriod = payPeriodTransactions.reduce((sum, t) => {
           const amount = Number(t.amount);
           return sum + (isNaN(amount) ? 0 : Math.abs(amount));
         }, 0);
+
+        const transactionIncomePreviousPayPeriod = previousPayPeriodTransactions.reduce((sum, t) => {
+          const amount = Number(t.amount);
+          return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+        }, 0);
+
+        // Include prorated profile income in totals
+        totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod + proratedPayPeriodIncome;
+        totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod + proratedPayPeriodIncome;
+
+        // Calculate pay period change percentage
+        payPeriodChangePercentage =
+          totalIncomePreviousPayPeriod > 0
+            ? ((totalIncomeThisPayPeriod - totalIncomePreviousPayPeriod) /
+                totalIncomePreviousPayPeriod) *
+              100
+            : 0;
       }
 
       // Calculate this week's income
@@ -2665,11 +2722,101 @@ export class TransactionsService {
         return sum + (isNaN(amount) ? 0 : Math.abs(amount));
       }, 0);
 
-      // Group income by source (category) - enhanced with profile data
+      // Calculate Anniversary Year-to-Date (YTD) income
+      // Based on user's signup date, not calendar year
+      const userSignupDate = new Date(userProfile.createdAt);
+      const signupMonth = userSignupDate.getMonth();
+      const signupDay = userSignupDate.getDate();
+
+      // Find the most recent anniversary date
+      let currentAnniversaryStart = new Date(currentYear, signupMonth, signupDay);
+      if (currentAnniversaryStart > now) {
+        // Anniversary hasn't happened yet this year, use last year's
+        currentAnniversaryStart = new Date(currentYear - 1, signupMonth, signupDay);
+      }
+
+      // Previous anniversary period for comparison
+      const previousAnniversaryStart = new Date(
+        currentAnniversaryStart.getFullYear() - 1,
+        signupMonth,
+        signupDay
+      );
+
+      // Calculate days elapsed since current anniversary
+      const daysIntoCurrentPeriod = Math.floor(
+        (now.getTime() - currentAnniversaryStart.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Same relative point in previous anniversary year
+      const previousAnniversaryEnd = new Date(previousAnniversaryStart);
+      previousAnniversaryEnd.setDate(previousAnniversaryEnd.getDate() + daysIntoCurrentPeriod);
+
+      // Check if user has been using app for more than 1 year
+      const daysSinceSignup = Math.floor(
+        (now.getTime() - userSignupDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const hasFullYearData = daysSinceSignup >= 365;
+
+      // Fetch current anniversary period transactions
+      const ytdTransactions = await this.transactionsRepository.findMany(userId, {
+        startDate: currentAnniversaryStart.toISOString(),
+        endDate: now.toISOString(),
+        type: TransactionType.INCOME,
+        limit: 10000,
+        offset: 0,
+      } as TransactionFilterDto);
+
+      const transactionIncomeYTD = ytdTransactions.reduce((sum, t) => {
+        const amount = Number(t.amount);
+        return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+      }, 0);
+
+      let transactionIncomeLastYearYTD = 0;
+      if (hasFullYearData) {
+        // Only fetch comparison data if user has been using app > 1 year
+        const lastYearYtdTransactions = await this.transactionsRepository.findMany(userId, {
+          startDate: previousAnniversaryStart.toISOString(),
+          endDate: previousAnniversaryEnd.toISOString(),
+          type: TransactionType.INCOME,
+          limit: 10000,
+          offset: 0,
+        } as TransactionFilterDto);
+
+        transactionIncomeLastYearYTD = lastYearYtdTransactions.reduce((sum, t) => {
+          const amount = Number(t.amount);
+          return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+        }, 0);
+      }
+
+      // Calculate months elapsed since anniversary for prorated profile income
+      const monthsElapsed = daysIntoCurrentPeriod / 30;
+      const proratedYTDProfileIncome = projectedMonthlyIncome * monthsElapsed;
+
+      const totalIncomeYTD = transactionIncomeYTD + proratedYTDProfileIncome;
+      const totalIncomeLastYearYTD = hasFullYearData
+        ? transactionIncomeLastYearYTD + proratedYTDProfileIncome
+        : 0;
+
+      const ytdChangePercentage =
+        hasFullYearData && totalIncomeLastYearYTD > 0
+          ? ((totalIncomeYTD - totalIncomeLastYearYTD) / totalIncomeLastYearYTD) * 100
+          : 0;
+
+      // Group income by source (category) - using pay period transactions
       const incomeBySourceMap = new Map();
 
+      // Use pay period transactions if available, otherwise fall back to monthly
+      const transactionsForBreakdown = payPeriodTransactions.length > 0
+        ? payPeriodTransactions
+        : currentIncomeTransactions;
+
+      // Use prorated income for pay period if available, otherwise monthly
+      const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
+        ? proratedPayPeriodIncome
+        : projectedMonthlyIncome;
+
       // Add transaction-based income sources
-      currentIncomeTransactions.forEach((t) => {
+      transactionsForBreakdown.forEach((t) => {
         const categoryId = t.categoryId || "uncategorized";
         const categoryName = (t as any).category?.name || "Uncategorized";
         const amount = Math.abs(Number(t.amount)) || 0;
@@ -2691,36 +2838,36 @@ export class TransactionsService {
         }
       });
 
-      // ✅ FIX: Always add profile income as "Primary Income" when it exists
-      if (projectedMonthlyIncome > 0) {
+      // Add profile income as "Primary Income" (prorated for pay period)
+      if (profileIncomeForBreakdown > 0) {
         incomeBySourceMap.set("profile_income", {
           source: "Primary Income",
           categoryId: "profile_income",
           categoryName: "Primary Income",
-          totalAmount: projectedMonthlyIncome,
-          percentage: 0, // Will be calculated later based on total income
+          totalAmount: profileIncomeForBreakdown,
+          percentage: 0,
           color: this.generateCategoryColor("Primary Income"),
-          transactionCount: 0, // Profile-based, not transactions
+          transactionCount: 0,
         });
       }
 
-      // Calculate percentages and convert to array
+      // Calculate percentages based on pay period total
       const incomeBySource = Array.from(incomeBySourceMap.values())
         .map((item) => ({
           ...item,
           percentage:
-            totalIncomeThisMonth > 0
-              ? (item.totalAmount / totalIncomeThisMonth) * 100
+            totalIncomeThisPayPeriod > 0
+              ? (item.totalAmount / totalIncomeThisPayPeriod) * 100
               : 0,
           totalAmount: Math.round(item.totalAmount * 100) / 100,
         }))
         .sort((a, b) => b.totalAmount - a.totalAmount);
 
-      // Detect recurring vs ad-hoc income (enhanced with profile data)
-      const recurringIncome = currentIncomeTransactions.filter(
+      // Detect recurring vs ad-hoc income (using pay period transactions)
+      const recurringIncome = transactionsForBreakdown.filter(
         (t) => t.recurrence && t.recurrence !== "none",
       );
-      const adhocIncome = currentIncomeTransactions.filter(
+      const adhocIncome = transactionsForBreakdown.filter(
         (t) => !t.recurrence || t.recurrence === "none",
       );
 
@@ -2733,25 +2880,25 @@ export class TransactionsService {
         0,
       );
 
-      // ✅ FIX: Always add profile income to recurring amount when it exists
-      if (projectedMonthlyIncome > 0) {
-        recurringAmount += projectedMonthlyIncome;
+      // Add prorated profile income to recurring amount
+      if (profileIncomeForBreakdown > 0) {
+        recurringAmount += profileIncomeForBreakdown;
       }
 
       const incomeBreakdown = {
         recurring: {
           amount: Math.round(recurringAmount * 100) / 100,
           percentage:
-            totalIncomeThisMonth > 0
-              ? (recurringAmount / totalIncomeThisMonth) * 100
+            totalIncomeThisPayPeriod > 0
+              ? (recurringAmount / totalIncomeThisPayPeriod) * 100
               : 0,
           transactionCount: recurringIncome.length,
         },
         adhoc: {
           amount: Math.round(adhocAmount * 100) / 100,
           percentage:
-            totalIncomeThisMonth > 0
-              ? (adhocAmount / totalIncomeThisMonth) * 100
+            totalIncomeThisPayPeriod > 0
+              ? (adhocAmount / totalIncomeThisPayPeriod) * 100
               : 0,
           transactionCount: adhocIncome.length,
         },
@@ -2787,7 +2934,15 @@ export class TransactionsService {
           Math.round(totalIncomeThisPayPeriod * 100) / 100,
         totalIncomeThisWeek: Math.round(totalIncomeThisWeek * 100) / 100,
         previousMonthIncome: Math.round(previousMonthIncome * 100) / 100,
+        previousPayPeriodIncome: Math.round(totalIncomePreviousPayPeriod * 100) / 100,
         monthChangePercentage: Math.round(monthChangePercentage * 100) / 100,
+        payPeriodChangePercentage: Math.round(payPeriodChangePercentage * 100) / 100,
+        totalIncomeYTD: Math.round(totalIncomeYTD * 100) / 100,
+        totalIncomeLastYearYTD: Math.round(totalIncomeLastYearYTD * 100) / 100,
+        ytdChangePercentage: Math.round(ytdChangePercentage * 100) / 100,
+        anniversaryStartDate: currentAnniversaryStart.toISOString(),
+        hasYearOverYearData: hasFullYearData,
+        daysSinceSignup,
         incomeBySource,
         incomeBreakdown,
         recentIncomeEntries,
@@ -2819,7 +2974,15 @@ export class TransactionsService {
         totalIncomeThisPayPeriod: 0,
         totalIncomeThisWeek: 0,
         previousMonthIncome: 0,
+        previousPayPeriodIncome: 0,
         monthChangePercentage: 0,
+        payPeriodChangePercentage: 0,
+        totalIncomeYTD: 0,
+        totalIncomeLastYearYTD: 0,
+        ytdChangePercentage: 0,
+        anniversaryStartDate: null,
+        hasYearOverYearData: false,
+        daysSinceSignup: 0,
         incomeBySource: [],
         incomeBreakdown: {
           recurring: { amount: 0, percentage: 0, transactionCount: 0 },
