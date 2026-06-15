@@ -10,7 +10,7 @@ import {
   Min,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
-import { GoalCategory, GoalPriority, LoanTerm } from "@prisma/client";
+import { GoalCategory, GoalPriority, GoalType, LoanTerm } from "@prisma/client";
 
 export class UpdateGoalDto {
   @IsOptional()
@@ -97,6 +97,12 @@ export class UpdateGoalDto {
   @Type(() => Number)
   @Min(0)
   minimumPayment?: number;
+
+  // Accepted for validation (frontend echoes it back) but type is immutable
+  // on update, so it is stripped before persisting in the service.
+  @IsOptional()
+  @IsEnum(GoalType)
+  type?: GoalType;
 
   // Frontend-only field - accepted but not persisted to database
   @IsOptional()

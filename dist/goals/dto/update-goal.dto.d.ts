@@ -1,4 +1,4 @@
-import { GoalCategory, GoalPriority, LoanTerm } from "@prisma/client";
+import { GoalCategory, GoalPriority, GoalType, LoanTerm } from "@prisma/client";
 export declare class UpdateGoalDto {
     name?: string;
     description?: string;
@@ -17,5 +17,6 @@ export declare class UpdateGoalDto {
     loanTerm?: LoanTerm;
     interestRate?: number;
     minimumPayment?: number;
+    type?: GoalType;
     showOnBalanceCard?: boolean;
 }

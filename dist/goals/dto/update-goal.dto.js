@@ -120,6 +120,11 @@ __decorate([
 ], UpdateGoalDto.prototype, "minimumPayment", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.GoalType),
+    __metadata("design:type", String)
+], UpdateGoalDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
     (0, class_transformer_1.Transform)(({ value }) => value === "true" || value === true),
     __metadata("design:type", Boolean)

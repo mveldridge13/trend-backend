@@ -76,7 +76,7 @@ let GoalsService = GoalsService_1 = class GoalsService {
         if (!existingGoal) {
             throw new common_1.NotFoundException("Goal not found");
         }
-        const { showOnBalanceCard, ...dtoWithoutFrontendFields } = updateGoalDto;
+        const { showOnBalanceCard, type, ...dtoWithoutFrontendFields } = updateGoalDto;
         const updateData = {
             ...dtoWithoutFrontendFields,
             targetDate: updateGoalDto.targetDate

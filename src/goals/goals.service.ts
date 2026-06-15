@@ -146,8 +146,11 @@ export class GoalsService {
       throw new NotFoundException("Goal not found");
     }
 
-    // Strip out frontend-only fields before saving to database
-    const { showOnBalanceCard, ...dtoWithoutFrontendFields } = updateGoalDto;
+    // Strip out frontend-only fields before saving to database.
+    // `type` is immutable on update; it is accepted for validation (the
+    // frontend echoes it back on edits/payments) but never persisted.
+    const { showOnBalanceCard, type, ...dtoWithoutFrontendFields } =
+      updateGoalDto;
 
     // Handle completion
     const updateData: any = {
