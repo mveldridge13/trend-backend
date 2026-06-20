@@ -690,6 +690,30 @@ npx prisma migrate resolve --applied <migration-name>
 npm run db:reset
 ```
 
+#### 6. AWS Secrets Manager `CredentialsProviderError` on ECS
+
+**Problem**: Startup logs show
+`Failed to fetch secret trend-backend/production: CredentialsProviderError: Could not load credentials from any providers`
+
+**Cause**: There are two independent secrets mechanisms on ECS:
+1. **ECS-native injection** (the `secrets` block in the task definition) — ECS fetches
+   `DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM` at container launch using the
+   **execution role** (`trendECSTaskExecutionRole`, which has `SecretsManagerReadWrite`) and
+   injects them as env vars. This is the path the app actually relies on.
+2. **App-level SDK fetch** (`SecretsService`, gated by `USE_AWS_SECRETS=true`) — runs at runtime
+   using the **task role**. The task definition has **no task role** (`taskRoleArn: null`), so the
+   SDK has no credentials and throws. `SecretsService.get()` falls back to `process.env`, so the
+   error is harmless noise, but it should not run.
+
+**Fix (applied on task-definition revision `trend-backend-task:4`)**: set `USE_AWS_SECRETS=false`
+in the task definition `environment`. This disables the redundant SDK fetch; the app reads the
+ECS-injected env vars directly.
+
+> ⚠️ **Keep this from regressing**: the task definition lives only in AWS, not in this repo. If a
+> task definition is ever re-registered from an older template, it may reintroduce
+> `USE_AWS_SECRETS=true` and the error returns. Either keep `USE_AWS_SECRETS=false`, or add a task
+> role with `secretsmanager:GetSecretValue` if you want the app-level SDK fetch to actually work.
+
 ### Debugging Techniques
 
 #### 1. Enable Detailed Logging
