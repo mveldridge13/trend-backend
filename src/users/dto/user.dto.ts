@@ -1,5 +1,6 @@
 import { IncomeFrequency } from "@prisma/client";
 import { RolloverEntryDto } from "./rollover-entry.dto";
+import { ModuleSettings } from "../module-settings";
 
 export class UserDto {
   id: string;
@@ -30,4 +31,7 @@ export class UserDto {
   hasSeenBalanceCardTour: boolean;
   hasSeenAddTransactionTour: boolean;
   hasSeenTransactionSwipeTour: boolean;
+
+  // Per-user feature module toggles (defaults applied on read)
+  moduleSettings: ModuleSettings;
 }

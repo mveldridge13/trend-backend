@@ -8,6 +8,7 @@ import { CreateRolloverEntryDto } from "./dto/create-rollover-entry.dto";
 import { RolloverNotificationDto } from "./dto/rollover-notification.dto";
 import { CreateRolloverNotificationDto } from "./dto/create-rollover-notification.dto";
 import { PrismaService } from "../database/prisma.service";
+import { withModuleDefaults } from "./module-settings";
 
 @Injectable()
 export class UsersService {
@@ -361,6 +362,7 @@ export class UsersService {
       rolloverAmount: user.rolloverAmount
         ? Number(user.rolloverAmount)
         : undefined,
+      moduleSettings: withModuleDefaults(user.moduleSettings),
     };
   }
 }

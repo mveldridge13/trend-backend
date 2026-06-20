@@ -42,6 +42,7 @@ export declare class AuthController {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+        moduleSettings: import("../users/module-settings").ModuleSettings;
     }>;
     updateProfile(req: any, updateProfileDto: UpdateUserProfileDto): Promise<{
         id: string;
@@ -63,6 +64,7 @@ export declare class AuthController {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+        moduleSettings: import("../users/module-settings").ModuleSettings;
     }>;
     changePassword(req: any, changePasswordDto: ChangePasswordDto, ip: string, userAgent: string): Promise<{
         success: boolean;

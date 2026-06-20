@@ -16,4 +16,5 @@ export declare class UpdateUserProfileDto {
     hasSeenTransactionSwipeTour?: boolean;
     rolloverAmount?: number;
     lastRolloverDate?: string;
+    moduleSettings?: Record<string, boolean>;
 }

@@ -27,6 +27,11 @@ import {
 } from "./dto/session.dto";
 import { parseUserAgent } from "../common/utils/user-agent-parser";
 import { IncomeFrequency } from "@prisma/client";
+import {
+  ModuleSettings,
+  withModuleDefaults,
+  mergeModuleSettings,
+} from "../users/module-settings";
 
 // Security constants
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
@@ -382,6 +387,7 @@ export class AuthService {
     hasSeenBalanceCardTour: boolean;
     hasSeenAddTransactionTour: boolean;
     hasSeenTransactionSwipeTour: boolean;
+    moduleSettings: ModuleSettings;
   }> {
     const user = await this.usersRepository.findById(id);
 
@@ -411,6 +417,7 @@ export class AuthService {
       hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
       hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
       hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
+      moduleSettings: withModuleDefaults(user.moduleSettings),
     };
   }
 
@@ -437,6 +444,7 @@ export class AuthService {
     hasSeenBalanceCardTour: boolean;
     hasSeenAddTransactionTour: boolean;
     hasSeenTransactionSwipeTour: boolean;
+    moduleSettings: ModuleSettings;
   }> {
     const user = await this.usersRepository.findById(id);
 
@@ -444,9 +452,20 @@ export class AuthService {
       throw new UnauthorizedException("User not found");
     }
 
+    // Merge module settings (partial, last-write-wins) so toggling one
+    // module never clobbers others. Only touch the column if the caller
+    // actually sent settings.
+    const updatePayload: UpdateUserProfileDto = { ...profileData };
+    if (profileData.moduleSettings !== undefined) {
+      updatePayload.moduleSettings = mergeModuleSettings(
+        user.moduleSettings,
+        profileData.moduleSettings,
+      );
+    }
+
     const updatedUser = await this.usersRepository.updateProfile(
       id,
-      profileData,
+      updatePayload,
     );
 
     const result = {
@@ -472,6 +491,7 @@ export class AuthService {
       hasSeenAddTransactionTour: updatedUser.hasSeenAddTransactionTour ?? false,
       hasSeenTransactionSwipeTour:
         updatedUser.hasSeenTransactionSwipeTour ?? false,
+      moduleSettings: withModuleDefaults(updatedUser.moduleSettings),
     };
 
     return result;

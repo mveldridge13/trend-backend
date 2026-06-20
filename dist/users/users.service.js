@@ -13,6 +13,7 @@ exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const users_repository_1 = require("./repositories/users.repository");
 const prisma_service_1 = require("../database/prisma.service");
+const module_settings_1 = require("./module-settings");
 let UsersService = class UsersService {
     constructor(usersRepository, prisma) {
         this.usersRepository = usersRepository;
@@ -272,6 +273,7 @@ let UsersService = class UsersService {
             rolloverAmount: user.rolloverAmount
                 ? Number(user.rolloverAmount)
                 : undefined,
+            moduleSettings: (0, module_settings_1.withModuleDefaults)(user.moduleSettings),
         };
     }
 };

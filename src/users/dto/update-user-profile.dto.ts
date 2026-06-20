@@ -7,6 +7,7 @@ import {
   MaxLength,
   IsDateString,
   IsEnum,
+  IsObject,
 } from "class-validator";
 import { IncomeFrequency } from "@prisma/client";
 
@@ -85,4 +86,10 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsDateString()
   lastRolloverDate?: string;
+
+  // Per-user feature module toggles. Partial object of boolean flags,
+  // merged server-side over the existing settings (last-write-wins).
+  @IsOptional()
+  @IsObject()
+  moduleSettings?: Record<string, boolean>;
 }

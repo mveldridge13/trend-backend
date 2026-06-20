@@ -19,6 +19,7 @@ const audit_service_1 = require("../audit/audit.service");
 const hibp_service_1 = require("../common/services/hibp.service");
 const email_service_1 = require("../email/email.service");
 const user_agent_parser_1 = require("../common/utils/user-agent-parser");
+const module_settings_1 = require("../users/module-settings");
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 15;
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
@@ -259,6 +260,7 @@ let AuthService = class AuthService {
             hasSeenBalanceCardTour: user.hasSeenBalanceCardTour ?? false,
             hasSeenAddTransactionTour: user.hasSeenAddTransactionTour ?? false,
             hasSeenTransactionSwipeTour: user.hasSeenTransactionSwipeTour ?? false,
+            moduleSettings: (0, module_settings_1.withModuleDefaults)(user.moduleSettings),
         };
     }
     async updateUserProfile(id, profileData) {
@@ -266,7 +268,11 @@ let AuthService = class AuthService {
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException("User not found");
         }
-        const updatedUser = await this.usersRepository.updateProfile(id, profileData);
+        const updatePayload = { ...profileData };
+        if (profileData.moduleSettings !== undefined) {
+            updatePayload.moduleSettings = (0, module_settings_1.mergeModuleSettings)(user.moduleSettings, profileData.moduleSettings);
+        }
+        const updatedUser = await this.usersRepository.updateProfile(id, updatePayload);
         const result = {
             id: updatedUser.id,
             email: updatedUser.email,
@@ -289,6 +295,7 @@ let AuthService = class AuthService {
             hasSeenBalanceCardTour: updatedUser.hasSeenBalanceCardTour ?? false,
             hasSeenAddTransactionTour: updatedUser.hasSeenAddTransactionTour ?? false,
             hasSeenTransactionSwipeTour: updatedUser.hasSeenTransactionSwipeTour ?? false,
+            moduleSettings: (0, module_settings_1.withModuleDefaults)(updatedUser.moduleSettings),
         };
         return result;
     }

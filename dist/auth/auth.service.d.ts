@@ -12,6 +12,7 @@ import { UpdateUserProfileDto } from "../users/dto/update-user-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { SessionListResponseDto, RevokeSessionResponseDto, RevokeOtherSessionsResponseDto } from "./dto/session.dto";
 import { IncomeFrequency } from "@prisma/client";
+import { ModuleSettings } from "../users/module-settings";
 export declare class AuthService {
     private readonly usersRepository;
     private readonly jwtService;
@@ -53,6 +54,7 @@ export declare class AuthService {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+        moduleSettings: ModuleSettings;
     }>;
     updateUserProfile(id: string, profileData: UpdateUserProfileDto): Promise<{
         id: string;
@@ -74,6 +76,7 @@ export declare class AuthService {
         hasSeenBalanceCardTour: boolean;
         hasSeenAddTransactionTour: boolean;
         hasSeenTransactionSwipeTour: boolean;
+        moduleSettings: ModuleSettings;
     }>;
     changePassword(userId: string, changePasswordDto: ChangePasswordDto, ipAddress?: string, userAgent?: string): Promise<{
         success: boolean;
