@@ -79,9 +79,11 @@ let GoalsService = GoalsService_1 = class GoalsService {
         const { showOnBalanceCard, type, ...dtoWithoutFrontendFields } = updateGoalDto;
         const updateData = {
             ...dtoWithoutFrontendFields,
-            targetDate: updateGoalDto.targetDate
-                ? new Date(updateGoalDto.targetDate)
-                : undefined,
+            targetDate: updateGoalDto.targetDate === undefined
+                ? undefined
+                : updateGoalDto.targetDate
+                    ? new Date(updateGoalDto.targetDate)
+                    : null,
         };
         if (updateGoalDto.isCompleted && !existingGoal.isCompleted) {
             updateData.completedAt = new Date();

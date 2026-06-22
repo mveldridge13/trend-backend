@@ -155,9 +155,14 @@ export class GoalsService {
     // Handle completion
     const updateData: any = {
       ...dtoWithoutFrontendFields,
-      targetDate: updateGoalDto.targetDate
-        ? new Date(updateGoalDto.targetDate)
-        : undefined,
+      // Distinguish "not provided" (leave unchanged) from "explicitly cleared"
+      // (set to null). Prisma treats undefined as no-op, null as clear.
+      targetDate:
+        updateGoalDto.targetDate === undefined
+          ? undefined
+          : updateGoalDto.targetDate
+            ? new Date(updateGoalDto.targetDate)
+            : null,
     };
 
     // Handle completion logic based on goal type
