@@ -2274,7 +2274,9 @@ export class TransactionsService {
     );
 
     let periodType: "daily" | "weekly" | "monthly";
-    if (daysDiff <= 14) {
+    // Up to a ~month → one point per day (the Cash Flow card uses a rolling
+    // 30-day window and expects a daily timeline).
+    if (daysDiff <= 31) {
       periodType = "daily";
     } else if (daysDiff <= 84) {
       periodType = "weekly";

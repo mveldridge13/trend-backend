@@ -1519,7 +1519,7 @@ let TransactionsService = class TransactionsService {
         const end = new Date(endDate);
         const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         let periodType;
-        if (daysDiff <= 14) {
+        if (daysDiff <= 31) {
             periodType = "daily";
         }
         else if (daysDiff <= 84) {
