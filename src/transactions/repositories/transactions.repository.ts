@@ -82,17 +82,26 @@ export class TransactionsRepository {
         dueDateInPeriod.dueDate = { lte: periodEnd };
       }
 
+      // UPCOMING/OVERDUE bills are filtered by dueDate, but some bills have no
+      // dueDate set (the column is nullable and not all clients send it). Those
+      // would never match a dueDate range and silently disappear from any ranged
+      // query (e.g. the web transaction list) while still showing on unfiltered
+      // clients (mobile). Fall back to `date` when dueDate is null.
+      const upcomingOverdueInPeriod: Prisma.TransactionWhereInput = {
+        OR: [dueDateInPeriod, { dueDate: null, ...dateInPeriod }],
+      };
+
       // Smart filter:
       // - PAID: use date (payment date)
-      // - UPCOMING/OVERDUE: use dueDate
+      // - UPCOMING/OVERDUE: use dueDate, falling back to date when dueDate is null
       // - No status: use date (discretionary transactions)
       where.OR = [
         // PAID transactions with date in period
         { status: "PAID", ...dateInPeriod },
-        // UPCOMING transactions with dueDate in period
-        { status: "UPCOMING", ...dueDateInPeriod },
-        // OVERDUE transactions with dueDate in period
-        { status: "OVERDUE", ...dueDateInPeriod },
+        // UPCOMING transactions with dueDate (or date) in period
+        { status: "UPCOMING", ...upcomingOverdueInPeriod },
+        // OVERDUE transactions with dueDate (or date) in period
+        { status: "OVERDUE", ...upcomingOverdueInPeriod },
         // Discretionary transactions (no status) with date in period
         { status: null, ...dateInPeriod },
       ];
@@ -254,10 +263,16 @@ export class TransactionsRepository {
         dueDateInPeriod.dueDate = { lte: periodEnd };
       }
 
+      // Fall back to `date` for UPCOMING/OVERDUE bills with no dueDate set,
+      // matching the smart filter in findMany so counts stay consistent.
+      const upcomingOverdueInPeriod: Prisma.TransactionWhereInput = {
+        OR: [dueDateInPeriod, { dueDate: null, ...dateInPeriod }],
+      };
+
       where.OR = [
         { status: "PAID", ...dateInPeriod },
-        { status: "UPCOMING", ...dueDateInPeriod },
-        { status: "OVERDUE", ...dueDateInPeriod },
+        { status: "UPCOMING", ...upcomingOverdueInPeriod },
+        { status: "OVERDUE", ...upcomingOverdueInPeriod },
         { status: null, ...dateInPeriod },
       ];
     }

@@ -76,10 +76,13 @@ let TransactionsRepository = class TransactionsRepository {
                 dateInPeriod.date = { lte: periodEnd };
                 dueDateInPeriod.dueDate = { lte: periodEnd };
             }
+            const upcomingOverdueInPeriod = {
+                OR: [dueDateInPeriod, { dueDate: null, ...dateInPeriod }],
+            };
             where.OR = [
                 { status: "PAID", ...dateInPeriod },
-                { status: "UPCOMING", ...dueDateInPeriod },
-                { status: "OVERDUE", ...dueDateInPeriod },
+                { status: "UPCOMING", ...upcomingOverdueInPeriod },
+                { status: "OVERDUE", ...upcomingOverdueInPeriod },
                 { status: null, ...dateInPeriod },
             ];
         }
@@ -210,10 +213,13 @@ let TransactionsRepository = class TransactionsRepository {
                 dateInPeriod.date = { lte: periodEnd };
                 dueDateInPeriod.dueDate = { lte: periodEnd };
             }
+            const upcomingOverdueInPeriod = {
+                OR: [dueDateInPeriod, { dueDate: null, ...dateInPeriod }],
+            };
             where.OR = [
                 { status: "PAID", ...dateInPeriod },
-                { status: "UPCOMING", ...dueDateInPeriod },
-                { status: "OVERDUE", ...dueDateInPeriod },
+                { status: "UPCOMING", ...upcomingOverdueInPeriod },
+                { status: "OVERDUE", ...upcomingOverdueInPeriod },
                 { status: null, ...dateInPeriod },
             ];
         }
