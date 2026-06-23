@@ -2403,6 +2403,14 @@ export class TransactionsService {
       };
     });
 
+    // Average spend per period point in the range (per day for daily ranges,
+    // per month for monthly ranges). Counts every point, including zero-spend
+    // periods, so it reflects true average spending over the window.
+    const averagePeriodSpending =
+      enhancedMonthlyTrends.length > 0
+        ? expenses / enhancedMonthlyTrends.length
+        : 0;
+
     const spendingVelocity = this.calculateSpendingVelocity(transactions);
     const dailyBurnRate = this.calculateDailyBurnRate(
       transactions,
@@ -2415,6 +2423,7 @@ export class TransactionsService {
       netIncome: income - expenses,
       transactionCount,
       averageTransaction,
+      averagePeriodSpending,
       categoryBreakdown,
       monthlyTrends: enhancedMonthlyTrends,
       spendingVelocity,

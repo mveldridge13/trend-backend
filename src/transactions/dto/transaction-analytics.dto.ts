@@ -4,6 +4,9 @@ export class TransactionAnalyticsDto {
   netIncome: number;
   transactionCount: number;
   averageTransaction: number;
+  // Average spend per period point in the range (per day for daily ranges,
+  // per month for monthly ranges).
+  averagePeriodSpending: number;
 
   // Period-to-period comparison
   previousPeriodExpenses: number;

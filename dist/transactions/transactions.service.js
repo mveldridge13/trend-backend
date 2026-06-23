@@ -1561,6 +1561,9 @@ let TransactionsService = class TransactionsService {
                 discretionaryExpenses: discretionaryTrend?.discretionaryExpenses || 0,
             };
         });
+        const averagePeriodSpending = enhancedMonthlyTrends.length > 0
+            ? expenses / enhancedMonthlyTrends.length
+            : 0;
         const spendingVelocity = this.calculateSpendingVelocity(transactions);
         const dailyBurnRate = this.calculateDailyBurnRate(transactions, userProfile);
         return {
@@ -1569,6 +1572,7 @@ let TransactionsService = class TransactionsService {
             netIncome: income - expenses,
             transactionCount,
             averageTransaction,
+            averagePeriodSpending,
             categoryBreakdown,
             monthlyTrends: enhancedMonthlyTrends,
             spendingVelocity,

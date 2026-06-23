@@ -4,6 +4,7 @@ export declare class TransactionAnalyticsDto {
     netIncome: number;
     transactionCount: number;
     averageTransaction: number;
+    averagePeriodSpending: number;
     previousPeriodExpenses: number;
     previousPeriodDiscretionary: number;
     expensesPercentageChange: number;
