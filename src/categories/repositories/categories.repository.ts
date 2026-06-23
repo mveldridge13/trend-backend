@@ -1,10 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, Category, CategoryType } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
+import { DateService } from "../../common/services/date.service";
 
 @Injectable()
 export class CategoriesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dateService: DateService,
+  ) {}
 
   async create(data: Prisma.CategoryCreateInput): Promise<Category> {
     const userId = (data as any).userId as string;
@@ -356,6 +360,13 @@ export class CategoriesRepository {
 
     if (!categoryWithStats) return null;
 
+    // User timezone for month-bucketing the spending.
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const userTimezone = this.dateService.getValidTimezone(user?.timezone);
+
     const transactions = categoryWithStats.transactions;
     const totalSpent = transactions.reduce(
       (sum, t) => sum + Number(t.amount),
@@ -366,7 +377,11 @@ export class CategoriesRepository {
 
     const monthlySpending = transactions.reduce(
       (acc, transaction) => {
-        const month = transaction.date.toISOString().substring(0, 7);
+        const month = this.dateService.formatInUserTimezone(
+          transaction.date,
+          userTimezone,
+          "yyyy-MM",
+        );
         acc[month] = (acc[month] || 0) + Number(transaction.amount);
         return acc;
       },

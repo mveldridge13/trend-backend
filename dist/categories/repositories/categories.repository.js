@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoriesRepository = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../database/prisma.service");
+const date_service_1 = require("../../common/services/date.service");
 let CategoriesRepository = class CategoriesRepository {
-    constructor(prisma) {
+    constructor(prisma, dateService) {
         this.prisma = prisma;
+        this.dateService = dateService;
     }
     async create(data) {
         const userId = data.userId;
@@ -306,11 +308,16 @@ let CategoriesRepository = class CategoriesRepository {
         });
         if (!categoryWithStats)
             return null;
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { timezone: true },
+        });
+        const userTimezone = this.dateService.getValidTimezone(user?.timezone);
         const transactions = categoryWithStats.transactions;
         const totalSpent = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
         const averageTransaction = transactions.length > 0 ? totalSpent / transactions.length : 0;
         const monthlySpending = transactions.reduce((acc, transaction) => {
-            const month = transaction.date.toISOString().substring(0, 7);
+            const month = this.dateService.formatInUserTimezone(transaction.date, userTimezone, "yyyy-MM");
             acc[month] = (acc[month] || 0) + Number(transaction.amount);
             return acc;
         }, {});
@@ -360,6 +367,7 @@ let CategoriesRepository = class CategoriesRepository {
 exports.CategoriesRepository = CategoriesRepository;
 exports.CategoriesRepository = CategoriesRepository = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        date_service_1.DateService])
 ], CategoriesRepository);
 //# sourceMappingURL=categories.repository.js.map

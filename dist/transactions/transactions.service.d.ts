@@ -142,6 +142,8 @@ export declare class TransactionsService {
     private calculateSpendingVelocity;
     private userLocalDayKey;
     private enumerateUserLocalDayKeys;
+    private periodKeyFromDayKey;
+    private enumeratePeriodKeys;
     private calculateTrends;
     private calculateAnalytics;
     getIncomeAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<any>;

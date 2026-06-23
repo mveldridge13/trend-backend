@@ -14,9 +14,11 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const base_repository_1 = require("../../database/base.repository");
 const prisma_service_1 = require("../../database/prisma.service");
+const date_service_1 = require("../../common/services/date.service");
 let BudgetsRepository = class BudgetsRepository extends base_repository_1.BaseRepository {
-    constructor(prisma) {
+    constructor(prisma, dateService) {
         super(prisma);
+        this.dateService = dateService;
         this.prisma = prisma;
     }
     async create(userId, data) {
@@ -146,6 +148,11 @@ let BudgetsRepository = class BudgetsRepository extends base_repository_1.BaseRe
         });
         if (!budget)
             return null;
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { timezone: true },
+        });
+        const userTimezone = this.dateService.getValidTimezone(user?.timezone);
         const expenseTransactions = budget.transactions.filter((t) => t.type === "EXPENSE");
         const spentAmount = expenseTransactions.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
         const categoryMap = new Map();
@@ -177,7 +184,7 @@ let BudgetsRepository = class BudgetsRepository extends base_repository_1.BaseRe
         }));
         const spendingMap = new Map();
         expenseTransactions.forEach((t) => {
-            const dateKey = t.date.toISOString().split("T")[0];
+            const dateKey = this.dateService.formatInUserTimezone(t.date, userTimezone, "yyyy-MM-dd");
             const amount = parseFloat(t.amount.toString());
             spendingMap.set(dateKey, (spendingMap.get(dateKey) || 0) + amount);
         });
@@ -205,6 +212,7 @@ let BudgetsRepository = class BudgetsRepository extends base_repository_1.BaseRe
 exports.BudgetsRepository = BudgetsRepository;
 exports.BudgetsRepository = BudgetsRepository = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        date_service_1.DateService])
 ], BudgetsRepository);
 //# sourceMappingURL=budgets.repository.js.map

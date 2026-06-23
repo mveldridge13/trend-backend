@@ -1,8 +1,10 @@
 import { Prisma, Category, CategoryType } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
+import { DateService } from "../../common/services/date.service";
 export declare class CategoriesRepository {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly dateService;
+    constructor(prisma: PrismaService, dateService: DateService);
     create(data: Prisma.CategoryCreateInput): Promise<Category>;
     findById(id: string, userId?: string): Promise<Category | null>;
     findManyByUser(userId: string, filters?: {

@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
+import { DateService } from "../../common/services/date.service";
 import { CreateBudgetDto } from "../dto/create-budget.dto";
 import { UpdateBudgetDto } from "../dto/update-budget.dto";
 export declare class BudgetsRepository extends BaseRepository<any> {
+    private readonly dateService;
     protected readonly prisma: PrismaService;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, dateService: DateService);
     create(userId: string, data: CreateBudgetDto): Promise<{
         _count: {
             transactions: number;

@@ -2018,8 +2018,10 @@ export class TransactionsService {
       return t.type === "EXPENSE" && (t.recurrence === "none" || !t.recurrence);
     });
 
+    // Same thresholds as calculateTrends so the two line up key-for-key when
+    // merged into monthlyTrends (otherwise discretionary reads as 0).
     let periodType: "daily" | "weekly" | "monthly";
-    if (daysDiff <= 14) {
+    if (daysDiff <= 31) {
       periodType = "daily";
     } else if (daysDiff <= 84) {
       periodType = "weekly";
@@ -2027,86 +2029,23 @@ export class TransactionsService {
       periodType = "monthly";
     }
 
-    const discretionaryTrends: Array<{
-      month: string;
-      discretionaryExpenses: number;
-    }> = [];
-
-    if (periodType === "daily") {
-      // Bucket by the transaction's calendar day in the user's timezone, matching
-      // calculateTrends and the transaction list grouping.
-      const byDay = new Map<string, number>();
-      for (const t of discretionaryTransactions) {
-        const key = this.userLocalDayKey(new Date(t.date), userTimezone);
-        byDay.set(key, (byDay.get(key) || 0) + Number(t.amount));
-      }
-
-      for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
-        discretionaryTrends.push({
-          month: dayStr,
-          discretionaryExpenses: byDay.get(dayStr) || 0,
-        });
-      }
-    } else if (periodType === "weekly") {
-      const current = new Date(start);
-      while (current <= end) {
-        const weekStart = new Date(current);
-        const weekEnd = new Date(current);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-
-        if (weekEnd > end) {
-          weekEnd.setTime(end.getTime());
-        }
-
-        const weekDiscretionaryExpenses = discretionaryTransactions
-          .filter((t) => {
-            const transactionDate = new Date(t.date);
-            return transactionDate >= weekStart && transactionDate <= weekEnd;
-          })
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        discretionaryTrends.push({
-          month: weekStart.toISOString().split("T")[0],
-          discretionaryExpenses: weekDiscretionaryExpenses,
-        });
-
-        current.setDate(current.getDate() + 7);
-      }
-    } else {
-      const months = new Set<string>();
-      const startYear = start.getFullYear();
-      const startMonth = start.getMonth();
-      const endYear = end.getFullYear();
-      const endMonth = end.getMonth();
-
-      for (let year = startYear; year <= endYear; year++) {
-        const monthStart = year === startYear ? startMonth : 0;
-        const monthEnd = year === endYear ? endMonth : 11;
-
-        for (let month = monthStart; month <= monthEnd; month++) {
-          const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
-          months.add(monthStr);
-        }
-      }
-
-      months.forEach((monthStr) => {
-        const monthDiscretionaryExpenses = discretionaryTransactions
-          .filter((t) => {
-            const transactionMonth = new Date(t.date)
-              .toISOString()
-              .substring(0, 7);
-            return transactionMonth === monthStr;
-          })
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        discretionaryTrends.push({
-          month: monthStr,
-          discretionaryExpenses: monthDiscretionaryExpenses,
-        });
-      });
+    // Bucket discretionary spend by user-local period key, then emit one entry
+    // per period in the range (timezone-correct, matches calculateTrends).
+    const byPeriod = new Map<string, number>();
+    for (const t of discretionaryTransactions) {
+      const key = this.periodKeyFromDayKey(
+        this.userLocalDayKey(new Date(t.date), userTimezone),
+        periodType,
+      );
+      byPeriod.set(key, (byPeriod.get(key) || 0) + Number(t.amount));
     }
 
-    return discretionaryTrends.sort((a, b) => a.month.localeCompare(b.month));
+    return this.enumeratePeriodKeys(start, end, periodType, userTimezone).map(
+      (key) => ({
+        month: key,
+        discretionaryExpenses: byPeriod.get(key) || 0,
+      }),
+    );
   }
 
   private calculateSpendingVelocity(
@@ -2252,6 +2191,51 @@ export class TransactionsService {
     return keys;
   }
 
+  /**
+   * Reduce a user-local day key (yyyy-MM-dd) to its period bucket key:
+   *  - daily   → the day itself (yyyy-MM-dd)
+   *  - weekly  → the containing week's Sunday (yyyy-MM-dd)
+   *  - monthly → the calendar month (yyyy-MM)
+   */
+  private periodKeyFromDayKey(
+    dayKey: string,
+    periodType: "daily" | "weekly" | "monthly",
+  ): string {
+    if (periodType === "monthly") return dayKey.slice(0, 7);
+    if (periodType === "weekly") {
+      const d = new Date(`${dayKey}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - d.getUTCDay()); // back to Sunday
+      return d.toISOString().slice(0, 10);
+    }
+    return dayKey;
+  }
+
+  /**
+   * Ordered, de-duplicated list of period bucket keys spanning [start, end],
+   * computed in the user's timezone.
+   */
+  private enumeratePeriodKeys(
+    start: Date,
+    end: Date,
+    periodType: "daily" | "weekly" | "monthly",
+    userTimezone: string,
+  ): string[] {
+    const keys: string[] = [];
+    const seen = new Set<string>();
+    for (const dayKey of this.enumerateUserLocalDayKeys(
+      start,
+      end,
+      userTimezone,
+    )) {
+      const key = this.periodKeyFromDayKey(dayKey, periodType);
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
+    }
+    return keys;
+  }
+
   private calculateTrends(
     transactions: any[],
     startDate?: string,
@@ -2285,122 +2269,45 @@ export class TransactionsService {
       periodType = "monthly";
     }
 
-    const trends: Array<{
-      month: string;
-      income: number;
-      expenses: number;
-      net: number;
-      transactionCount: number;
-    }> = [];
-
-    if (periodType === "daily") {
-      // Bucket by the transaction's calendar day in the user's timezone so the
-      // chart agrees with how transactions are grouped for display.
-      const byDay = new Map<string, any[]>();
-      for (const t of transactions) {
-        const key = this.userLocalDayKey(new Date(t.date), userTimezone);
-        const bucket = byDay.get(key);
-        if (bucket) bucket.push(t);
-        else byDay.set(key, [t]);
-      }
-
-      for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
-        const dayTransactions = byDay.get(dayStr) || [];
-
-        const dayIncome = dayTransactions
-          .filter((t) => t.type === "INCOME")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        const dayExpenses = dayTransactions
-          .filter((t) => t.type === "EXPENSE")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        trends.push({
-          month: dayStr,
-          income: dayIncome,
-          expenses: dayExpenses,
-          net: dayIncome - dayExpenses,
-          transactionCount: dayTransactions.length,
-        });
-      }
-    } else if (periodType === "weekly") {
-      const current = new Date(start);
-      while (current <= end) {
-        const weekStart = new Date(current);
-        const weekEnd = new Date(current);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-
-        if (weekEnd > end) {
-          weekEnd.setTime(end.getTime());
-        }
-
-        const weekTransactions = transactions.filter((t) => {
-          const transactionDate = new Date(t.date);
-          return transactionDate >= weekStart && transactionDate <= weekEnd;
-        });
-
-        const weekIncome = weekTransactions
-          .filter((t) => t.type === "INCOME")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        const weekExpenses = weekTransactions
-          .filter((t) => t.type === "EXPENSE")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        trends.push({
-          month: weekStart.toISOString().split("T")[0],
-          income: weekIncome,
-          expenses: weekExpenses,
-          net: weekIncome - weekExpenses,
-          transactionCount: weekTransactions.length,
-        });
-
-        current.setDate(current.getDate() + 7);
-      }
-    } else {
-      const months = new Set<string>();
-      const startYear = start.getFullYear();
-      const startMonth = start.getMonth();
-      const endYear = end.getFullYear();
-      const endMonth = end.getMonth();
-
-      for (let year = startYear; year <= endYear; year++) {
-        const monthStart = year === startYear ? startMonth : 0;
-        const monthEnd = year === endYear ? endMonth : 11;
-
-        for (let month = monthStart; month <= monthEnd; month++) {
-          const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
-          months.add(monthStr);
-        }
-      }
-
-      months.forEach((monthStr) => {
-        const monthTransactions = transactions.filter((t) => {
-          const transactionMonth = new Date(t.date)
-            .toISOString()
-            .substring(0, 7);
-          return transactionMonth === monthStr;
-        });
-
-        const monthIncome = monthTransactions
-          .filter((t) => t.type === "INCOME")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        const monthExpenses = monthTransactions
-          .filter((t) => t.type === "EXPENSE")
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        trends.push({
-          month: monthStr,
-          income: monthIncome,
-          expenses: monthExpenses,
-          net: monthIncome - monthExpenses,
-          transactionCount: monthTransactions.length,
-        });
-      });
+    // Bucket every transaction by its user-local period key, then emit one entry
+    // per period in the range. Keeps daily/weekly/monthly consistent and
+    // timezone-correct.
+    const byPeriod = new Map<
+      string,
+      { income: number; expenses: number; transactionCount: number }
+    >();
+    for (const t of transactions) {
+      const key = this.periodKeyFromDayKey(
+        this.userLocalDayKey(new Date(t.date), userTimezone),
+        periodType,
+      );
+      const bucket = byPeriod.get(key) ?? {
+        income: 0,
+        expenses: 0,
+        transactionCount: 0,
+      };
+      if (t.type === "INCOME") bucket.income += Number(t.amount);
+      else if (t.type === "EXPENSE") bucket.expenses += Number(t.amount);
+      bucket.transactionCount += 1;
+      byPeriod.set(key, bucket);
     }
 
-    return trends.sort((a, b) => a.month.localeCompare(b.month));
+    return this.enumeratePeriodKeys(start, end, periodType, userTimezone).map(
+      (key) => {
+        const bucket = byPeriod.get(key) ?? {
+          income: 0,
+          expenses: 0,
+          transactionCount: 0,
+        };
+        return {
+          month: key,
+          income: bucket.income,
+          expenses: bucket.expenses,
+          net: bucket.income - bucket.expenses,
+          transactionCount: bucket.transactionCount,
+        };
+      },
+    );
   }
 
   private calculateAnalytics(

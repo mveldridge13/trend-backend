@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma, BudgetStatus } from "@prisma/client";
 import { BaseRepository } from "../../database/base.repository";
 import { PrismaService } from "../../database/prisma.service";
+import { DateService } from "../../common/services/date.service";
 import { CreateBudgetDto } from "../dto/create-budget.dto";
 import { UpdateBudgetDto } from "../dto/update-budget.dto";
 
@@ -9,7 +10,10 @@ import { UpdateBudgetDto } from "../dto/update-budget.dto";
 export class BudgetsRepository extends BaseRepository<any> {
   protected readonly prisma: PrismaService;
 
-  constructor(prisma: PrismaService) {
+  constructor(
+    prisma: PrismaService,
+    private readonly dateService: DateService,
+  ) {
     super(prisma);
     this.prisma = prisma;
   }
@@ -153,6 +157,13 @@ export class BudgetsRepository extends BaseRepository<any> {
 
     if (!budget) return null;
 
+    // User timezone for day-bucketing the spending trend.
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const userTimezone = this.dateService.getValidTimezone(user?.timezone);
+
     // Calculate spending analytics
     const expenseTransactions = budget.transactions.filter(
       (t) => t.type === "EXPENSE",
@@ -193,10 +204,15 @@ export class BudgetsRepository extends BaseRepository<any> {
       percentage: spentAmount > 0 ? (cat.amount / spentAmount) * 100 : 0,
     }));
 
-    // Spending trend (daily)
+    // Spending trend (daily) — bucket by the transaction's day in the user's
+    // timezone so it matches how transactions are grouped for display.
     const spendingMap = new Map();
     expenseTransactions.forEach((t) => {
-      const dateKey = t.date.toISOString().split("T")[0];
+      const dateKey = this.dateService.formatInUserTimezone(
+        t.date,
+        userTimezone,
+        "yyyy-MM-dd",
+      );
       const amount = parseFloat(t.amount.toString());
       spendingMap.set(dateKey, (spendingMap.get(dateKey) || 0) + amount);
     });
