@@ -232,7 +232,7 @@ let TransactionsService = class TransactionsService {
         const discretionaryTransactions = transactions.filter((t) => {
             return t.recurrence === "none" || !t.recurrence;
         });
-        const targetTransactions = this.filterTransactionsForPeriod(discretionaryTransactions, selectedDate, selectedPeriod);
+        const targetTransactions = this.filterTransactionsForPeriod(discretionaryTransactions, selectedDate, selectedPeriod, userTimezone);
         const totalDiscretionaryAmount = targetTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
         const categoryBreakdown = this.calculateCategoryBreakdown(targetTransactions, totalDiscretionaryAmount);
         const mappedTransactions = targetTransactions.map((t) => ({
@@ -246,7 +246,7 @@ let TransactionsService = class TransactionsService {
             subcategoryId: t.subcategory?.id,
             subcategoryName: t.subcategory?.name,
         }));
-        const previousPeriod = this.calculatePreviousPeriodComparison(discretionaryTransactions, selectedDate, selectedPeriod);
+        const previousPeriod = this.calculatePreviousPeriodComparison(discretionaryTransactions, selectedDate, selectedPeriod, userTimezone);
         const insights = this.generateDiscretionaryInsights(categoryBreakdown, totalDiscretionaryAmount, previousPeriod, selectedPeriod);
         const summary = this.calculateDiscretionarySummary(targetTransactions, categoryBreakdown);
         return {
@@ -816,46 +816,18 @@ let TransactionsService = class TransactionsService {
             return "monthly";
         }
     }
-    filterTransactionsForPeriod(transactions, selectedDate, selectedPeriod) {
-        const targetDate = new Date(selectedDate);
+    filterTransactionsForPeriod(transactions, selectedDate, selectedPeriod, userTimezone = "UTC") {
         if (selectedPeriod === "daily") {
-            const dayStart = new Date(targetDate);
-            dayStart.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(targetDate);
-            dayEnd.setHours(23, 59, 59, 999);
-            const filtered = transactions.filter((t) => {
-                const transactionDate = new Date(t.date);
-                const transactionDateStr = transactionDate.toISOString().split("T")[0];
-                const targetDateStr = targetDate.toISOString().split("T")[0];
-                const isInRange = transactionDate >= dayStart && transactionDate <= dayEnd;
-                const isInDateStr = transactionDateStr === targetDateStr;
-                const matches = isInRange || isInDateStr;
-                return matches;
-            });
-            return filtered;
+            const targetKey = this.userLocalDayKey(new Date(selectedDate), userTimezone);
+            return transactions.filter((t) => this.userLocalDayKey(new Date(t.date), userTimezone) === targetKey);
         }
-        else if (selectedPeriod === "weekly") {
-            const weekStart = new Date(targetDate);
-            weekStart.setDate(targetDate.getDate() - targetDate.getDay());
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6);
-            weekEnd.setHours(23, 59, 59, 999);
-            return transactions.filter((t) => {
-                const transactionDate = new Date(t.date);
-                return transactionDate >= weekStart && transactionDate <= weekEnd;
-            });
-        }
-        else {
-            const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-            monthStart.setHours(0, 0, 0, 0);
-            const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-            monthEnd.setHours(23, 59, 59, 999);
-            return transactions.filter((t) => {
-                const transactionDate = new Date(t.date);
-                return transactionDate >= monthStart && transactionDate <= monthEnd;
-            });
-        }
+        const { start, end } = selectedPeriod === "weekly"
+            ? this.dateService.getWeekBoundariesInUserTimezone(selectedDate, userTimezone)
+            : this.dateService.getMonthBoundariesInUserTimezone(selectedDate, userTimezone);
+        return transactions.filter((t) => {
+            const transactionDate = new Date(t.date);
+            return transactionDate >= start && transactionDate <= end;
+        });
     }
     calculateCategoryBreakdown(transactions, totalAmount) {
         const categoryMap = new Map();
@@ -1024,7 +996,7 @@ let TransactionsService = class TransactionsService {
         }
         return "General";
     }
-    calculatePreviousPeriodComparison(allTransactions, selectedDate, selectedPeriod) {
+    calculatePreviousPeriodComparison(allTransactions, selectedDate, selectedPeriod, userTimezone = "UTC") {
         const targetDate = new Date(selectedDate);
         let previousDate;
         if (selectedPeriod === "daily") {
@@ -1039,9 +1011,9 @@ let TransactionsService = class TransactionsService {
             previousDate = new Date(targetDate);
             previousDate.setMonth(targetDate.getMonth() - 1);
         }
-        const previousTransactions = this.filterTransactionsForPeriod(allTransactions, previousDate.toISOString().split("T")[0], selectedPeriod);
+        const previousTransactions = this.filterTransactionsForPeriod(allTransactions, previousDate.toISOString().split("T")[0], selectedPeriod, userTimezone);
         const previousAmount = previousTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
-        const currentAmount = this.filterTransactionsForPeriod(allTransactions, selectedDate, selectedPeriod).reduce((sum, t) => sum + Number(t.amount), 0);
+        const currentAmount = this.filterTransactionsForPeriod(allTransactions, selectedDate, selectedPeriod, userTimezone).reduce((sum, t) => sum + Number(t.amount), 0);
         const percentageChange = previousAmount > 0
             ? ((currentAmount - previousAmount) / previousAmount) * 100
             : 0;
@@ -1337,7 +1309,7 @@ let TransactionsService = class TransactionsService {
             monthlyIncomeCapacity,
         };
     }
-    calculateDiscretionaryTrends(transactions, startDate, endDate) {
+    calculateDiscretionaryTrends(transactions, startDate, endDate, userTimezone = "UTC") {
         if (!startDate || !endDate) {
             return [];
         }
@@ -1359,19 +1331,15 @@ let TransactionsService = class TransactionsService {
         }
         const discretionaryTrends = [];
         if (periodType === "daily") {
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const dayStr = d.toISOString().split("T")[0];
-                const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-                const dayDiscretionaryExpenses = discretionaryTransactions
-                    .filter((t) => {
-                    const transactionDate = new Date(t.date);
-                    return transactionDate >= dayStart && transactionDate < dayEnd;
-                })
-                    .reduce((sum, t) => sum + Number(t.amount), 0);
+            const byDay = new Map();
+            for (const t of discretionaryTransactions) {
+                const key = this.userLocalDayKey(new Date(t.date), userTimezone);
+                byDay.set(key, (byDay.get(key) || 0) + Number(t.amount));
+            }
+            for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
                 discretionaryTrends.push({
                     month: dayStr,
-                    discretionaryExpenses: dayDiscretionaryExpenses,
+                    discretionaryExpenses: byDay.get(dayStr) || 0,
                 });
             }
         }
@@ -1511,7 +1479,22 @@ let TransactionsService = class TransactionsService {
             recommendedDailySpending,
         };
     }
-    calculateTrends(transactions, startDate, endDate) {
+    userLocalDayKey(date, userTimezone) {
+        return this.dateService.formatInUserTimezone(date, userTimezone, "yyyy-MM-dd");
+    }
+    enumerateUserLocalDayKeys(start, end, userTimezone) {
+        const startKey = this.userLocalDayKey(start, userTimezone);
+        const endKey = this.userLocalDayKey(end, userTimezone);
+        const keys = [];
+        const cursor = new Date(`${startKey}T00:00:00Z`);
+        const last = new Date(`${endKey}T00:00:00Z`);
+        while (cursor <= last) {
+            keys.push(cursor.toISOString().split("T")[0]);
+            cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+        return keys;
+    }
+    calculateTrends(transactions, startDate, endDate, userTimezone = "UTC") {
         if (!startDate || !endDate) {
             return [];
         }
@@ -1530,12 +1513,17 @@ let TransactionsService = class TransactionsService {
         }
         const trends = [];
         if (periodType === "daily") {
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const dayStr = d.toISOString().split("T")[0];
-                const dayTransactions = transactions.filter((t) => {
-                    const transactionDate = new Date(t.date).toISOString().split("T")[0];
-                    return transactionDate === dayStr;
-                });
+            const byDay = new Map();
+            for (const t of transactions) {
+                const key = this.userLocalDayKey(new Date(t.date), userTimezone);
+                const bucket = byDay.get(key);
+                if (bucket)
+                    bucket.push(t);
+                else
+                    byDay.set(key, [t]);
+            }
+            for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
+                const dayTransactions = byDay.get(dayStr) || [];
                 const dayIncome = dayTransactions
                     .filter((t) => t.type === "INCOME")
                     .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -1663,8 +1651,9 @@ let TransactionsService = class TransactionsService {
             ...category,
             percentage: expenses > 0 ? (category.amount / expenses) * 100 : 0,
         }));
-        const monthlyTrends = this.calculateTrends(transactions, filters.startDate, filters.endDate);
-        const discretionaryTrends = this.calculateDiscretionaryTrends(transactions, filters.startDate, filters.endDate);
+        const userTimezone = this.dateService.getValidTimezone(userProfile?.timezone);
+        const monthlyTrends = this.calculateTrends(transactions, filters.startDate, filters.endDate, userTimezone);
+        const discretionaryTrends = this.calculateDiscretionaryTrends(transactions, filters.startDate, filters.endDate, userTimezone);
         const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
             const discretionaryTrend = discretionaryTrends.find((dt) => dt.month === trend.month);
             return {

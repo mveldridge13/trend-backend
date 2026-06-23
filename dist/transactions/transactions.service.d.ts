@@ -140,6 +140,8 @@ export declare class TransactionsService {
     private calculateDailyBurnRate;
     private calculateDiscretionaryTrends;
     private calculateSpendingVelocity;
+    private userLocalDayKey;
+    private enumerateUserLocalDayKeys;
     private calculateTrends;
     private calculateAnalytics;
     getIncomeAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<any>;

@@ -226,6 +226,7 @@ export class HomeService {
           },
         ],
       },
+      include: { category: { select: { name: true } } },
     });
 
     let plannedTotal = 0;
@@ -258,6 +259,9 @@ export class HomeService {
       return true;
     });
 
+    const now = new Date();
+    const items: CommittedInfo['items'] = [];
+
     for (const t of filteredTransactions) {
       const amount = Number(t.amount);
       plannedTotal += amount;
@@ -265,12 +269,42 @@ export class HomeService {
       if (t.status === PaymentStatus.PAID) {
         paidSoFar += amount;
       }
+
+      // Computed display status: PAID stays; a past-due unpaid bill is OVERDUE;
+      // otherwise it's UPCOMING. Mirrors the transactions service so the
+      // breakdown labels match what the bills/transactions views show.
+      let displayStatus: string | null;
+      if (t.status === PaymentStatus.PAID) {
+        displayStatus = 'PAID';
+      } else if (t.dueDate && new Date(t.dueDate) < now) {
+        displayStatus = 'OVERDUE';
+      } else {
+        displayStatus = t.status ?? 'UPCOMING';
+      }
+
+      items.push({
+        id: t.id,
+        description: t.description,
+        amount: Math.round(amount * 100) / 100,
+        status: displayStatus,
+        date: new Date(t.date).toISOString(),
+        dueDate: t.dueDate ? new Date(t.dueDate).toISOString() : null,
+        categoryName: (t as any).category?.name ?? null,
+      });
     }
+
+    // Sort by due date (then date) so the list reads chronologically.
+    items.sort((a, b) => {
+      const aKey = a.dueDate ?? a.date;
+      const bKey = b.dueDate ?? b.date;
+      return aKey.localeCompare(bKey);
+    });
 
     return {
       plannedTotal: Math.round(plannedTotal * 100) / 100,
       paidSoFar: Math.round(paidSoFar * 100) / 100,
       remaining: Math.round((plannedTotal - paidSoFar) * 100) / 100,
+      items,
     };
   }
 
@@ -469,6 +503,7 @@ export class HomeService {
           plannedTotal: 0,
           paidSoFar: 0,
           remaining: 0,
+          items: [],
         },
         discretionary: {
           spentSoFar: 0,

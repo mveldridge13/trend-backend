@@ -24,10 +24,25 @@ export interface IncomeInfo {
 /**
  * Committed expenses (recurring bills, scheduled payments)
  */
+/**
+ * A single committed bill/obligation making up the committed total.
+ * `status` is the computed display status (PAID / UPCOMING / OVERDUE).
+ */
+export interface CommittedItem {
+  id: string;
+  description: string;
+  amount: number;
+  status: string | null;
+  date: string;
+  dueDate: string | null;
+  categoryName: string | null;
+}
+
 export interface CommittedInfo {
   plannedTotal: number;
   paidSoFar: number;
   remaining: number;
+  items: CommittedItem[];
 }
 
 /**

@@ -459,6 +459,7 @@ export class TransactionsService {
       discretionaryTransactions,
       selectedDate,
       selectedPeriod,
+      userTimezone,
     );
 
     const totalDiscretionaryAmount = targetTransactions.reduce(
@@ -487,6 +488,7 @@ export class TransactionsService {
       discretionaryTransactions,
       selectedDate,
       selectedPeriod,
+      userTimezone,
     );
 
     const insights = this.generateDiscretionaryInsights(
@@ -1291,72 +1293,39 @@ export class TransactionsService {
     }
   }
 
-  // ✅ FIXED: More lenient daily filtering with better timezone handling
+  // Filter to the period (day/week/month) that contains selectedDate, scoped in
+  // the user's timezone so it agrees with how transactions are grouped for display.
   private filterTransactionsForPeriod(
     transactions: any[],
     selectedDate: string,
     selectedPeriod: "daily" | "weekly" | "monthly",
+    userTimezone = "UTC",
   ): any[] {
-    const targetDate = new Date(selectedDate);
-
     if (selectedPeriod === "daily") {
-      // ✅ FIXED: More lenient daily filtering with proper timezone handling
-      const dayStart = new Date(targetDate);
-      dayStart.setHours(0, 0, 0, 0);
-
-      const dayEnd = new Date(targetDate);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const filtered = transactions.filter((t) => {
-        const transactionDate = new Date(t.date);
-
-        // ✅ FIXED: Also check by date string for timezone issues
-        const transactionDateStr = transactionDate.toISOString().split("T")[0];
-        const targetDateStr = targetDate.toISOString().split("T")[0];
-
-        const isInRange =
-          transactionDate >= dayStart && transactionDate <= dayEnd;
-        const isInDateStr = transactionDateStr === targetDateStr;
-
-        const matches = isInRange || isInDateStr;
-
-        return matches;
-      });
-
-      return filtered;
-    } else if (selectedPeriod === "weekly") {
-      const weekStart = new Date(targetDate);
-      weekStart.setDate(targetDate.getDate() - targetDate.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
-      return transactions.filter((t) => {
-        const transactionDate = new Date(t.date);
-        return transactionDate >= weekStart && transactionDate <= weekEnd;
-      });
-    } else {
-      const monthStart = new Date(
-        targetDate.getFullYear(),
-        targetDate.getMonth(),
-        1,
+      const targetKey = this.userLocalDayKey(
+        new Date(selectedDate),
+        userTimezone,
       );
-      monthStart.setHours(0, 0, 0, 0);
-
-      const monthEnd = new Date(
-        targetDate.getFullYear(),
-        targetDate.getMonth() + 1,
-        0,
+      return transactions.filter(
+        (t) => this.userLocalDayKey(new Date(t.date), userTimezone) === targetKey,
       );
-      monthEnd.setHours(23, 59, 59, 999);
-
-      return transactions.filter((t) => {
-        const transactionDate = new Date(t.date);
-        return transactionDate >= monthStart && transactionDate <= monthEnd;
-      });
     }
+
+    const { start, end } =
+      selectedPeriod === "weekly"
+        ? this.dateService.getWeekBoundariesInUserTimezone(
+            selectedDate,
+            userTimezone,
+          )
+        : this.dateService.getMonthBoundariesInUserTimezone(
+            selectedDate,
+            userTimezone,
+          );
+
+    return transactions.filter((t) => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= start && transactionDate <= end;
+    });
   }
 
   // ✅ FIXED: Create separate subcategory entries instead of grouping by name
@@ -1574,6 +1543,7 @@ export class TransactionsService {
     allTransactions: any[],
     selectedDate: string,
     selectedPeriod: "daily" | "weekly" | "monthly",
+    userTimezone = "UTC",
   ) {
     const targetDate = new Date(selectedDate);
     let previousDate: Date;
@@ -1593,6 +1563,7 @@ export class TransactionsService {
       allTransactions,
       previousDate.toISOString().split("T")[0],
       selectedPeriod,
+      userTimezone,
     );
 
     const previousAmount = previousTransactions.reduce(
@@ -1603,6 +1574,7 @@ export class TransactionsService {
       allTransactions,
       selectedDate,
       selectedPeriod,
+      userTimezone,
     ).reduce((sum, t) => sum + Number(t.amount), 0);
 
     const percentageChange =
@@ -2027,6 +1999,7 @@ export class TransactionsService {
     transactions: any[],
     startDate?: string,
     endDate?: string,
+    userTimezone = "UTC",
   ): Array<{
     month: string;
     discretionaryExpenses: number;
@@ -2060,21 +2033,18 @@ export class TransactionsService {
     }> = [];
 
     if (periodType === "daily") {
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dayStr = d.toISOString().split("T")[0];
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      // Bucket by the transaction's calendar day in the user's timezone, matching
+      // calculateTrends and the transaction list grouping.
+      const byDay = new Map<string, number>();
+      for (const t of discretionaryTransactions) {
+        const key = this.userLocalDayKey(new Date(t.date), userTimezone);
+        byDay.set(key, (byDay.get(key) || 0) + Number(t.amount));
+      }
 
-        const dayDiscretionaryExpenses = discretionaryTransactions
-          .filter((t) => {
-            const transactionDate = new Date(t.date);
-            return transactionDate >= dayStart && transactionDate < dayEnd;
-          })
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
+      for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
         discretionaryTrends.push({
           month: dayStr,
-          discretionaryExpenses: dayDiscretionaryExpenses,
+          discretionaryExpenses: byDay.get(dayStr) || 0,
         });
       }
     } else if (periodType === "weekly") {
@@ -2252,10 +2222,41 @@ export class TransactionsService {
     };
   }
 
+  /**
+   * Format a transaction's timestamp as its calendar day (yyyy-MM-dd) in the
+   * user's timezone — matches how the app groups transactions for display.
+   */
+  private userLocalDayKey(date: Date, userTimezone: string): string {
+    return this.dateService.formatInUserTimezone(date, userTimezone, "yyyy-MM-dd");
+  }
+
+  /**
+   * Enumerate the continuous list of user-local calendar days (yyyy-MM-dd)
+   * spanning [start, end]. Day strings are stepped in UTC so timezone/DST
+   * offsets can't skip or duplicate a day.
+   */
+  private enumerateUserLocalDayKeys(
+    start: Date,
+    end: Date,
+    userTimezone: string,
+  ): string[] {
+    const startKey = this.userLocalDayKey(start, userTimezone);
+    const endKey = this.userLocalDayKey(end, userTimezone);
+    const keys: string[] = [];
+    const cursor = new Date(`${startKey}T00:00:00Z`);
+    const last = new Date(`${endKey}T00:00:00Z`);
+    while (cursor <= last) {
+      keys.push(cursor.toISOString().split("T")[0]);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return keys;
+  }
+
   private calculateTrends(
     transactions: any[],
     startDate?: string,
     endDate?: string,
+    userTimezone = "UTC",
   ): Array<{
     month: string;
     income: number;
@@ -2293,13 +2294,18 @@ export class TransactionsService {
     }> = [];
 
     if (periodType === "daily") {
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dayStr = d.toISOString().split("T")[0];
+      // Bucket by the transaction's calendar day in the user's timezone so the
+      // chart agrees with how transactions are grouped for display.
+      const byDay = new Map<string, any[]>();
+      for (const t of transactions) {
+        const key = this.userLocalDayKey(new Date(t.date), userTimezone);
+        const bucket = byDay.get(key);
+        if (bucket) bucket.push(t);
+        else byDay.set(key, [t]);
+      }
 
-        const dayTransactions = transactions.filter((t) => {
-          const transactionDate = new Date(t.date).toISOString().split("T")[0];
-          return transactionDate === dayStr;
-        });
+      for (const dayStr of this.enumerateUserLocalDayKeys(start, end, userTimezone)) {
+        const dayTransactions = byDay.get(dayStr) || [];
 
         const dayIncome = dayTransactions
           .filter((t) => t.type === "INCOME")
@@ -2463,15 +2469,20 @@ export class TransactionsService {
       }),
     );
 
+    const userTimezone = this.dateService.getValidTimezone(
+      userProfile?.timezone,
+    );
     const monthlyTrends = this.calculateTrends(
       transactions,
       filters.startDate,
       filters.endDate,
+      userTimezone,
     );
     const discretionaryTrends = this.calculateDiscretionaryTrends(
       transactions,
       filters.startDate,
       filters.endDate,
+      userTimezone,
     );
 
     const enhancedMonthlyTrends = monthlyTrends.map((trend) => {
