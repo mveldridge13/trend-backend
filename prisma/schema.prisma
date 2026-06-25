@@ -232,6 +232,7 @@ model PokerTournament {
   venue             String?
   dateStart         DateTime
   dateEnd           DateTime?
+  startingBankroll  Decimal                @default(0) @db.Decimal(10, 2)
   accommodationCost Decimal                @default(0) @db.Decimal(10, 2)
   foodBudget        Decimal                @default(0) @db.Decimal(10, 2)
   otherExpenses     Decimal                @default(0) @db.Decimal(10, 2)

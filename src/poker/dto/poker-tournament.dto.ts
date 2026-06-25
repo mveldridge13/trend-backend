@@ -16,6 +16,7 @@ export class PokerTournamentDto {
   venue?: string;
   dateStart: Date;
   dateEnd?: Date;
+  startingBankroll: number;
   accommodationCost: number;
   foodBudget: number;
   otherExpenses: number;
@@ -32,6 +33,8 @@ export class PokerTournamentDto {
   eventsPlayed?: number;
   eventsWon?: number;
   roi?: number;
+  // Running bankroll after this trip's costs + winnings (startingBankroll + netProfit)
+  endingBankroll?: number;
 
   // Related data
   events?: PokerTournamentEventDto[];

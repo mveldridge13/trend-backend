@@ -366,6 +366,7 @@ export class PokerService {
       parseFloat(tournament.otherExpenses);
     const totalInvestment = totalSharedCosts + totalBuyIns + totalReBuyCosts;
     const netProfit = totalWinnings - totalInvestment;
+    const startingBankroll = parseFloat(tournament.startingBankroll) || 0;
     const eventsWon = events.filter(
       (event: any) =>
         parseFloat(event.winnings) >
@@ -380,6 +381,7 @@ export class PokerService {
       venue: tournament.venue,
       dateStart: tournament.dateStart,
       dateEnd: tournament.dateEnd,
+      startingBankroll,
       accommodationCost: parseFloat(tournament.accommodationCost),
       foodBudget: parseFloat(tournament.foodBudget),
       otherExpenses: parseFloat(tournament.otherExpenses),
@@ -394,6 +396,7 @@ export class PokerService {
       eventsPlayed: events.length,
       eventsWon,
       roi: totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0,
+      endingBankroll: startingBankroll + netProfit,
       events: events.map((event: any) => this.transformEventToDto(event)),
     };
   }
