@@ -14,7 +14,6 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class CreatePokerTournamentDto {
     constructor() {
-        this.startingBankroll = 0;
         this.accommodationCost = 0;
         this.foodBudget = 0;
         this.otherExpenses = 0;
@@ -48,14 +47,6 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreatePokerTournamentDto.prototype, "dateEnd", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 2 }),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.Max)(99999999.99),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
-], CreatePokerTournamentDto.prototype, "startingBankroll", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)({ maxDecimalPlaces: 2 }),

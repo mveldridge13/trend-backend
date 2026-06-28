@@ -4,7 +4,6 @@ export declare class CreatePokerTournamentDto {
     venue?: string;
     dateStart: string;
     dateEnd?: string;
-    startingBankroll?: number;
     accommodationCost?: number;
     foodBudget?: number;
     otherExpenses?: number;

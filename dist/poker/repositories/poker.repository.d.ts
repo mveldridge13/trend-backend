@@ -1,4 +1,4 @@
-import { PokerTournament, PokerTournamentEvent, Prisma } from "@prisma/client";
+import { PokerTournament, PokerTournamentEvent, PokerBankrollTransaction, Prisma } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
 export declare class PokerRepository {
     private readonly prisma;
@@ -17,4 +17,8 @@ export declare class PokerRepository {
     deleteEvent(id: string): Promise<PokerTournamentEvent>;
     getTournamentStats(tournamentId: string): Promise<any>;
     getUserPokerStats(userId: string): Promise<any>;
+    createBankrollTransaction(data: Prisma.PokerBankrollTransactionCreateInput): Promise<PokerBankrollTransaction>;
+    findBankrollTransactionsByUserId(userId: string): Promise<PokerBankrollTransaction[]>;
+    findBankrollTransactionById(id: string): Promise<PokerBankrollTransaction | null>;
+    deleteBankrollTransaction(id: string): Promise<PokerBankrollTransaction>;
 }

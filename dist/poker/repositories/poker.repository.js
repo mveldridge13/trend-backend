@@ -141,6 +141,21 @@ let PokerRepository = class PokerRepository {
     `;
         return result[0] || null;
     }
+    async createBankrollTransaction(data) {
+        return this.prisma.pokerBankrollTransaction.create({ data });
+    }
+    async findBankrollTransactionsByUserId(userId) {
+        return this.prisma.pokerBankrollTransaction.findMany({
+            where: { userId },
+            orderBy: { date: "desc" },
+        });
+    }
+    async findBankrollTransactionById(id) {
+        return this.prisma.pokerBankrollTransaction.findUnique({ where: { id } });
+    }
+    async deleteBankrollTransaction(id) {
+        return this.prisma.pokerBankrollTransaction.delete({ where: { id } });
+    }
 };
 exports.PokerRepository = PokerRepository;
 exports.PokerRepository = PokerRepository = __decorate([

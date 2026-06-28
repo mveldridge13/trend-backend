@@ -15,7 +15,6 @@ export declare class PokerTournamentDto {
     venue?: string;
     dateStart: Date;
     dateEnd?: Date;
-    startingBankroll: number;
     accommodationCost: number;
     foodBudget: number;
     otherExpenses: number;
@@ -30,7 +29,6 @@ export declare class PokerTournamentDto {
     eventsPlayed?: number;
     eventsWon?: number;
     roi?: number;
-    endingBankroll?: number;
     events?: PokerTournamentEventDto[];
 }
 export declare class PokerTournamentEventDto {

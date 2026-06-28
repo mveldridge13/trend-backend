@@ -26,6 +26,11 @@ import {
   PokerAnalyticsDto,
   TournamentAnalyticsDto,
 } from "./dto/poker-analytics.dto";
+import { CreatePokerBankrollTransactionDto } from "./dto/create-poker-bankroll-transaction.dto";
+import {
+  PokerBankrollDto,
+  PokerBankrollTransactionDto,
+} from "./dto/poker-bankroll.dto";
 
 @Controller("poker")
 @UseGuards(JwtAuthGuard)
@@ -151,5 +156,40 @@ export class PokerController {
   ): Promise<TournamentAnalyticsDto> {
     const userId = this.extractUserId(req);
     return this.pokerService.getTournamentAnalytics(id, userId);
+  }
+
+  // Bankroll (global deposit/withdraw ledger + computed picture)
+  @Get("bankroll")
+  async getBankroll(@Request() req: any): Promise<PokerBankrollDto> {
+    const userId = this.extractUserId(req);
+    return this.pokerService.getBankroll(userId);
+  }
+
+  @Get("bankroll/transactions")
+  async getBankrollTransactions(
+    @Request() req: any,
+  ): Promise<PokerBankrollTransactionDto[]> {
+    const userId = this.extractUserId(req);
+    return this.pokerService.getBankrollTransactions(userId);
+  }
+
+  @Post("bankroll/transactions")
+  @HttpCode(HttpStatus.CREATED)
+  async createBankrollTransaction(
+    @Request() req: any,
+    @Body(ValidationPipe) createDto: CreatePokerBankrollTransactionDto,
+  ): Promise<PokerBankrollTransactionDto> {
+    const userId = this.extractUserId(req);
+    return this.pokerService.createBankrollTransaction(userId, createDto);
+  }
+
+  @Delete("bankroll/transactions/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteBankrollTransaction(
+    @Request() req: any,
+    @Param("id") id: string,
+  ): Promise<void> {
+    const userId = this.extractUserId(req);
+    return this.pokerService.deleteBankrollTransaction(id, userId);
   }
 }

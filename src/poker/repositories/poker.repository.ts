@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { PokerTournament, PokerTournamentEvent, Prisma } from "@prisma/client";
+import {
+  PokerTournament,
+  PokerTournamentEvent,
+  PokerBankrollTransaction,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
 
 @Injectable()
@@ -160,5 +165,33 @@ export class PokerRepository {
     `;
 
     return result[0] || null;
+  }
+
+  // Bankroll ledger operations (deposits/withdrawals only)
+  async createBankrollTransaction(
+    data: Prisma.PokerBankrollTransactionCreateInput,
+  ): Promise<PokerBankrollTransaction> {
+    return this.prisma.pokerBankrollTransaction.create({ data });
+  }
+
+  async findBankrollTransactionsByUserId(
+    userId: string,
+  ): Promise<PokerBankrollTransaction[]> {
+    return this.prisma.pokerBankrollTransaction.findMany({
+      where: { userId },
+      orderBy: { date: "desc" },
+    });
+  }
+
+  async findBankrollTransactionById(
+    id: string,
+  ): Promise<PokerBankrollTransaction | null> {
+    return this.prisma.pokerBankrollTransaction.findUnique({ where: { id } });
+  }
+
+  async deleteBankrollTransaction(
+    id: string,
+  ): Promise<PokerBankrollTransaction> {
+    return this.prisma.pokerBankrollTransaction.delete({ where: { id } });
   }
 }

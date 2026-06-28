@@ -20,6 +20,7 @@ const create_poker_tournament_dto_1 = require("./dto/create-poker-tournament.dto
 const update_poker_tournament_dto_1 = require("./dto/update-poker-tournament.dto");
 const create_poker_tournament_event_dto_1 = require("./dto/create-poker-tournament-event.dto");
 const update_poker_tournament_event_dto_1 = require("./dto/update-poker-tournament-event.dto");
+const create_poker_bankroll_transaction_dto_1 = require("./dto/create-poker-bankroll-transaction.dto");
 let PokerController = class PokerController {
     constructor(pokerService) {
         this.pokerService = pokerService;
@@ -74,6 +75,22 @@ let PokerController = class PokerController {
     async getTournamentAnalytics(req, id) {
         const userId = this.extractUserId(req);
         return this.pokerService.getTournamentAnalytics(id, userId);
+    }
+    async getBankroll(req) {
+        const userId = this.extractUserId(req);
+        return this.pokerService.getBankroll(userId);
+    }
+    async getBankrollTransactions(req) {
+        const userId = this.extractUserId(req);
+        return this.pokerService.getBankrollTransactions(userId);
+    }
+    async createBankrollTransaction(req, createDto) {
+        const userId = this.extractUserId(req);
+        return this.pokerService.createBankrollTransaction(userId, createDto);
+    }
+    async deleteBankrollTransaction(req, id) {
+        const userId = this.extractUserId(req);
+        return this.pokerService.deleteBankrollTransaction(id, userId);
     }
 };
 exports.PokerController = PokerController;
@@ -170,6 +187,38 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], PokerController.prototype, "getTournamentAnalytics", null);
+__decorate([
+    (0, common_1.Get)("bankroll"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PokerController.prototype, "getBankroll", null);
+__decorate([
+    (0, common_1.Get)("bankroll/transactions"),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PokerController.prototype, "getBankrollTransactions", null);
+__decorate([
+    (0, common_1.Post)("bankroll/transactions"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)(common_1.ValidationPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_poker_bankroll_transaction_dto_1.CreatePokerBankrollTransactionDto]),
+    __metadata("design:returntype", Promise)
+], PokerController.prototype, "createBankrollTransaction", null);
+__decorate([
+    (0, common_1.Delete)("bankroll/transactions/:id"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], PokerController.prototype, "deleteBankrollTransaction", null);
 exports.PokerController = PokerController = __decorate([
     (0, common_1.Controller)("poker"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

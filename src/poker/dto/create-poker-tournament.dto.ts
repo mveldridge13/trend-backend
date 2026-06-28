@@ -36,13 +36,6 @@ export class CreatePokerTournamentDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  @Max(99999999.99)
-  @Type(() => Number)
-  startingBankroll?: number = 0;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
   @Max(99999.99)
   @Type(() => Number)
   accommodationCost?: number = 0;

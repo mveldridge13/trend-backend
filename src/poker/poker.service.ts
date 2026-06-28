@@ -17,6 +17,12 @@ import {
   PokerAnalyticsDto,
   TournamentAnalyticsDto,
 } from "./dto/poker-analytics.dto";
+import { CreatePokerBankrollTransactionDto } from "./dto/create-poker-bankroll-transaction.dto";
+import {
+  PokerBankrollDto,
+  PokerBankrollStatus,
+  PokerBankrollTransactionDto,
+} from "./dto/poker-bankroll.dto";
 
 @Injectable()
 export class PokerService {
@@ -345,7 +351,125 @@ export class PokerService {
     };
   }
 
+  // Bankroll Ledger (deposits/withdrawals only — global, siloed from budget)
+  async createBankrollTransaction(
+    userId: string,
+    dto: CreatePokerBankrollTransactionDto,
+  ): Promise<PokerBankrollTransactionDto> {
+    const transaction = await this.pokerRepository.createBankrollTransaction({
+      type: dto.type,
+      amount: dto.amount,
+      note: dto.note ?? null,
+      date: dto.date ? new Date(dto.date) : new Date(),
+      user: { connect: { id: userId } },
+    });
+    return this.transformBankrollTransactionToDto(transaction);
+  }
+
+  async getBankrollTransactions(
+    userId: string,
+  ): Promise<PokerBankrollTransactionDto[]> {
+    const transactions =
+      await this.pokerRepository.findBankrollTransactionsByUserId(userId);
+    return transactions.map((t) => this.transformBankrollTransactionToDto(t));
+  }
+
+  async deleteBankrollTransaction(id: string, userId: string): Promise<void> {
+    const transaction =
+      await this.pokerRepository.findBankrollTransactionById(id);
+    if (!transaction) {
+      throw new NotFoundException("Bankroll transaction not found");
+    }
+    if (transaction.userId !== userId) {
+      throw new ForbiddenException(
+        "You do not have access to this bankroll transaction",
+      );
+    }
+    await this.pokerRepository.deleteBankrollTransaction(id);
+  }
+
+  // Computed bankroll picture: combines the ledger (deposits/withdrawals)
+  // with lifetime net profit from play results. The ledger never holds play
+  // results, so the two sources stay separate (no double-count).
+  async getBankroll(userId: string): Promise<PokerBankrollDto> {
+    const [transactions, stats] = await Promise.all([
+      this.pokerRepository.findBankrollTransactionsByUserId(userId),
+      this.pokerRepository.getUserPokerStats(userId),
+    ]);
+
+    const totalDeposits = transactions
+      .filter((t) => t.type === "DEPOSIT")
+      .reduce((sum, t) => sum + parseFloat(t.amount as any), 0);
+    const totalWithdrawals = transactions
+      .filter((t) => t.type === "WITHDRAWAL")
+      .reduce((sum, t) => sum + parseFloat(t.amount as any), 0);
+    const lifetimeNetProfit = stats ? parseFloat(stats.netProfit) || 0 : 0;
+
+    const D = totalDeposits;
+    const W = totalWithdrawals;
+    const N = lifetimeNetProfit;
+
+    const currentBankroll = D - W + N; // B
+    const originalCapital = D; // C
+    const capitalAtRisk = Math.max(0, D - W);
+    const capitalRecouped = Math.min(W, D);
+    // Recouped your whole stake → playing on house money. Requires having staked.
+    const isFreerolling = D > 0 && W >= D && currentBankroll > 0;
+
+    let status: PokerBankrollStatus = "BUILDING";
+    let suggestedWithdrawal = 0;
+    if (originalCapital > 0) {
+      if (isFreerolling || N >= 2 * originalCapital) {
+        status = "FREEROLL";
+        // Freeroll territory: pull any remaining at-risk capital, let profit ride.
+        suggestedWithdrawal = capitalAtRisk;
+      } else if (N >= originalCapital) {
+        status = "IN_PROFIT";
+        // In profit: pocket profit above capital, keep your capital riding.
+        suggestedWithdrawal = Math.max(0, currentBankroll - originalCapital);
+      }
+    }
+    // Never suggest withdrawing more than is actually in the bankroll.
+    suggestedWithdrawal = Math.min(
+      suggestedWithdrawal,
+      Math.max(0, currentBankroll),
+    );
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    return {
+      totalDeposits: round(D),
+      totalWithdrawals: round(W),
+      lifetimeNetProfit: round(N),
+      currentBankroll: round(currentBankroll),
+      originalCapital: round(originalCapital),
+      capitalAtRisk: round(capitalAtRisk),
+      capitalRecouped: round(capitalRecouped),
+      status,
+      isFreerolling,
+      suggestedWithdrawal: round(suggestedWithdrawal),
+      transactions: transactions.map((t) =>
+        this.transformBankrollTransactionToDto(t),
+      ),
+    };
+  }
+
   // Helper methods
+  private transformBankrollTransactionToDto(
+    transaction: any,
+  ): PokerBankrollTransactionDto {
+    return {
+      id: transaction.id,
+      userId: transaction.userId,
+      type: transaction.type,
+      amount: parseFloat(transaction.amount),
+      note: transaction.note ?? undefined,
+      date: transaction.date,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+    };
+  }
+
   private transformTournamentToDto(tournament: any): PokerTournamentDto {
     const events = tournament.events || [];
     const totalBuyIns = events.reduce(
@@ -366,7 +490,6 @@ export class PokerService {
       parseFloat(tournament.otherExpenses);
     const totalInvestment = totalSharedCosts + totalBuyIns + totalReBuyCosts;
     const netProfit = totalWinnings - totalInvestment;
-    const startingBankroll = parseFloat(tournament.startingBankroll) || 0;
     const eventsWon = events.filter(
       (event: any) =>
         parseFloat(event.winnings) >
@@ -381,7 +504,6 @@ export class PokerService {
       venue: tournament.venue,
       dateStart: tournament.dateStart,
       dateEnd: tournament.dateEnd,
-      startingBankroll,
       accommodationCost: parseFloat(tournament.accommodationCost),
       foodBudget: parseFloat(tournament.foodBudget),
       otherExpenses: parseFloat(tournament.otherExpenses),
@@ -396,7 +518,6 @@ export class PokerService {
       eventsPlayed: events.length,
       eventsWon,
       roi: totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0,
-      endingBankroll: startingBankroll + netProfit,
       events: events.map((event: any) => this.transformEventToDto(event)),
     };
   }

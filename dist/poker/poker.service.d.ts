@@ -5,6 +5,8 @@ import { CreatePokerTournamentEventDto } from "./dto/create-poker-tournament-eve
 import { UpdatePokerTournamentEventDto } from "./dto/update-poker-tournament-event.dto";
 import { PokerTournamentDto, PokerTournamentEventDto } from "./dto/poker-tournament.dto";
 import { PokerAnalyticsDto, TournamentAnalyticsDto } from "./dto/poker-analytics.dto";
+import { CreatePokerBankrollTransactionDto } from "./dto/create-poker-bankroll-transaction.dto";
+import { PokerBankrollDto, PokerBankrollTransactionDto } from "./dto/poker-bankroll.dto";
 export declare class PokerService {
     private readonly pokerRepository;
     constructor(pokerRepository: PokerRepository);
@@ -19,6 +21,11 @@ export declare class PokerService {
     getTournamentEvents(tournamentId: string, userId: string): Promise<PokerTournamentEventDto[]>;
     getPokerAnalytics(userId: string): Promise<PokerAnalyticsDto>;
     getTournamentAnalytics(tournamentId: string, userId: string): Promise<TournamentAnalyticsDto>;
+    createBankrollTransaction(userId: string, dto: CreatePokerBankrollTransactionDto): Promise<PokerBankrollTransactionDto>;
+    getBankrollTransactions(userId: string): Promise<PokerBankrollTransactionDto[]>;
+    deleteBankrollTransaction(id: string, userId: string): Promise<void>;
+    getBankroll(userId: string): Promise<PokerBankrollDto>;
+    private transformBankrollTransactionToDto;
     private transformTournamentToDto;
     private transformEventToDto;
 }
