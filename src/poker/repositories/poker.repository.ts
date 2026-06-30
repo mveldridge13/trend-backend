@@ -146,21 +146,39 @@ export class PokerRepository {
   }
 
   async getUserPokerStats(userId: string): Promise<any> {
+    // Pre-aggregate events per tournament first. Joining tournaments directly
+    // to events would repeat each tournament row once per event, so summing the
+    // per-tournament shared costs (accommodation + food + other) over that join
+    // would multiply them by the event count — double-counting trip costs in
+    // netProfit (and therefore the bankroll). Aggregating events in a subquery
+    // keeps exactly one row per tournament, so shared costs are counted once.
     const result = await this.prisma.$queryRaw`
-      SELECT 
+      SELECT
         COUNT(DISTINCT t.id) as "totalTournaments",
         COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses"), 0) as "totalSharedCosts",
-        COALESCE(SUM(e."buyIn"), 0) as "totalBuyIns",
-        COALESCE(SUM(e."reBuyAmount"), 0) as "totalReBuys",
-        COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") + SUM(e."buyIn") + SUM(e."reBuyAmount"), 0) as "totalInvestment",
-        COALESCE(SUM(e.winnings), 0) as "totalWinnings",
-        COALESCE(SUM(e.winnings) - SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses") - SUM(e."buyIn") - SUM(e."reBuyAmount"), 0) as "netProfit",
-        COUNT(e.id) as "totalEventsPlayed",
-        COUNT(CASE WHEN e.winnings > (e."buyIn" + COALESCE(e."reBuyAmount", 0)) THEN 1 END) as "totalEventsWon",
-        COALESCE(MAX(e.winnings), 0) as "biggestWin",
-        COALESCE(MIN(e."buyIn" - e.winnings), 0) as "biggestLoss"
+        COALESCE(SUM(ev."buyIns"), 0) as "totalBuyIns",
+        COALESCE(SUM(ev."reBuys"), 0) as "totalReBuys",
+        COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses"), 0) + COALESCE(SUM(ev."buyIns"), 0) + COALESCE(SUM(ev."reBuys"), 0) as "totalInvestment",
+        COALESCE(SUM(ev."winnings"), 0) as "totalWinnings",
+        COALESCE(SUM(ev."winnings"), 0) - COALESCE(SUM(t."accommodationCost" + t."foodBudget" + t."otherExpenses"), 0) - COALESCE(SUM(ev."buyIns"), 0) - COALESCE(SUM(ev."reBuys"), 0) as "netProfit",
+        COALESCE(SUM(ev."eventsPlayed"), 0) as "totalEventsPlayed",
+        COALESCE(SUM(ev."eventsWon"), 0) as "totalEventsWon",
+        COALESCE(MAX(ev."biggestWin"), 0) as "biggestWin",
+        COALESCE(MIN(ev."biggestLoss"), 0) as "biggestLoss"
       FROM poker_tournaments t
-      LEFT JOIN poker_tournament_events e ON t.id = e."tournamentId"
+      LEFT JOIN (
+        SELECT
+          e."tournamentId",
+          SUM(e."buyIn") as "buyIns",
+          SUM(e."reBuyAmount") as "reBuys",
+          SUM(e.winnings) as "winnings",
+          COUNT(e.id) as "eventsPlayed",
+          COUNT(CASE WHEN e.winnings > (e."buyIn" + COALESCE(e."reBuyAmount", 0)) THEN 1 END) as "eventsWon",
+          MAX(e.winnings) as "biggestWin",
+          MIN(e."buyIn" - e.winnings) as "biggestLoss"
+        FROM poker_tournament_events e
+        GROUP BY e."tournamentId"
+      ) ev ON ev."tournamentId" = t.id
       WHERE t."userId" = ${userId}
     `;
 
