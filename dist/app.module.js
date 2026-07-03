@@ -23,6 +23,7 @@ const categories_module_1 = require("./categories/categories.module");
 const transactions_module_1 = require("./transactions/transactions.module");
 const goals_module_1 = require("./goals/goals.module");
 const poker_module_1 = require("./poker/poker.module");
+const invoices_module_1 = require("./invoices/invoices.module");
 const common_module_1 = require("./common/common.module");
 const audit_module_1 = require("./audit/audit.module");
 const email_module_1 = require("./email/email.module");
@@ -56,6 +57,7 @@ exports.AppModule = AppModule = __decorate([
             transactions_module_1.TransactionsModule,
             goals_module_1.GoalsModule,
             poker_module_1.PokerModule,
+            invoices_module_1.InvoicesModule,
             home_module_1.HomeModule,
             webhooks_module_1.WebhooksModule,
         ],

@@ -8,41 +8,41 @@ datasource db {
 }
 
 model User {
-  id                          String                 @id @default(cuid())
-  email                       String                 @unique
-  username                    String?                @unique
+  id                          String                     @id @default(cuid())
+  email                       String                     @unique
+  username                    String?                    @unique
   firstName                   String
   lastName                    String
   passwordHash                String?
-  currency                    String                 @default("USD")
-  timezone                    String                 @default("UTC")
-  createdAt                   DateTime               @default(now())
-  updatedAt                   DateTime               @updatedAt
-  isActive                    Boolean                @default(true)
-  hasSeenWelcome              Boolean                @default(false)
+  currency                    String                     @default("USD")
+  timezone                    String                     @default("UTC")
+  createdAt                   DateTime                   @default(now())
+  updatedAt                   DateTime                   @updatedAt
+  isActive                    Boolean                    @default(true)
+  hasSeenWelcome              Boolean                    @default(false)
   // Security fields
-  failedLoginAttempts         Int                    @default(0)
+  failedLoginAttempts         Int                        @default(0)
   lockedUntil                 DateTime?
   lastFailedLogin             DateTime?
   passwordResetToken          String?
   passwordResetExpires        DateTime?
-  income                      Decimal?               @db.Decimal(12, 2)
-  setupComplete               Boolean                @default(false)
-  hasSeenAddTransactionTour   Boolean                @default(false)
-  hasSeenBalanceCardTour      Boolean                @default(false)
-  hasSeenTransactionSwipeTour Boolean                @default(false)
-  fixedExpenses               Decimal?               @db.Decimal(12, 2)
+  income                      Decimal?                   @db.Decimal(12, 2)
+  setupComplete               Boolean                    @default(false)
+  hasSeenAddTransactionTour   Boolean                    @default(false)
+  hasSeenBalanceCardTour      Boolean                    @default(false)
+  hasSeenTransactionSwipeTour Boolean                    @default(false)
+  fixedExpenses               Decimal?                   @db.Decimal(12, 2)
   incomeFrequency             IncomeFrequency?
   nextPayDate                 DateTime?
-  rolloverAmount              Decimal?               @db.Decimal(12, 2)
+  rolloverAmount              Decimal?                   @db.Decimal(12, 2)
   lastRolloverDate            DateTime?
   // Subscription fields
-  isPro                       Boolean                @default(false)
+  isPro                       Boolean                    @default(false)
   proExpiresAt                DateTime?
   subscriptionProvider        SubscriptionProvider?
-  rcCustomerId                String?                // RevenueCat customer ID
+  rcCustomerId                String? // RevenueCat customer ID
   // Per-user feature module toggles (extensible; defaults applied on read)
-  moduleSettings              Json                   @default("{}")
+  moduleSettings              Json                       @default("{}")
   budgets                     Budget[]
   categories                  Category[]
   goalContributions           GoalContribution[]
@@ -55,22 +55,24 @@ model User {
   rolloverNotification        RolloverNotification?
   transactions                Transaction[]
   refreshTokens               RefreshToken[]
+  clients                     Client[]
+  invoices                    Invoice[]
 
   @@map("users")
 }
 
 model RefreshToken {
-  id          String   @id @default(cuid())
-  userId      String
-  token       String   @unique
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  revokedAt   DateTime?
-  lastUsedAt  DateTime @default(now())
-  userAgent   String?
-  ipAddress   String?
-  deviceName  String?  // Parsed from userAgent for display
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  userAgent  String?
+  ipAddress  String?
+  deviceName String? // Parsed from userAgent for display
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
@@ -140,13 +142,14 @@ model Transaction {
   subcategoryId     String?
   dueDate           DateTime?
   status            PaymentStatus?
-  linkedGoalId      String?            // Links recurring debt payments to their goal
+  linkedGoalId      String? // Links recurring debt payments to their goal
   goalContributions GoalContribution[]
   budget            Budget?            @relation(fields: [budgetId], references: [id])
   category          Category?          @relation(fields: [categoryId], references: [id])
   subcategory       Category?          @relation("TransactionSubcategory", fields: [subcategoryId], references: [id])
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   linkedGoal        Goal?              @relation("LinkedTransactions", fields: [linkedGoalId], references: [id])
+  invoice           Invoice?           @relation("InvoicePayment")
 
   @@index([userId, date])
   @@index([categoryId])
@@ -156,32 +159,32 @@ model Transaction {
 }
 
 model Goal {
-  id                  String             @id @default(cuid())
-  userId              String
-  name                String
-  description         String?
-  targetAmount        Decimal            @db.Decimal(12, 2)
-  currentAmount       Decimal            @default(0) @db.Decimal(12, 2)
-  currency            String             @default("USD")
-  targetDate          DateTime?
-  category            GoalCategory
-  type                GoalType           @default(SAVINGS)
-  isActive            Boolean            @default(true)
-  isCompleted         Boolean            @default(false)
-  completedAt         DateTime?
-  priority            GoalPriority       @default(MEDIUM)
-  autoContribute      Boolean            @default(false)
-  monthlyTarget       Decimal?           @db.Decimal(12, 2)
-  loanTerm            LoanTerm?
-  interestRate        Decimal?           @db.Decimal(5, 2)
-  minimumPayment      Decimal?           @db.Decimal(12, 2)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  originalCategory    String?
-  contributions       GoalContribution[]
-  reminders           GoalReminder[]
-  linkedTransactions  Transaction[]      @relation("LinkedTransactions") // Recurring payments linked to this goal
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(cuid())
+  userId             String
+  name               String
+  description        String?
+  targetAmount       Decimal            @db.Decimal(12, 2)
+  currentAmount      Decimal            @default(0) @db.Decimal(12, 2)
+  currency           String             @default("USD")
+  targetDate         DateTime?
+  category           GoalCategory
+  type               GoalType           @default(SAVINGS)
+  isActive           Boolean            @default(true)
+  isCompleted        Boolean            @default(false)
+  completedAt        DateTime?
+  priority           GoalPriority       @default(MEDIUM)
+  autoContribute     Boolean            @default(false)
+  monthlyTarget      Decimal?           @db.Decimal(12, 2)
+  loanTerm           LoanTerm?
+  interestRate       Decimal?           @db.Decimal(5, 2)
+  minimumPayment     Decimal?           @db.Decimal(12, 2)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  originalCategory   String?
+  contributions      GoalContribution[]
+  reminders          GoalReminder[]
+  linkedTransactions Transaction[]      @relation("LinkedTransactions") // Recurring payments linked to this goal
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([userId, category])
@@ -401,16 +404,16 @@ enum LoanTerm {
 }
 
 model RolloverEntry {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   userId      String
-  amount      Decimal     @db.Decimal(12, 2)
-  date        DateTime    @default(now())
+  amount      Decimal      @db.Decimal(12, 2)
+  date        DateTime     @default(now())
   type        RolloverType
   periodStart DateTime
   periodEnd   DateTime
   description String?
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, date])
   @@map("rollover_entries")
 }
@@ -435,14 +438,14 @@ enum RolloverType {
 
 // Audit logging for security events
 model AuditLog {
-  id          String        @id @default(cuid())
-  userId      String?       // Nullable for failed login attempts where user doesn't exist
-  eventType   AuditEventType
-  ipAddress   String?
-  userAgent   String?
-  metadata    Json?         // Additional event-specific data (e.g., email for failed login)
-  success     Boolean       @default(true)
-  createdAt   DateTime      @default(now())
+  id        String         @id @default(cuid())
+  userId    String? // Nullable for failed login attempts where user doesn't exist
+  eventType AuditEventType
+  ipAddress String?
+  userAgent String?
+  metadata  Json? // Additional event-specific data (e.g., email for failed login)
+  success   Boolean        @default(true)
+  createdAt DateTime       @default(now())
 
   @@index([userId, createdAt])
   @@index([eventType, createdAt])
@@ -477,4 +480,82 @@ model PasswordHistory {
 
   @@index([userId, createdAt])
   @@map("password_history")
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  email     String
+  company   String?
+  address   String?
+  phone     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices  Invoice[]
+
+  @@index([userId])
+  @@map("clients")
+}
+
+model Invoice {
+  id              String            @id @default(cuid())
+  userId          String
+  clientId        String
+  invoiceNumber   String
+  status          InvoiceStatus     @default(DRAFT)
+  currency        String            @default("USD")
+  issueDate       DateTime
+  dueDate         DateTime
+  subtotal        Decimal           @default(0) @db.Decimal(12, 2)
+  taxTotal        Decimal           @default(0) @db.Decimal(12, 2)
+  discountTotal   Decimal           @default(0) @db.Decimal(12, 2)
+  total           Decimal           @default(0) @db.Decimal(12, 2)
+  notes           String?
+  terms           String?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  // Links to the INCOME Transaction created when the invoice is paid.
+  // Doubles as an idempotency guard so a manual mark-paid and a future
+  // Stripe webhook can never create two income entries for one invoice.
+  transactionId   String?           @unique
+  // Reserved for future Stripe integration (mark-paid via webhook).
+  stripePaymentId String?           @unique
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client          Client            @relation(fields: [clientId], references: [id])
+  transaction     Transaction?      @relation("InvoicePayment", fields: [transactionId], references: [id])
+  lineItems       InvoiceLineItem[]
+
+  @@unique([userId, invoiceNumber])
+  @@index([userId, status])
+  @@index([clientId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  amount      Decimal @default(0) @db.Decimal(12, 2)
+  sortOrder   Int     @default(0)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELED
 }

@@ -97,11 +97,50 @@ If you didn't make this change, please contact support immediately and reset you
     return this.sendEmail(toEmail, subject, htmlBody, textBody);
   }
 
+  async sendInvoiceEmail(
+    toEmail: string,
+    params: {
+      invoiceNumber: string;
+      senderName: string;
+      total: string;
+      dueDate: string;
+      pdf: Buffer;
+    },
+  ): Promise<boolean> {
+    const subject = `Invoice ${params.invoiceNumber} from ${params.senderName}`;
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Invoice ${params.invoiceNumber}</h2>
+        <p>Hi,</p>
+        <p>${params.senderName} has sent you an invoice for <strong>${params.total}</strong>, due ${params.dueDate}.</p>
+        <p>The full invoice is attached to this email as a PDF.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">
+          This invoice was sent via ${this.appName}.
+        </p>
+      </div>
+    `;
+    const textBody = `Invoice ${params.invoiceNumber}
+
+${params.senderName} has sent you an invoice for ${params.total}, due ${params.dueDate}.
+
+The full invoice is attached to this email as a PDF.
+    `;
+
+    return this.sendEmail(toEmail, subject, htmlBody, textBody, [
+      {
+        filename: `invoice-${params.invoiceNumber}.pdf`,
+        content: params.pdf,
+      },
+    ]);
+  }
+
   private async sendEmail(
     toEmail: string,
     subject: string,
     htmlBody: string,
     textBody: string,
+    attachments?: { filename: string; content: Buffer }[],
   ): Promise<boolean> {
     const apiKey = this.secretsService.get("RESEND_API_KEY");
 
@@ -118,6 +157,7 @@ If you didn't make this change, please contact support immediately and reset you
         subject,
         html: htmlBody,
         text: textBody,
+        ...(attachments?.length ? { attachments } : {}),
       });
 
       if (error) {

@@ -15,6 +15,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { GoalsModule } from "./goals/goals.module";
 import { PokerModule } from "./poker/poker.module";
+import { InvoicesModule } from "./invoices/invoices.module";
 import { CommonModule } from "./common/common.module";
 import { AuditModule } from "./audit/audit.module";
 import { EmailModule } from "./email/email.module";
@@ -46,6 +47,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
     TransactionsModule,
     GoalsModule,
     PokerModule,
+    InvoicesModule,
     HomeModule,
     WebhooksModule,
     // AssistantModule, // Disabled - uncomment when ready to enable AI assistant
