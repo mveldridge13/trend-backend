@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import PDFDocument from "pdfkit";
+// pdfkit is a CommonJS module that exports the constructor via `export =`.
+// This project compiles without `esModuleInterop`, so a default import emits
+// `pdfkit_1.default` (undefined at runtime). Import-equals is the correct form.
+import PDFDocument = require("pdfkit");
 import { InvoiceWithRelations } from "./repositories/invoices.repository";
 
 @Injectable()
