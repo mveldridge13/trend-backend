@@ -22,6 +22,16 @@ export class EmailService {
     return this.secretsService.get("EMAIL_FROM") || "Trend <noreply@trendapp.co>";
   }
 
+  // Extracts just the address portion (e.g. "noreply@trendapp.co") from the
+  // configured EMAIL_FROM, which may be in "Name <addr>" form. Used to send
+  // invoices from the verified app domain while overriding the display name
+  // with the freelancer's name.
+  private getFromEmailAddress(): string {
+    const from = this.getFromEmail();
+    const match = from.match(/<([^>]+)>/);
+    return match ? match[1] : from;
+  }
+
   async sendPasswordResetEmail(
     toEmail: string,
     resetToken: string,
@@ -102,12 +112,22 @@ If you didn't make this change, please contact support immediately and reset you
     params: {
       invoiceNumber: string;
       senderName: string;
+      replyTo: string;
       total: string;
       dueDate: string;
       pdf: Buffer;
     },
   ): Promise<boolean> {
     const subject = `Invoice ${params.invoiceNumber} from ${params.senderName}`;
+
+    // Industry-standard invoice delivery: send from the verified app domain,
+    // but show the freelancer's name and route replies back to them. Strip
+    // header-breaking characters from the display name.
+    const safeName =
+      params.senderName.replace(/[\r\n"<>\\]/g, "").trim() || this.appName;
+    // Quote the display name so commas (e.g. "Acme, Inc") aren't parsed as an
+    // address separator in the From header.
+    const from = `"${safeName}" <${this.getFromEmailAddress()}>`;
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Invoice ${params.invoiceNumber}</h2>
@@ -127,12 +147,19 @@ ${params.senderName} has sent you an invoice for ${params.total}, due ${params.d
 The full invoice is attached to this email as a PDF.
     `;
 
-    return this.sendEmail(toEmail, subject, htmlBody, textBody, [
-      {
-        filename: `invoice-${params.invoiceNumber}.pdf`,
-        content: params.pdf,
-      },
-    ]);
+    return this.sendEmail(
+      toEmail,
+      subject,
+      htmlBody,
+      textBody,
+      [
+        {
+          filename: `invoice-${params.invoiceNumber}.pdf`,
+          content: params.pdf,
+        },
+      ],
+      { from, replyTo: params.replyTo },
+    );
   }
 
   private async sendEmail(
@@ -141,6 +168,7 @@ The full invoice is attached to this email as a PDF.
     htmlBody: string,
     textBody: string,
     attachments?: { filename: string; content: Buffer }[],
+    options?: { from?: string; replyTo?: string },
   ): Promise<boolean> {
     const apiKey = this.secretsService.get("RESEND_API_KEY");
 
@@ -152,12 +180,13 @@ The full invoice is attached to this email as a PDF.
 
     try {
       const { error } = await this.getResendClient().emails.send({
-        from: this.getFromEmail(),
+        from: options?.from || this.getFromEmail(),
         to: toEmail,
         subject,
         html: htmlBody,
         text: textBody,
         ...(attachments?.length ? { attachments } : {}),
+        ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
       });
 
       if (error) {

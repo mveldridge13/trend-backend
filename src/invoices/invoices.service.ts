@@ -209,6 +209,7 @@ export class InvoicesService {
       {
         invoiceNumber: invoice.invoiceNumber,
         senderName,
+        replyTo: user.email,
         total: `${invoice.currency} ${Number(invoice.total).toFixed(2)}`,
         dueDate: invoice.dueDate.toISOString().split("T")[0],
         pdf,
