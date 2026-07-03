@@ -32,6 +32,15 @@ export class EmailService {
     return match ? match[1] : from;
   }
 
+  // Builds a From header that sends from the verified app domain but shows the
+  // freelancer's name. The display name is quoted so commas (e.g. "Acme, Inc")
+  // aren't parsed as an address separator, with header-breaking chars stripped.
+  private buildInvoiceFrom(senderName: string): string {
+    const safeName =
+      senderName.replace(/[\r\n"<>\\]/g, "").trim() || this.appName;
+    return `"${safeName}" <${this.getFromEmailAddress()}>`;
+  }
+
   async sendPasswordResetEmail(
     toEmail: string,
     resetToken: string,
@@ -121,13 +130,8 @@ If you didn't make this change, please contact support immediately and reset you
     const subject = `Invoice ${params.invoiceNumber} from ${params.senderName}`;
 
     // Industry-standard invoice delivery: send from the verified app domain,
-    // but show the freelancer's name and route replies back to them. Strip
-    // header-breaking characters from the display name.
-    const safeName =
-      params.senderName.replace(/[\r\n"<>\\]/g, "").trim() || this.appName;
-    // Quote the display name so commas (e.g. "Acme, Inc") aren't parsed as an
-    // address separator in the From header.
-    const from = `"${safeName}" <${this.getFromEmailAddress()}>`;
+    // but show the freelancer's name and route replies back to them.
+    const from = this.buildInvoiceFrom(params.senderName);
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Invoice ${params.invoiceNumber}</h2>
@@ -160,6 +164,42 @@ The full invoice is attached to this email as a PDF.
       ],
       { from, replyTo: params.replyTo },
     );
+  }
+
+  async sendInvoiceCancellationEmail(
+    toEmail: string,
+    params: {
+      invoiceNumber: string;
+      senderName: string;
+      replyTo: string;
+      total: string;
+    },
+  ): Promise<boolean> {
+    const from = this.buildInvoiceFrom(params.senderName);
+    const subject = `Invoice ${params.invoiceNumber} from ${params.senderName} has been cancelled`;
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Invoice ${params.invoiceNumber} cancelled</h2>
+        <p>Hi,</p>
+        <p>${params.senderName} has cancelled invoice <strong>${params.invoiceNumber}</strong> (${params.total}). No payment is required, and you can disregard the invoice that was previously sent.</p>
+        <p>If you have any questions, just reply to this email.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">
+          This notice was sent via ${this.appName}.
+        </p>
+      </div>
+    `;
+    const textBody = `Invoice ${params.invoiceNumber} cancelled
+
+${params.senderName} has cancelled invoice ${params.invoiceNumber} (${params.total}). No payment is required, and you can disregard the invoice that was previously sent.
+
+If you have any questions, just reply to this email.
+    `;
+
+    return this.sendEmail(toEmail, subject, htmlBody, textBody, undefined, {
+      from,
+      replyTo: params.replyTo,
+    });
   }
 
   private async sendEmail(

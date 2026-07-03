@@ -173,11 +173,60 @@ export class InvoicesService {
     return this.mapInvoice(updated);
   }
 
+  // Only draft invoices can be hard-deleted. A sent invoice is a document the
+  // client already holds and its number must stay in the sequence for audit, so
+  // it must be voided (see voidInvoice) rather than deleted.
   async removeInvoice(userId: string, id: string): Promise<void> {
+    const invoice = await this.getOwnedInvoice(userId, id);
+    if (invoice.status !== InvoiceStatus.DRAFT) {
+      throw new BadRequestException(
+        "Only draft invoices can be deleted. Void a sent invoice instead.",
+      );
+    }
     const result = await this.invoicesRepository.delete(id, userId);
     if (result.count === 0) {
       throw new NotFoundException("Invoice not found");
     }
+  }
+
+  // Voids (cancels) an invoice while preserving the row and its number for the
+  // audit trail — the industry-standard alternative to deleting a sent invoice.
+  // Notifies the client with a cancellation email if the invoice had been sent.
+  async voidInvoice(userId: string, id: string): Promise<InvoiceDto> {
+    const invoice = await this.getOwnedInvoice(userId, id);
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException(
+        "Cannot void a paid invoice. The payment has already been recorded.",
+      );
+    }
+    if (invoice.status === InvoiceStatus.CANCELED) {
+      throw new BadRequestException("Invoice is already voided.");
+    }
+
+    const updated = await this.invoicesRepository.update(id, {
+      status: InvoiceStatus.CANCELED,
+    });
+
+    // Notify the client only if they actually received the invoice. Voiding a
+    // draft (never sent) skips the email. Best-effort: a failed notice doesn't
+    // roll back the void — the invoice is already cancelled on our side.
+    if (invoice.sentAt) {
+      const user = await this.usersRepository.findById(userId);
+      if (user) {
+        const senderName = `${user.firstName} ${user.lastName}`.trim();
+        await this.emailService.sendInvoiceCancellationEmail(
+          invoice.client.email,
+          {
+            invoiceNumber: invoice.invoiceNumber,
+            senderName,
+            replyTo: user.email,
+            total: `${invoice.currency} ${Number(invoice.total).toFixed(2)}`,
+          },
+        );
+      }
+    }
+
+    return this.mapInvoice(updated);
   }
 
   // ---------------------------------------------------------------------------

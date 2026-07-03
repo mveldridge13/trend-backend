@@ -106,6 +106,12 @@ export class InvoicesController {
     await this.invoicesService.removeInvoice(this.extractUserId(req), id);
   }
 
+  @Post(":id/void")
+  @HttpCode(HttpStatus.OK)
+  async voidInvoice(@Request() req: any, @Param("id") id: string) {
+    return this.invoicesService.voidInvoice(this.extractUserId(req), id);
+  }
+
   @Post(":id/send")
   @HttpCode(HttpStatus.OK)
   async sendInvoice(@Request() req: any, @Param("id") id: string) {
