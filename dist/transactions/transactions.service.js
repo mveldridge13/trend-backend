@@ -167,6 +167,9 @@ let TransactionsService = class TransactionsService {
             case 'monthly':
                 nextDate.setMonth(nextDate.getMonth() + 1);
                 break;
+            case 'quarterly':
+                nextDate.setMonth(nextDate.getMonth() + 3);
+                break;
             case 'sixmonths':
                 nextDate.setMonth(nextDate.getMonth() + 6);
                 break;
