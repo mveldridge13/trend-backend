@@ -58,11 +58,14 @@ export interface TotalsInfo {
     totalExpensesAllocated: number;
     leftToSpendSafe: number;
 }
-export interface PotInfo {
+export interface AccountInfo {
     id: string;
     name: string;
     isSalary: boolean;
     received: number;
+    committed: number;
+    discretionary: number;
+    goals: number;
     spent: number;
     left: number;
     frequency: IncomeFrequency | null;
@@ -88,7 +91,7 @@ export interface HomeSummaryResponse {
     income: IncomeInfo;
     outflows: OutflowsInfo;
     totals: TotalsInfo;
-    pots: PotInfo[];
+    accounts: AccountInfo[];
     rolloverNotification?: RolloverNotificationInfo;
     user: UserInfo;
     features: FeatureFlags;

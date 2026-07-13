@@ -51,13 +51,13 @@ let HomeService = HomeService_1 = class HomeService {
             this.logger.log(`Processed ${transitionCount} pay period transition(s) for user ${userId}`);
         }
         const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone);
-        const [income, committed, discretionary, goals, rolloverNotification, pots] = await Promise.all([
+        const [income, committed, discretionary, goals, rolloverNotification, accounts] = await Promise.all([
             this.calculateIncome(user, periodBoundaries),
             this.calculateCommitted(userId, periodBoundaries),
             this.calculateDiscretionary(userId, periodBoundaries),
             this.calculateGoals(userId, periodBoundaries, frequency),
             this.getRolloverNotification(userId),
-            this.calculatePots(user, periodBoundaries),
+            this.calculateAccounts(user, periodBoundaries),
         ]);
         const totals = this.calculateTotals(income, committed, discretionary, goals);
         const isPro = this.isProActive(user);
@@ -76,7 +76,7 @@ let HomeService = HomeService_1 = class HomeService {
                 goals,
             },
             totals,
-            pots,
+            accounts,
             user: {
                 isPro,
                 proExpiresAt: user.proExpiresAt?.toISOString() || null,
@@ -156,7 +156,7 @@ let HomeService = HomeService_1 = class HomeService {
             sources,
         };
     }
-    async calculatePots(user, period) {
+    async calculateAccounts(user, period) {
         const userId = user.id;
         const sources = await this.prisma.incomeSource.findMany({
             where: { userId },
@@ -165,7 +165,7 @@ let HomeService = HomeService_1 = class HomeService {
         if (sources.length === 0) {
             return [];
         }
-        const [inflows, outflows] = await Promise.all([
+        const [inflows, discretionaryRows, goalRows, committedTx] = await Promise.all([
             this.prisma.transaction.groupBy({
                 by: ['incomeSourceId'],
                 where: {
@@ -179,30 +179,114 @@ let HomeService = HomeService_1 = class HomeService {
                 by: ['incomeSourceId'],
                 where: {
                     userId,
-                    type: { in: [client_1.TransactionType.EXPENSE, client_1.TransactionType.TRANSFER] },
+                    type: client_1.TransactionType.EXPENSE,
                     date: { gte: period.start, lte: period.end },
-                    OR: [{ status: null }, { status: client_1.PaymentStatus.PAID }],
+                    dueDate: null,
+                    AND: [
+                        {
+                            OR: [
+                                { recurrence: null },
+                                { recurrence: 'none' },
+                                { recurrence: '' },
+                            ],
+                        },
+                        { OR: [{ status: null }, { status: client_1.PaymentStatus.PAID }] },
+                    ],
                 },
                 _sum: { amount: true },
             }),
+            this.prisma.goalContribution.groupBy({
+                by: ['incomeSourceId'],
+                where: {
+                    userId,
+                    date: { gte: period.start, lte: period.end },
+                    type: {
+                        in: [
+                            client_1.ContributionType.MANUAL,
+                            client_1.ContributionType.AUTOMATIC,
+                            client_1.ContributionType.TRANSACTION,
+                        ],
+                    },
+                },
+                _sum: { amount: true },
+            }),
+            this.prisma.transaction.findMany({
+                where: {
+                    userId,
+                    type: client_1.TransactionType.EXPENSE,
+                    AND: [
+                        {
+                            OR: [
+                                { recurrence: { notIn: ['none', ''] } },
+                                { dueDate: { not: null } },
+                            ],
+                        },
+                        {
+                            OR: [
+                                { date: { gte: period.start, lte: period.end } },
+                                { dueDate: { gte: period.start, lte: period.end } },
+                            ],
+                        },
+                    ],
+                },
+                select: {
+                    incomeSourceId: true,
+                    amount: true,
+                    status: true,
+                    date: true,
+                    dueDate: true,
+                },
+            }),
         ]);
-        const sumBySource = (rows, key) => {
+        const NULL_KEY = '__null__';
+        const committedBySource = new Map();
+        for (const t of committedTx) {
+            const transactionDate = new Date(t.date);
+            const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+            const dateInPeriod = transactionDate >= period.start && transactionDate <= period.end;
+            const dueDateInPeriod = !!dueDate && dueDate >= period.start && dueDate <= period.end;
+            if (t.status === client_1.PaymentStatus.PAID) {
+                if (!dateInPeriod && dueDateInPeriod)
+                    continue;
+            }
+            else {
+                if (dateInPeriod && !dueDateInPeriod)
+                    continue;
+            }
+            const key = t.incomeSourceId ?? NULL_KEY;
+            committedBySource.set(key, (committedBySource.get(key) ?? 0) + Number(t.amount));
+        }
+        const sumRow = (rows, key) => {
             const row = rows.find((r) => r.incomeSourceId === key);
             return row?._sum.amount ? Number(row._sum.amount) : 0;
         };
         const round = (n) => Math.round(n * 100) / 100;
+        const breakdownFor = (id) => {
+            const committed = committedBySource.get(id ?? NULL_KEY) ?? 0;
+            const discretionary = sumRow(discretionaryRows, id);
+            const goals = sumRow(goalRows, id);
+            return {
+                committed,
+                discretionary,
+                goals,
+                spent: committed + discretionary + goals,
+            };
+        };
         const baseIncome = user.income ? Number(user.income) : 0;
         const rollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
-        const salaryReceived = baseIncome + rollover + sumBySource(inflows, null);
-        const salarySpent = sumBySource(outflows, null);
-        const pots = [
+        const salaryReceived = baseIncome + rollover + sumRow(inflows, null);
+        const salary = breakdownFor(null);
+        const accounts = [
             {
                 id: 'salary',
                 name: 'Salary',
                 isSalary: true,
                 received: round(salaryReceived),
-                spent: round(salarySpent),
-                left: round(salaryReceived - salarySpent),
+                committed: round(salary.committed),
+                discretionary: round(salary.discretionary),
+                goals: round(salary.goals),
+                spent: round(salary.spent),
+                left: round(salaryReceived - salary.spent),
                 frequency: user.incomeFrequency ?? null,
                 nextPaymentDate: user.nextPayDate
                     ? new Date(user.nextPayDate).toISOString()
@@ -210,25 +294,28 @@ let HomeService = HomeService_1 = class HomeService {
             },
         ];
         for (const source of sources) {
-            const received = sumBySource(inflows, source.id);
-            const spent = sumBySource(outflows, source.id);
-            if (!source.isActive && received === 0 && spent === 0) {
+            const received = sumRow(inflows, source.id);
+            const b = breakdownFor(source.id);
+            if (!source.isActive && received === 0 && b.spent === 0) {
                 continue;
             }
-            pots.push({
+            accounts.push({
                 id: source.id,
                 name: source.name,
                 isSalary: false,
                 received: round(received),
-                spent: round(spent),
-                left: round(received - spent),
+                committed: round(b.committed),
+                discretionary: round(b.discretionary),
+                goals: round(b.goals),
+                spent: round(b.spent),
+                left: round(received - b.spent),
                 frequency: source.frequency,
                 nextPaymentDate: source.isActive
                     ? source.nextPaymentDate.toISOString()
                     : null,
             });
         }
-        return pots;
+        return accounts;
     }
     async calculateCommitted(userId, period) {
         const committedTransactions = await this.prisma.transaction.findMany({
@@ -447,7 +534,7 @@ let HomeService = HomeService_1 = class HomeService {
                 totalInflow: 0,
                 sources: [],
             },
-            pots: [],
+            accounts: [],
             outflows: {
                 committed: {
                     plannedTotal: 0,
