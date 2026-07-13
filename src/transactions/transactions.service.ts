@@ -2896,12 +2896,15 @@ export class TransactionsService {
         }))
         .sort((a, b) => b.totalAmount - a.totalAmount);
 
-      // Detect recurring vs ad-hoc income (using pay period transactions)
+      // Detect recurring vs ad-hoc income - same "attributed to an income
+      // source" split as the Ad-hoc row above, not a recurrence flag: income
+      // sources are inherently recurring/scheduled, so being attributed to
+      // one IS what makes income "recurring" here.
       const recurringIncome = transactionsForBreakdown.filter(
-        (t) => t.recurrence && t.recurrence !== "none",
+        (t) => !!t.incomeSourceId,
       );
       const adhocIncome = transactionsForBreakdown.filter(
-        (t) => !t.recurrence || t.recurrence === "none",
+        (t) => !t.incomeSourceId,
       );
 
       let recurringAmount = recurringIncome.reduce(

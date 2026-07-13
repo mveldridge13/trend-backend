@@ -1884,8 +1884,8 @@ let TransactionsService = class TransactionsService {
                 totalAmount: Math.round(item.totalAmount * 100) / 100,
             }))
                 .sort((a, b) => b.totalAmount - a.totalAmount);
-            const recurringIncome = transactionsForBreakdown.filter((t) => t.recurrence && t.recurrence !== "none");
-            const adhocIncome = transactionsForBreakdown.filter((t) => !t.recurrence || t.recurrence === "none");
+            const recurringIncome = transactionsForBreakdown.filter((t) => !!t.incomeSourceId);
+            const adhocIncome = transactionsForBreakdown.filter((t) => !t.incomeSourceId);
             let recurringAmount = recurringIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
             let adhocAmount = adhocIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
             if (profileIncomeForBreakdown > 0) {
