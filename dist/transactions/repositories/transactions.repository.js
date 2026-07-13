@@ -34,6 +34,7 @@ let TransactionsRepository = class TransactionsRepository {
                 subcategoryId: data.subcategoryId,
                 recurrence: data.recurrence,
                 linkedGoalId: data.linkedGoalId,
+                incomeSourceId: data.incomeSourceId,
             },
             include: {
                 budget: {

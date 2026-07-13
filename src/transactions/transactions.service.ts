@@ -34,6 +34,7 @@ import {
 import { Transaction, TransactionType, IncomeFrequency, PaymentStatus } from "@prisma/client";
 import { DateService } from "../common/services/date.service";
 import { CurrencyService } from "../common/services/currency.service";
+import { PrismaService } from "../database/prisma.service";
 
 // ✅ Inline interface definition for discretionary breakdown
 interface DiscretionaryBreakdownDto {
@@ -130,9 +131,27 @@ export class TransactionsService {
     private readonly usersRepository: UsersRepository,
     private readonly dateService: DateService,
     private readonly currencyService: CurrencyService,
+    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => GoalsService))
     private readonly goalsService: GoalsService,
   ) {}
+
+  /**
+   * Verify an incomeSourceId attribution references a source owned by the user
+   */
+  private async validateIncomeSourceOwnership(
+    userId: string,
+    incomeSourceId?: string,
+  ): Promise<void> {
+    if (!incomeSourceId) return;
+    const source = await this.prisma.incomeSource.findFirst({
+      where: { id: incomeSourceId, userId },
+      select: { id: true },
+    });
+    if (!source) {
+      throw new NotFoundException("Income source not found");
+    }
+  }
 
   async create(
     userId: string,
@@ -147,6 +166,10 @@ export class TransactionsService {
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
 
     this.validateTransactionAmount(createTransactionDto.amount);
+    await this.validateIncomeSourceOwnership(
+      userId,
+      createTransactionDto.incomeSourceId,
+    );
 
     // Skip date validation for UPCOMING/OVERDUE transactions (bills with future due dates)
     const isScheduledTransaction = createTransactionDto.status === 'UPCOMING' || createTransactionDto.status === 'OVERDUE';
@@ -1814,6 +1837,7 @@ export class TransactionsService {
       notes: transaction.notes || null,
       location: transaction.location || null,
       merchantName: transaction.merchantName || null,
+      incomeSourceId: transaction.incomeSourceId || undefined,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
       budget: transaction.budget

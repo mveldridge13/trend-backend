@@ -39,4 +39,8 @@ export class CreateGoalContributionDto {
   @IsOptional()
   @IsString()
   transactionId?: string;
+
+  @IsOptional()
+  @IsString()
+  incomeSourceId?: string;
 }

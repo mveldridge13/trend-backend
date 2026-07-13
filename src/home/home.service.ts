@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DateService, PayPeriodBoundaries } from '../common/services/date.service';
+import { IncomeSourcesService } from '../income-sources/income-sources.service';
 import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType, RolloverType } from '@prisma/client';
 import { format } from 'date-fns';
 import {
@@ -22,6 +23,7 @@ export class HomeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dateService: DateService,
+    private readonly incomeSourcesService: IncomeSourcesService,
   ) {}
 
   /**
@@ -46,6 +48,14 @@ export class HomeService {
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
     let nextPayDate = new Date(user.nextPayDate);
     const frequency = user.incomeFrequency;
+
+    // Materialize any due income-source occurrences as INCOME transactions
+    // BEFORE the pay-period transition, so occurrences dated in a just-ended
+    // period are included in that period's rollover calculation.
+    await this.incomeSourcesService.materializeDueTransactions(
+      userId,
+      userTimezone,
+    );
 
     // Check if pay period transition is needed and process it atomically
     // Loop to handle multiple missed periods (e.g., user away for a month, paid weekly)
@@ -169,6 +179,35 @@ export class HomeService {
       ? Number(additionalIncomeResult._sum.amount)
       : 0;
 
+    // Named breakdown of the additional income that came from income sources
+    const sourceSums = await this.prisma.transaction.groupBy({
+      by: ['incomeSourceId'],
+      where: {
+        userId: user.id,
+        type: TransactionType.INCOME,
+        incomeSourceId: { not: null },
+        date: {
+          gte: period.start,
+          lte: period.end,
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    let sources: { id: string; name: string; amount: number }[] = [];
+    if (sourceSums.length > 0) {
+      const sourceRecords = await this.prisma.incomeSource.findMany({
+        where: { id: { in: sourceSums.map((s) => s.incomeSourceId) } },
+        select: { id: true, name: true },
+      });
+      const namesById = new Map(sourceRecords.map((s) => [s.id, s.name]));
+      sources = sourceSums.map((s) => ({
+        id: s.incomeSourceId,
+        name: namesById.get(s.incomeSourceId) ?? 'Income source',
+        amount: Math.round(Number(s._sum.amount ?? 0) * 100) / 100,
+      }));
+    }
+
     // Rollover from previous period
     const rolloverAvailable = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
 
@@ -177,6 +216,7 @@ export class HomeService {
       additionalIncome: Math.round(additionalIncome * 100) / 100,
       rolloverAvailable: Math.round(rolloverAvailable * 100) / 100,
       totalInflow: Math.round((baseIncome + additionalIncome + rolloverAvailable) * 100) / 100,
+      sources,
     };
   }
 
@@ -497,6 +537,7 @@ export class HomeService {
         additionalIncome: 0,
         rolloverAvailable: 0,
         totalInflow: 0,
+        sources: [],
       },
       outflows: {
         committed: {

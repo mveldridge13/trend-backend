@@ -53,4 +53,9 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateGoalContributionDto.prototype, "transactionId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateGoalContributionDto.prototype, "incomeSourceId", void 0);
 //# sourceMappingURL=create-goal-contribution.dto.js.map

@@ -59,4 +59,8 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   linkedGoalId?: string;
+
+  @IsString()
+  @IsOptional()
+  incomeSourceId?: string;
 }

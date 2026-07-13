@@ -18,6 +18,7 @@ export declare class TransactionDto {
     notes?: string;
     location?: string;
     merchantName?: string;
+    incomeSourceId?: string;
     createdAt: Date;
     updatedAt: Date;
     budget?: {

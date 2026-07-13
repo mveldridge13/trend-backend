@@ -130,8 +130,18 @@ let GoalsService = GoalsService_1 = class GoalsService {
         if (goal.isCompleted) {
             throw new common_1.BadRequestException("Cannot add contributions to completed goal");
         }
+        if (createContributionDto.incomeSourceId) {
+            const source = await this.prisma.incomeSource.findFirst({
+                where: { id: createContributionDto.incomeSourceId, userId },
+                select: { id: true },
+            });
+            if (!source) {
+                throw new common_1.NotFoundException("Income source not found");
+            }
+        }
+        const { transactionId, incomeSourceId, ...contributionFields } = createContributionDto;
         const contributionData = {
-            ...createContributionDto,
+            ...contributionFields,
             date: createContributionDto.date
                 ? new Date(createContributionDto.date)
                 : new Date(),
@@ -141,9 +151,14 @@ let GoalsService = GoalsService_1 = class GoalsService {
             user: {
                 connect: { id: userId },
             },
-            transaction: createContributionDto.transactionId
+            transaction: transactionId
                 ? {
-                    connect: { id: createContributionDto.transactionId },
+                    connect: { id: transactionId },
+                }
+                : undefined,
+            incomeSource: incomeSourceId
+                ? {
+                    connect: { id: incomeSourceId },
                 }
                 : undefined,
         };
@@ -186,6 +201,7 @@ let GoalsService = GoalsService_1 = class GoalsService {
             description: contribution.description,
             type: contribution.type,
             transactionId: contribution.transactionId,
+            incomeSourceId: contribution.incomeSourceId,
         };
     }
     async getGoalContributions(userId, goalId, startDate, endDate) {
@@ -202,6 +218,7 @@ let GoalsService = GoalsService_1 = class GoalsService {
             description: contribution.description,
             type: contribution.type,
             transactionId: contribution.transactionId,
+            incomeSourceId: contribution.incomeSourceId,
         }));
     }
     async getOverallAnalytics(userId) {

@@ -12,6 +12,16 @@ export interface PeriodInfo {
 }
 
 /**
+ * Per-source breakdown of this period's additional income
+ * (sum of INCOME transactions linked to each IncomeSource)
+ */
+export interface IncomeSourceBreakdown {
+  id: string;
+  name: string;
+  amount: number;
+}
+
+/**
  * Income breakdown for the pay period
  */
 export interface IncomeInfo {
@@ -19,6 +29,7 @@ export interface IncomeInfo {
   additionalIncome: number;
   rolloverAvailable: number;
   totalInflow: number;
+  sources: IncomeSourceBreakdown[];
 }
 
 /**

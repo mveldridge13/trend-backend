@@ -22,13 +22,26 @@ const day_time_patterns_dto_1 = require("./dto/day-time-patterns.dto");
 const client_2 = require("@prisma/client");
 const date_service_1 = require("../common/services/date.service");
 const currency_service_1 = require("../common/services/currency.service");
+const prisma_service_1 = require("../database/prisma.service");
 let TransactionsService = class TransactionsService {
-    constructor(transactionsRepository, usersRepository, dateService, currencyService, goalsService) {
+    constructor(transactionsRepository, usersRepository, dateService, currencyService, prisma, goalsService) {
         this.transactionsRepository = transactionsRepository;
         this.usersRepository = usersRepository;
         this.dateService = dateService;
         this.currencyService = currencyService;
+        this.prisma = prisma;
         this.goalsService = goalsService;
+    }
+    async validateIncomeSourceOwnership(userId, incomeSourceId) {
+        if (!incomeSourceId)
+            return;
+        const source = await this.prisma.incomeSource.findFirst({
+            where: { id: incomeSourceId, userId },
+            select: { id: true },
+        });
+        if (!source) {
+            throw new common_1.NotFoundException("Income source not found");
+        }
     }
     async create(userId, createTransactionDto) {
         const user = await this.usersRepository.findById(userId);
@@ -37,6 +50,7 @@ let TransactionsService = class TransactionsService {
         }
         const userTimezone = this.dateService.getValidTimezone(user.timezone);
         this.validateTransactionAmount(createTransactionDto.amount);
+        await this.validateIncomeSourceOwnership(userId, createTransactionDto.incomeSourceId);
         const isScheduledTransaction = createTransactionDto.status === 'UPCOMING' || createTransactionDto.status === 'OVERDUE';
         if (!isScheduledTransaction) {
             this.dateService.validateTransactionDate(createTransactionDto.date, userTimezone);
@@ -1184,6 +1198,7 @@ let TransactionsService = class TransactionsService {
             notes: transaction.notes || null,
             location: transaction.location || null,
             merchantName: transaction.merchantName || null,
+            incomeSourceId: transaction.incomeSourceId || undefined,
             createdAt: transaction.createdAt,
             updatedAt: transaction.updatedAt,
             budget: transaction.budget
@@ -1983,11 +1998,12 @@ let TransactionsService = class TransactionsService {
 exports.TransactionsService = TransactionsService;
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(4, (0, common_1.Inject)((0, common_1.forwardRef)(() => goals_service_1.GoalsService))),
+    __param(5, (0, common_1.Inject)((0, common_1.forwardRef)(() => goals_service_1.GoalsService))),
     __metadata("design:paramtypes", [transactions_repository_1.TransactionsRepository,
         users_repository_1.UsersRepository,
         date_service_1.DateService,
         currency_service_1.CurrencyService,
+        prisma_service_1.PrismaService,
         goals_service_1.GoalsService])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

@@ -9,6 +9,7 @@ import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
 import { DayTimePatternsResponseDto } from "./dto/day-time-patterns.dto";
 import { DateService } from "../common/services/date.service";
 import { CurrencyService } from "../common/services/currency.service";
+import { PrismaService } from "../database/prisma.service";
 interface DiscretionaryBreakdownDto {
     selectedDate: string;
     selectedPeriod: "daily" | "weekly" | "monthly";
@@ -100,8 +101,10 @@ export declare class TransactionsService {
     private readonly usersRepository;
     private readonly dateService;
     private readonly currencyService;
+    private readonly prisma;
     private readonly goalsService;
-    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService, currencyService: CurrencyService, goalsService: GoalsService);
+    constructor(transactionsRepository: TransactionsRepository, usersRepository: UsersRepository, dateService: DateService, currencyService: CurrencyService, prisma: PrismaService, goalsService: GoalsService);
+    private validateIncomeSourceOwnership;
     create(userId: string, createTransactionDto: CreateTransactionDto): Promise<TransactionDto>;
     findAll(userId: string, filters: TransactionFilterDto): Promise<{
         transactions: TransactionDto[];

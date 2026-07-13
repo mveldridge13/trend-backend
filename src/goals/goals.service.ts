@@ -239,9 +239,27 @@ export class GoalsService {
       );
     }
 
-    // Create contribution
+    // Validate income-source attribution against ownership before connecting
+    if (createContributionDto.incomeSourceId) {
+      const source = await this.prisma.incomeSource.findFirst({
+        where: { id: createContributionDto.incomeSourceId, userId },
+        select: { id: true },
+      });
+      if (!source) {
+        throw new NotFoundException("Income source not found");
+      }
+    }
+
+    // Create contribution (scalar FK fields must not be spread alongside the
+    // relation connects below, or Prisma rejects the create input)
+    const {
+      transactionId,
+      incomeSourceId,
+      ...contributionFields
+    } = createContributionDto;
+
     const contributionData = {
-      ...createContributionDto,
+      ...contributionFields,
       date: createContributionDto.date
         ? new Date(createContributionDto.date)
         : new Date(),
@@ -251,9 +269,14 @@ export class GoalsService {
       user: {
         connect: { id: userId },
       },
-      transaction: createContributionDto.transactionId
+      transaction: transactionId
         ? {
-            connect: { id: createContributionDto.transactionId },
+            connect: { id: transactionId },
+          }
+        : undefined,
+      incomeSource: incomeSourceId
+        ? {
+            connect: { id: incomeSourceId },
           }
         : undefined,
     };
@@ -307,6 +330,7 @@ export class GoalsService {
       description: contribution.description,
       type: contribution.type,
       transactionId: contribution.transactionId,
+      incomeSourceId: contribution.incomeSourceId,
     };
   }
 
@@ -338,6 +362,7 @@ export class GoalsService {
       description: contribution.description,
       type: contribution.type,
       transactionId: contribution.transactionId,
+      incomeSourceId: contribution.incomeSourceId,
     }));
   }
 

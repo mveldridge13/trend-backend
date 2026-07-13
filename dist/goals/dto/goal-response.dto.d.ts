@@ -45,6 +45,7 @@ export declare class GoalContributionResponseDto {
     description?: string;
     type: string;
     transactionId?: string;
+    incomeSourceId?: string;
 }
 export declare class GoalsSummaryDto {
     totalGoals: number;

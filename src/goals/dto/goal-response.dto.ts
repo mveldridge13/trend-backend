@@ -51,6 +51,7 @@ export class GoalContributionResponseDto {
   description?: string;
   type: string;
   transactionId?: string;
+  incomeSourceId?: string;
 }
 
 export class GoalsSummaryDto {

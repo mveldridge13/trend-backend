@@ -6,4 +6,5 @@ export declare class CreateGoalContributionDto {
     description?: string;
     type?: ContributionType;
     transactionId?: string;
+    incomeSourceId?: string;
 }
