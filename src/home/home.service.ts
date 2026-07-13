@@ -14,6 +14,7 @@ import {
   RolloverNotificationInfo,
   UserInfo,
   FeatureFlags,
+  PotInfo,
 } from './dto/home-summary.dto';
 
 @Injectable()
@@ -84,12 +85,13 @@ export class HomeService {
     );
 
     // Calculate all components in parallel (including rollover notification)
-    const [income, committed, discretionary, goals, rolloverNotification] = await Promise.all([
+    const [income, committed, discretionary, goals, rolloverNotification, pots] = await Promise.all([
       this.calculateIncome(user, periodBoundaries),
       this.calculateCommitted(userId, periodBoundaries),
       this.calculateDiscretionary(userId, periodBoundaries),
       this.calculateGoals(userId, periodBoundaries, frequency),
       this.getRolloverNotification(userId),
+      this.calculatePots(user, periodBoundaries),
     ]);
 
     // Calculate totals
@@ -114,6 +116,7 @@ export class HomeService {
         goals,
       },
       totals,
+      pots,
       user: {
         isPro,
         proExpiresAt: user.proExpiresAt?.toISOString() || null,
@@ -218,6 +221,112 @@ export class HomeService {
       totalInflow: Math.round((baseIncome + additionalIncome + rolloverAvailable) * 100) / 100,
       sources,
     };
+  }
+
+  /**
+   * Calculate the per-source ledger pots.
+   *
+   * Semantics (attribution-only — pots always sum to the single spendable total):
+   * - Salary pot: base income + rollover + unattributed INCOME transactions,
+   *   minus all unattributed spending. Every expense without an incomeSourceId
+   *   comes out of here.
+   * - One pot per income source: its attributed INCOME transactions in the
+   *   period, minus attributed EXPENSE/TRANSFER (goal payment) outflow.
+   * - "Spent" counts actual money moved: status PAID or no status; UPCOMING /
+   *   OVERDUE bills haven't left the pot yet.
+   * - A pot may go negative (over-spent) — clients render it as a warning,
+   *   there is no hard wall.
+   * - Rollover stays a single number folded into the salary pot (per-pot
+   *   rollover is a possible later step).
+   *
+   * Returns [] when the user has no income sources at all, so clients can
+   * keep the plain single-card view.
+   */
+  private async calculatePots(
+    user: any,
+    period: PayPeriodBoundaries
+  ): Promise<PotInfo[]> {
+    const userId = user.id;
+
+    const sources = await this.prisma.incomeSource.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (sources.length === 0) {
+      return [];
+    }
+
+    const [inflows, outflows] = await Promise.all([
+      this.prisma.transaction.groupBy({
+        by: ['incomeSourceId'],
+        where: {
+          userId,
+          type: TransactionType.INCOME,
+          date: { gte: period.start, lte: period.end },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.groupBy({
+        by: ['incomeSourceId'],
+        where: {
+          userId,
+          type: { in: [TransactionType.EXPENSE, TransactionType.TRANSFER] },
+          date: { gte: period.start, lte: period.end },
+          OR: [{ status: null }, { status: PaymentStatus.PAID }],
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const sumBySource = (rows: typeof inflows, key: string | null) => {
+      const row = rows.find((r) => r.incomeSourceId === key);
+      return row?._sum.amount ? Number(row._sum.amount) : 0;
+    };
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const baseIncome = user.income ? Number(user.income) : 0;
+    const rollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
+
+    const salaryReceived = baseIncome + rollover + sumBySource(inflows, null);
+    const salarySpent = sumBySource(outflows, null);
+
+    const pots: PotInfo[] = [
+      {
+        id: 'salary',
+        name: 'Salary',
+        isSalary: true,
+        received: round(salaryReceived),
+        spent: round(salarySpent),
+        left: round(salaryReceived - salarySpent),
+        frequency: user.incomeFrequency ?? null,
+        nextPaymentDate: user.nextPayDate
+          ? new Date(user.nextPayDate).toISOString()
+          : null,
+      },
+    ];
+
+    for (const source of sources) {
+      const received = sumBySource(inflows, source.id);
+      const spent = sumBySource(outflows, source.id);
+      // Skip paused sources with no money movement this period
+      if (!source.isActive && received === 0 && spent === 0) {
+        continue;
+      }
+      pots.push({
+        id: source.id,
+        name: source.name,
+        isSalary: false,
+        received: round(received),
+        spent: round(spent),
+        left: round(received - spent),
+        frequency: source.frequency,
+        nextPaymentDate: source.isActive
+          ? source.nextPaymentDate.toISOString()
+          : null,
+      });
+    }
+
+    return pots;
   }
 
   /**
@@ -539,6 +648,7 @@ export class HomeService {
         totalInflow: 0,
         sources: [],
       },
+      pots: [],
       outflows: {
         committed: {
           plannedTotal: 0,

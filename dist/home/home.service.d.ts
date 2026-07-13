@@ -12,6 +12,7 @@ export declare class HomeService {
     private isProActive;
     private getFeatureFlags;
     private calculateIncome;
+    private calculatePots;
     private calculateCommitted;
     private calculateDiscretionary;
     private calculateGoals;

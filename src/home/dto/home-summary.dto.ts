@@ -102,6 +102,24 @@ export interface TotalsInfo {
 }
 
 /**
+ * A spendable "pot" in the per-source ledger view.
+ * The salary pot holds base income + rollover + unattributed income and pays
+ * for all unattributed spending; each income source is its own pot fed by its
+ * attributed INCOME transactions and drained by attributed EXPENSE/TRANSFERs.
+ * Attribution only — the pots always sum to the single spendable total.
+ */
+export interface PotInfo {
+  id: string; // 'salary' or the IncomeSource id
+  name: string;
+  isSalary: boolean;
+  received: number; // inflow into this pot this period (salary pot includes rollover)
+  spent: number; // attributed outflow this period (paid expenses + goal transfers)
+  left: number; // received - spent; may be negative (over-spent pot)
+  frequency: IncomeFrequency | null;
+  nextPaymentDate: string | null;
+}
+
+/**
  * Rollover notification for UI banner
  * Shows when funds were automatically rolled over from previous period
  */
@@ -138,6 +156,9 @@ export interface HomeSummaryResponse {
   income: IncomeInfo;
   outflows: OutflowsInfo;
   totals: TotalsInfo;
+  // Per-source ledger view; present (length >= 2) only when the user has
+  // income sources — otherwise [] and clients render the single-card view
+  pots: PotInfo[];
   rolloverNotification?: RolloverNotificationInfo;  // Present if rollover occurred and not dismissed
   user: UserInfo;
   features: FeatureFlags;
