@@ -96,6 +96,7 @@ let TransactionsService = class TransactionsService {
         if (!existingTransaction) {
             throw new common_1.NotFoundException(`Transaction with ID ${id} not found`);
         }
+        await this.validateIncomeSourceOwnership(userId, updateTransactionDto.incomeSourceId ?? undefined);
         if (updateTransactionDto.amount !== undefined &&
             updateTransactionDto.type !== undefined) {
             this.validateTransactionAmount(updateTransactionDto.amount);

@@ -251,6 +251,11 @@ export class TransactionsService {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
 
+    await this.validateIncomeSourceOwnership(
+      userId,
+      updateTransactionDto.incomeSourceId ?? undefined,
+    );
+
     if (
       updateTransactionDto.amount !== undefined &&
       updateTransactionDto.type !== undefined
