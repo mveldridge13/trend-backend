@@ -102,24 +102,24 @@ export interface TotalsInfo {
 }
 
 /**
- * A spendable account in the per-source ledger view.
- * The primary (salary) account holds base income + rollover + unattributed
+ * A per-income-stream ledger entry.
+ * The primary (salary) entry holds base income + rollover + unattributed
  * income and pays for all unattributed spending; each income source is its own
- * account, fed by its attributed INCOME transactions and drained by attributed
- * spending. Attribution only — the accounts always sum to the single spendable
+ * entry, fed by its attributed INCOME transactions and drained by attributed
+ * spending. Attribution only — the entries always sum to the single spendable
  * total.
  */
-export interface AccountInfo {
+export interface IncomeLedgerInfo {
   id: string; // 'salary' or the IncomeSource id
   name: string;
   isSalary: boolean;
-  received: number; // inflow into this account this period (salary includes rollover)
+  received: number; // inflow into this income stream this period (salary includes rollover)
   // Same three expense buckets the main balance card shows, but restricted to
-  // spending attributed to this account (unattributed spending falls to salary).
+  // spending attributed to this income stream (unattributed spending falls to salary).
   committed: number; // committed bills planned this period (recurring / has due date)
   discretionary: number; // one-off discretionary spend
-  goals: number; // goal contributions funded from this account
-  spent: number; // committed + discretionary + goals (this account's Total Expenses)
+  goals: number; // goal contributions funded from this income stream
+  spent: number; // committed + discretionary + goals (this income stream's Total Expenses)
   left: number; // received - spent; may be negative (over-spent)
   frequency: IncomeFrequency | null;
   nextPaymentDate: string | null;
@@ -162,9 +162,9 @@ export interface HomeSummaryResponse {
   income: IncomeInfo;
   outflows: OutflowsInfo;
   totals: TotalsInfo;
-  // Per-source ledger of accounts; present (length >= 2) only when the user
+  // Per-source income ledger; present (length >= 2) only when the user
   // has income sources — otherwise [] and clients render the single-card view
-  accounts: AccountInfo[];
+  incomeLedger: IncomeLedgerInfo[];
   rolloverNotification?: RolloverNotificationInfo;  // Present if rollover occurred and not dismissed
   user: UserInfo;
   features: FeatureFlags;

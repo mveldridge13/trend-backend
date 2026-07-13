@@ -58,7 +58,7 @@ export interface TotalsInfo {
     totalExpensesAllocated: number;
     leftToSpendSafe: number;
 }
-export interface AccountInfo {
+export interface IncomeLedgerInfo {
     id: string;
     name: string;
     isSalary: boolean;
@@ -91,7 +91,7 @@ export interface HomeSummaryResponse {
     income: IncomeInfo;
     outflows: OutflowsInfo;
     totals: TotalsInfo;
-    accounts: AccountInfo[];
+    incomeLedger: IncomeLedgerInfo[];
     rolloverNotification?: RolloverNotificationInfo;
     user: UserInfo;
     features: FeatureFlags;

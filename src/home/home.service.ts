@@ -14,7 +14,7 @@ import {
   RolloverNotificationInfo,
   UserInfo,
   FeatureFlags,
-  AccountInfo,
+  IncomeLedgerInfo,
 } from './dto/home-summary.dto';
 
 @Injectable()
@@ -85,13 +85,13 @@ export class HomeService {
     );
 
     // Calculate all components in parallel (including rollover notification)
-    const [income, committed, discretionary, goals, rolloverNotification, accounts] = await Promise.all([
+    const [income, committed, discretionary, goals, rolloverNotification, incomeLedger] = await Promise.all([
       this.calculateIncome(user, periodBoundaries),
       this.calculateCommitted(userId, periodBoundaries),
       this.calculateDiscretionary(userId, periodBoundaries),
       this.calculateGoals(userId, periodBoundaries, frequency),
       this.getRolloverNotification(userId),
-      this.calculateAccounts(user, periodBoundaries),
+      this.calculateIncomeLedger(user, periodBoundaries),
     ]);
 
     // Calculate totals
@@ -116,7 +116,7 @@ export class HomeService {
         goals,
       },
       totals,
-      accounts,
+      incomeLedger,
       user: {
         isPro,
         proExpiresAt: user.proExpiresAt?.toISOString() || null,
@@ -224,28 +224,28 @@ export class HomeService {
   }
 
   /**
-   * Calculate the per-source ledger accounts.
+   * Calculate the per-source income ledger.
    *
-   * Semantics (attribution-only — accounts always sum to the single spendable
-   * total):
-   * - Salary account: base income + rollover + unattributed INCOME
+   * Semantics (attribution-only — ledger entries always sum to the single
+   * spendable total):
+   * - Salary entry: base income + rollover + unattributed INCOME
    *   transactions, minus all unattributed spending. Every expense without an
    *   incomeSourceId comes out of here.
-   * - One account per income source: its attributed INCOME transactions in the
+   * - One entry per income source: its attributed INCOME transactions in the
    *   period, minus the same committed / discretionary / goal buckets the main
    *   card shows, restricted to that source's attributed spending.
-   * - An account may go negative (over-spent) — clients render it as a warning,
+   * - An entry may go negative (over-spent) — clients render it as a warning,
    *   there is no hard wall.
-   * - Rollover stays a single number folded into the salary account (per-account
+   * - Rollover stays a single number folded into the salary entry (per-source
    *   rollover is a possible later step).
    *
    * Returns [] when the user has no income sources at all, so clients can
    * keep the plain single-card view.
    */
-  private async calculateAccounts(
+  private async calculateIncomeLedger(
     user: any,
     period: PayPeriodBoundaries
-  ): Promise<AccountInfo[]> {
+  ): Promise<IncomeLedgerInfo[]> {
     const userId = user.id;
 
     const sources = await this.prisma.incomeSource.findMany({
@@ -368,7 +368,7 @@ export class HomeService {
     };
     const round = (n: number) => Math.round(n * 100) / 100;
 
-    // Build one account's expense breakdown from the shared aggregates.
+    // Build one income stream's expense breakdown from the shared aggregates.
     const breakdownFor = (id: string | null) => {
       const committed = committedBySource.get(id ?? NULL_KEY) ?? 0;
       const discretionary = sumRow(discretionaryRows, id);
@@ -384,12 +384,12 @@ export class HomeService {
     const baseIncome = user.income ? Number(user.income) : 0;
     const rollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
 
-    // Salary account: base income + rollover + unattributed income in, and all
+    // Salary entry: base income + rollover + unattributed income in, and all
     // unattributed spending out.
     const salaryReceived = baseIncome + rollover + sumRow(inflows, null);
     const salary = breakdownFor(null);
 
-    const accounts: AccountInfo[] = [
+    const incomeLedger: IncomeLedgerInfo[] = [
       {
         id: 'salary',
         name: 'Salary',
@@ -414,7 +414,7 @@ export class HomeService {
       if (!source.isActive && received === 0 && b.spent === 0) {
         continue;
       }
-      accounts.push({
+      incomeLedger.push({
         id: source.id,
         name: source.name,
         isSalary: false,
@@ -431,7 +431,7 @@ export class HomeService {
       });
     }
 
-    return accounts;
+    return incomeLedger;
   }
 
   /**
@@ -753,7 +753,7 @@ export class HomeService {
         totalInflow: 0,
         sources: [],
       },
-      accounts: [],
+      incomeLedger: [],
       outflows: {
         committed: {
           plannedTotal: 0,

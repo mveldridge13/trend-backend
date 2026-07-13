@@ -51,13 +51,13 @@ let HomeService = HomeService_1 = class HomeService {
             this.logger.log(`Processed ${transitionCount} pay period transition(s) for user ${userId}`);
         }
         const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone);
-        const [income, committed, discretionary, goals, rolloverNotification, accounts] = await Promise.all([
+        const [income, committed, discretionary, goals, rolloverNotification, incomeLedger] = await Promise.all([
             this.calculateIncome(user, periodBoundaries),
             this.calculateCommitted(userId, periodBoundaries),
             this.calculateDiscretionary(userId, periodBoundaries),
             this.calculateGoals(userId, periodBoundaries, frequency),
             this.getRolloverNotification(userId),
-            this.calculateAccounts(user, periodBoundaries),
+            this.calculateIncomeLedger(user, periodBoundaries),
         ]);
         const totals = this.calculateTotals(income, committed, discretionary, goals);
         const isPro = this.isProActive(user);
@@ -76,7 +76,7 @@ let HomeService = HomeService_1 = class HomeService {
                 goals,
             },
             totals,
-            accounts,
+            incomeLedger,
             user: {
                 isPro,
                 proExpiresAt: user.proExpiresAt?.toISOString() || null,
@@ -156,7 +156,7 @@ let HomeService = HomeService_1 = class HomeService {
             sources,
         };
     }
-    async calculateAccounts(user, period) {
+    async calculateIncomeLedger(user, period) {
         const userId = user.id;
         const sources = await this.prisma.incomeSource.findMany({
             where: { userId },
@@ -276,7 +276,7 @@ let HomeService = HomeService_1 = class HomeService {
         const rollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
         const salaryReceived = baseIncome + rollover + sumRow(inflows, null);
         const salary = breakdownFor(null);
-        const accounts = [
+        const incomeLedger = [
             {
                 id: 'salary',
                 name: 'Salary',
@@ -299,7 +299,7 @@ let HomeService = HomeService_1 = class HomeService {
             if (!source.isActive && received === 0 && b.spent === 0) {
                 continue;
             }
-            accounts.push({
+            incomeLedger.push({
                 id: source.id,
                 name: source.name,
                 isSalary: false,
@@ -315,7 +315,7 @@ let HomeService = HomeService_1 = class HomeService {
                     : null,
             });
         }
-        return accounts;
+        return incomeLedger;
     }
     async calculateCommitted(userId, period) {
         const committedTransactions = await this.prisma.transaction.findMany({
@@ -534,7 +534,7 @@ let HomeService = HomeService_1 = class HomeService {
                 totalInflow: 0,
                 sources: [],
             },
-            accounts: [],
+            incomeLedger: [],
             outflows: {
                 committed: {
                     plannedTotal: 0,
