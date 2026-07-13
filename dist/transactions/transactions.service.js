@@ -1796,22 +1796,51 @@ let TransactionsService = class TransactionsService {
             const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
                 ? proratedPayPeriodIncome
                 : projectedMonthlyIncome;
+            const incomeSourceIds = Array.from(new Set(transactionsForBreakdown
+                .map((t) => t.incomeSourceId)
+                .filter((id) => !!id)));
+            const incomeSourceNameById = new Map(incomeSourceIds.length > 0
+                ? (await this.prisma.incomeSource.findMany({
+                    where: { id: { in: incomeSourceIds }, userId },
+                    select: { id: true, name: true },
+                })).map((s) => [s.id, s.name])
+                : []);
+            const adhocByCategoryMap = new Map();
             transactionsForBreakdown.forEach((t) => {
+                const amount = Math.abs(Number(t.amount)) || 0;
+                const sourceName = t.incomeSourceId
+                    ? incomeSourceNameById.get(t.incomeSourceId)
+                    : undefined;
+                if (sourceName) {
+                    if (incomeBySourceMap.has(t.incomeSourceId)) {
+                        const existing = incomeBySourceMap.get(t.incomeSourceId);
+                        existing.totalAmount += amount;
+                        existing.transactionCount += 1;
+                    }
+                    else {
+                        incomeBySourceMap.set(t.incomeSourceId, {
+                            categoryId: t.incomeSourceId,
+                            categoryName: sourceName,
+                            totalAmount: amount,
+                            percentage: 0,
+                            color: this.generateCategoryColor(sourceName),
+                            transactionCount: 1,
+                        });
+                    }
+                    return;
+                }
                 const categoryId = t.categoryId || "uncategorized";
                 const categoryName = t.category?.name || "Uncategorized";
-                const amount = Math.abs(Number(t.amount)) || 0;
-                if (incomeBySourceMap.has(categoryId)) {
-                    const existing = incomeBySourceMap.get(categoryId);
+                if (adhocByCategoryMap.has(categoryId)) {
+                    const existing = adhocByCategoryMap.get(categoryId);
                     existing.totalAmount += amount;
                     existing.transactionCount += 1;
                 }
                 else {
-                    incomeBySourceMap.set(categoryId, {
-                        source: categoryName,
+                    adhocByCategoryMap.set(categoryId, {
                         categoryId,
                         categoryName,
                         totalAmount: amount,
-                        percentage: 0,
                         color: this.generateCategoryColor(categoryName),
                         transactionCount: 1,
                     });
@@ -1819,13 +1848,31 @@ let TransactionsService = class TransactionsService {
             });
             if (profileIncomeForBreakdown > 0) {
                 incomeBySourceMap.set("profile_income", {
-                    source: "Primary Income",
                     categoryId: "profile_income",
                     categoryName: "Primary Income",
                     totalAmount: profileIncomeForBreakdown,
                     percentage: 0,
                     color: this.generateCategoryColor("Primary Income"),
                     transactionCount: 0,
+                });
+            }
+            const adhocBreakdownRaw = Array.from(adhocByCategoryMap.values());
+            const adhocTotal = adhocBreakdownRaw.reduce((sum, item) => sum + item.totalAmount, 0);
+            if (adhocTotal > 0) {
+                incomeBySourceMap.set("adhoc", {
+                    categoryId: "adhoc",
+                    categoryName: "Ad-hoc",
+                    totalAmount: adhocTotal,
+                    percentage: 0,
+                    color: this.generateCategoryColor("Ad-hoc"),
+                    transactionCount: adhocBreakdownRaw.reduce((sum, item) => sum + item.transactionCount, 0),
+                    isAdhoc: true,
+                    breakdown: adhocBreakdownRaw
+                        .map((item) => ({
+                        ...item,
+                        totalAmount: Math.round(item.totalAmount * 100) / 100,
+                    }))
+                        .sort((a, b) => b.totalAmount - a.totalAmount),
                 });
             }
             const incomeBySource = Array.from(incomeBySourceMap.values())
