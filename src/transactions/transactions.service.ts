@@ -2592,8 +2592,18 @@ export class TransactionsService {
       let totalIncomeThisWeek = 0;
       let proratedPayPeriodIncome = 0;
       let payPeriodTransactions: typeof currentIncomeTransactions = [];
+      // Distinct from `payPeriodTransactions.length > 0`: a user can have a
+      // pay period configured but genuinely zero income transactions in it
+      // (e.g. no ad-hoc income this period). That's a real "$0", not "no pay
+      // period data" - only the latter should fall back to the client's
+      // date-range filters below, otherwise the fallback silently pulls in a
+      // different window per client (mobile sends no filters -> current
+      // calendar month; web sends its selected 7d/30d/12m range), producing
+      // different Income by Source / Recurring vs Ad-hoc numbers per platform.
+      let hasPayPeriodConfigured = false;
 
       if (userProfile.nextPayDate && userProfile.incomeFrequency) {
+        hasPayPeriodConfigured = true;
         const nextPayDate = new Date(userProfile.nextPayDate);
         const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
 
@@ -2769,8 +2779,11 @@ export class TransactionsService {
       // to a source - using pay period transactions.
       const incomeBySourceMap = new Map();
 
-      // Use pay period transactions if available, otherwise fall back to monthly
-      const transactionsForBreakdown = payPeriodTransactions.length > 0
+      // Once a pay period is configured, always use its (possibly empty)
+      // transactions - falling back to currentIncomeTransactions only when
+      // there's no pay period concept at all, not just because this period
+      // happens to have no income transactions (see hasPayPeriodConfigured).
+      const transactionsForBreakdown = hasPayPeriodConfigured
         ? payPeriodTransactions
         : currentIncomeTransactions;
 

@@ -1689,7 +1689,9 @@ let TransactionsService = class TransactionsService {
             let totalIncomeThisWeek = 0;
             let proratedPayPeriodIncome = 0;
             let payPeriodTransactions = [];
+            let hasPayPeriodConfigured = false;
             if (userProfile.nextPayDate && userProfile.incomeFrequency) {
+                hasPayPeriodConfigured = true;
                 const nextPayDate = new Date(userProfile.nextPayDate);
                 const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
                 if (projectedMonthlyIncome > 0) {
@@ -1790,7 +1792,7 @@ let TransactionsService = class TransactionsService {
                 ? ((totalIncomeYTD - totalIncomeLastYearYTD) / totalIncomeLastYearYTD) * 100
                 : 0;
             const incomeBySourceMap = new Map();
-            const transactionsForBreakdown = payPeriodTransactions.length > 0
+            const transactionsForBreakdown = hasPayPeriodConfigured
                 ? payPeriodTransactions
                 : currentIncomeTransactions;
             const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
