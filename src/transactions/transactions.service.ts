@@ -2968,6 +2968,14 @@ export class TransactionsService {
       // Pay period info
       const payPeriodInfo = this.calculatePayPeriodInfo(userProfile);
 
+      // Highest-earning pay period across the user's history (for the
+      // "Highest Earning Period" hero card)
+      const highestEarningPeriod = await this.calculateHighestEarningPeriod(
+        userId,
+        userProfile,
+        proratedPayPeriodIncome,
+      );
+
       // Generate insights (enhanced with profile data awareness)
       const insights = this.generateIncomeInsights(
         currentIncomeTransactions,
@@ -2996,6 +3004,7 @@ export class TransactionsService {
         incomeBreakdown,
         recentIncomeEntries,
         payPeriodInfo,
+        highestEarningPeriod,
         insights,
         // Enhanced: Indicate data source (updated for hybrid approach)
         dataSource:
@@ -3039,6 +3048,7 @@ export class TransactionsService {
         },
         recentIncomeEntries: [],
         payPeriodInfo: null,
+        highestEarningPeriod: null,
         insights: {
           consistencyScore: 0,
           growthTrend: "stable",
@@ -3071,6 +3081,108 @@ export class TransactionsService {
       daysUntilNextPay: periodBoundaries.daysRemaining,
       currentPeriodStart: periodBoundaries.start.toISOString(),
       currentPeriodEnd: periodBoundaries.end.toISOString(),
+    };
+  }
+
+  /**
+   * Find the user's highest-earning pay period across their history, for
+   * the "Highest Earning Period" insight card.
+   *
+   * Walks back through real pay periods (capped to ~1 year: 52 weekly / 26
+   * fortnightly / 12 monthly, and never before the account existed), sums
+   * each period's actual income transactions, and adds the user's current
+   * prorated salary to every period uniformly - past salary values aren't
+   * tracked, so this is the same "salary + whatever arrived that period"
+   * formula already used for the current period's own total, kept
+   * apples-to-apples rather than comparing raw transaction sums alone
+   * (which would understate periods before any ad-hoc income arrived).
+   */
+  private async calculateHighestEarningPeriod(
+    userId: string,
+    userProfile: any,
+    proratedPayPeriodIncome: number,
+  ): Promise<{
+    start: string;
+    end: string;
+    totalAmount: number;
+    percentAboveAverage: number;
+  } | null> {
+    if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
+      return null;
+    }
+
+    const frequency = userProfile.incomeFrequency;
+    const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
+    const maxPeriods =
+      frequency === IncomeFrequency.WEEKLY
+        ? 52
+        : frequency === IncomeFrequency.MONTHLY
+          ? 12
+          : 26; // fortnightly (and any other frequency) - ~1 year
+
+    const accountCreatedAt = new Date(userProfile.createdAt);
+
+    const periodBoundaries: {start: Date; end: Date}[] = [];
+    let cursor = new Date(userProfile.nextPayDate);
+    for (let i = 0; i < maxPeriods; i++) {
+      const boundaries = this.dateService.calculatePayPeriodBoundaries(
+        cursor,
+        frequency,
+        userTimezone,
+      );
+      if (boundaries.end < accountCreatedAt) {
+        break;
+      }
+      periodBoundaries.push({start: boundaries.start, end: boundaries.end});
+      cursor = this.dateService.calculatePreviousPayDate(
+        new Date(cursor),
+        frequency,
+      );
+    }
+
+    if (periodBoundaries.length === 0) {
+      return null;
+    }
+
+    const earliestStart = periodBoundaries[periodBoundaries.length - 1].start;
+    const latestEnd = periodBoundaries[0].end;
+
+    const allTransactions = await this.transactionsRepository.findMany(userId, {
+      startDate: earliestStart.toISOString(),
+      endDate: latestEnd.toISOString(),
+      type: TransactionType.INCOME,
+      limit: 10000,
+      offset: 0,
+    } as TransactionFilterDto);
+
+    const periodTotals = periodBoundaries.map((period) => {
+      const txTotal = allTransactions
+        .filter((t) => {
+          const d = new Date(t.date);
+          return d >= period.start && d <= period.end;
+        })
+        .reduce((sum, t) => sum + (Math.abs(Number(t.amount)) || 0), 0);
+      return {
+        start: period.start,
+        end: period.end,
+        total: txTotal + proratedPayPeriodIncome,
+      };
+    });
+
+    const highest = periodTotals.reduce(
+      (max, p) => (p.total > max.total ? p : max),
+      periodTotals[0],
+    );
+    const average =
+      periodTotals.reduce((sum, p) => sum + p.total, 0) / periodTotals.length;
+    const percentAboveAverage =
+      average > 0 ? ((highest.total - average) / average) * 100 : 0;
+
+    return {
+      start: highest.start.toISOString(),
+      end: highest.end.toISOString(),
+      totalAmount: Math.round(highest.total * 100) / 100,
+      percentAboveAverage: Math.round(percentAboveAverage * 10) / 10,
     };
   }
 

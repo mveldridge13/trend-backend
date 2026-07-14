@@ -151,6 +151,7 @@ export declare class TransactionsService {
     private calculateAnalytics;
     getIncomeAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<any>;
     private calculatePayPeriodInfo;
+    private calculateHighestEarningPeriod;
     private generateIncomeInsights;
     private generateCategoryColor;
 }

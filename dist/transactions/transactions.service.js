@@ -1920,6 +1920,7 @@ let TransactionsService = class TransactionsService {
                 isRecurring: Boolean(t.recurrence && t.recurrence !== "none"),
             }));
             const payPeriodInfo = this.calculatePayPeriodInfo(userProfile);
+            const highestEarningPeriod = await this.calculateHighestEarningPeriod(userId, userProfile, proratedPayPeriodIncome);
             const insights = this.generateIncomeInsights(currentIncomeTransactions, monthChangePercentage, incomeBySource, incomeBreakdown, projectedMonthlyIncome > 0);
             return {
                 totalIncomeThisMonth: Math.round(totalIncomeThisMonth * 100) / 100,
@@ -1939,6 +1940,7 @@ let TransactionsService = class TransactionsService {
                 incomeBreakdown,
                 recentIncomeEntries,
                 payPeriodInfo,
+                highestEarningPeriod,
                 insights,
                 dataSource: transactionIncomeThisMonth > 0 && projectedMonthlyIncome > 0
                     ? "hybrid"
@@ -1977,6 +1979,7 @@ let TransactionsService = class TransactionsService {
                 },
                 recentIncomeEntries: [],
                 payPeriodInfo: null,
+                highestEarningPeriod: null,
                 insights: {
                     consistencyScore: 0,
                     growthTrend: "stable",
@@ -2000,6 +2003,63 @@ let TransactionsService = class TransactionsService {
             daysUntilNextPay: periodBoundaries.daysRemaining,
             currentPeriodStart: periodBoundaries.start.toISOString(),
             currentPeriodEnd: periodBoundaries.end.toISOString(),
+        };
+    }
+    async calculateHighestEarningPeriod(userId, userProfile, proratedPayPeriodIncome) {
+        if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
+            return null;
+        }
+        const frequency = userProfile.incomeFrequency;
+        const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
+        const maxPeriods = frequency === client_2.IncomeFrequency.WEEKLY
+            ? 52
+            : frequency === client_2.IncomeFrequency.MONTHLY
+                ? 12
+                : 26;
+        const accountCreatedAt = new Date(userProfile.createdAt);
+        const periodBoundaries = [];
+        let cursor = new Date(userProfile.nextPayDate);
+        for (let i = 0; i < maxPeriods; i++) {
+            const boundaries = this.dateService.calculatePayPeriodBoundaries(cursor, frequency, userTimezone);
+            if (boundaries.end < accountCreatedAt) {
+                break;
+            }
+            periodBoundaries.push({ start: boundaries.start, end: boundaries.end });
+            cursor = this.dateService.calculatePreviousPayDate(new Date(cursor), frequency);
+        }
+        if (periodBoundaries.length === 0) {
+            return null;
+        }
+        const earliestStart = periodBoundaries[periodBoundaries.length - 1].start;
+        const latestEnd = periodBoundaries[0].end;
+        const allTransactions = await this.transactionsRepository.findMany(userId, {
+            startDate: earliestStart.toISOString(),
+            endDate: latestEnd.toISOString(),
+            type: client_2.TransactionType.INCOME,
+            limit: 10000,
+            offset: 0,
+        });
+        const periodTotals = periodBoundaries.map((period) => {
+            const txTotal = allTransactions
+                .filter((t) => {
+                const d = new Date(t.date);
+                return d >= period.start && d <= period.end;
+            })
+                .reduce((sum, t) => sum + (Math.abs(Number(t.amount)) || 0), 0);
+            return {
+                start: period.start,
+                end: period.end,
+                total: txTotal + proratedPayPeriodIncome,
+            };
+        });
+        const highest = periodTotals.reduce((max, p) => (p.total > max.total ? p : max), periodTotals[0]);
+        const average = periodTotals.reduce((sum, p) => sum + p.total, 0) / periodTotals.length;
+        const percentAboveAverage = average > 0 ? ((highest.total - average) / average) * 100 : 0;
+        return {
+            start: highest.start.toISOString(),
+            end: highest.end.toISOString(),
+            totalAmount: Math.round(highest.total * 100) / 100,
+            percentAboveAverage: Math.round(percentAboveAverage * 10) / 10,
         };
     }
     generateIncomeInsights(transactions, changePercentage, incomeBySource, incomeBreakdown, hasProfileData = false) {
