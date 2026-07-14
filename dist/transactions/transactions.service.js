@@ -1645,6 +1645,7 @@ let TransactionsService = class TransactionsService {
                 offset: 0,
                 sortBy: "date",
                 sortOrder: "desc",
+                includePrimaryIncome: true,
             });
             const previousIncomeTransactions = await this.transactionsRepository.findMany(userId, {
                 startDate: prevMonthStart.toISOString(),
@@ -1652,6 +1653,7 @@ let TransactionsService = class TransactionsService {
                 type: client_2.TransactionType.INCOME,
                 limit: 10000,
                 offset: 0,
+                includePrimaryIncome: true,
             });
             const transactionIncomeThisMonth = currentIncomeTransactions.reduce((sum, t) => {
                 const amount = Number(t.amount);
@@ -1676,8 +1678,8 @@ let TransactionsService = class TransactionsService {
                         break;
                 }
             }
-            const totalIncomeThisMonth = transactionIncomeThisMonth + projectedMonthlyIncome;
-            const previousMonthIncome = transactionIncomePreviousMonth + projectedMonthlyIncome;
+            const totalIncomeThisMonth = transactionIncomeThisMonth;
+            const previousMonthIncome = transactionIncomePreviousMonth;
             const monthChangePercentage = previousMonthIncome > 0
                 ? ((totalIncomeThisMonth - previousMonthIncome) /
                     previousMonthIncome) *
@@ -1687,16 +1689,12 @@ let TransactionsService = class TransactionsService {
             let totalIncomePreviousPayPeriod = 0;
             let payPeriodChangePercentage = 0;
             let totalIncomeThisWeek = 0;
-            let proratedPayPeriodIncome = 0;
             let payPeriodTransactions = [];
             let hasPayPeriodConfigured = false;
             if (userProfile.nextPayDate && userProfile.incomeFrequency) {
                 hasPayPeriodConfigured = true;
                 const nextPayDate = new Date(userProfile.nextPayDate);
                 const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
-                if (projectedMonthlyIncome > 0) {
-                    proratedPayPeriodIncome = this.dateService.prorateMonthlyAmount(projectedMonthlyIncome, userProfile.incomeFrequency);
-                }
                 const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
                 const previousPeriodBoundaries = this.dateService.calculatePreviousPayPeriodBoundaries(nextPayDate, userProfile.incomeFrequency, userTimezone);
                 const allRelevantTransactions = await this.transactionsRepository.findMany(userId, {
@@ -1707,6 +1705,7 @@ let TransactionsService = class TransactionsService {
                     offset: 0,
                     sortBy: "date",
                     sortOrder: "desc",
+                    includePrimaryIncome: true,
                 });
                 payPeriodTransactions = allRelevantTransactions.filter((t) => {
                     const transactionDate = new Date(t.date);
@@ -1726,8 +1725,8 @@ let TransactionsService = class TransactionsService {
                     const amount = Number(t.amount);
                     return sum + (isNaN(amount) ? 0 : Math.abs(amount));
                 }, 0);
-                totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod + proratedPayPeriodIncome;
-                totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod + proratedPayPeriodIncome;
+                totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod;
+                totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod;
                 payPeriodChangePercentage =
                     totalIncomePreviousPayPeriod > 0
                         ? ((totalIncomeThisPayPeriod - totalIncomePreviousPayPeriod) /
@@ -1807,9 +1806,6 @@ let TransactionsService = class TransactionsService {
             const transactionsForBreakdown = hasPayPeriodConfigured
                 ? payPeriodTransactions
                 : currentIncomeTransactions;
-            const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
-                ? proratedPayPeriodIncome
-                : projectedMonthlyIncome;
             const incomeSourceIds = Array.from(new Set(transactionsForBreakdown
                 .map((t) => t.incomeSourceId)
                 .filter((id) => !!id)));
@@ -1822,6 +1818,24 @@ let TransactionsService = class TransactionsService {
             const adhocByCategoryMap = new Map();
             transactionsForBreakdown.forEach((t) => {
                 const amount = Math.abs(Number(t.amount)) || 0;
+                if (t.isPrimaryIncome) {
+                    if (incomeBySourceMap.has("profile_income")) {
+                        const existing = incomeBySourceMap.get("profile_income");
+                        existing.totalAmount += amount;
+                        existing.transactionCount += 1;
+                    }
+                    else {
+                        incomeBySourceMap.set("profile_income", {
+                            categoryId: "profile_income",
+                            categoryName: "Primary Income",
+                            totalAmount: amount,
+                            percentage: 0,
+                            color: this.generateCategoryColor("Primary Income"),
+                            transactionCount: 1,
+                        });
+                    }
+                    return;
+                }
                 const sourceName = t.incomeSourceId
                     ? incomeSourceNameById.get(t.incomeSourceId)
                     : undefined;
@@ -1860,16 +1874,6 @@ let TransactionsService = class TransactionsService {
                     });
                 }
             });
-            if (profileIncomeForBreakdown > 0) {
-                incomeBySourceMap.set("profile_income", {
-                    categoryId: "profile_income",
-                    categoryName: "Primary Income",
-                    totalAmount: profileIncomeForBreakdown,
-                    percentage: 0,
-                    color: this.generateCategoryColor("Primary Income"),
-                    transactionCount: 0,
-                });
-            }
             const adhocBreakdownRaw = Array.from(adhocByCategoryMap.values());
             const adhocTotal = adhocBreakdownRaw.reduce((sum, item) => sum + item.totalAmount, 0);
             if (adhocTotal > 0) {
@@ -1898,13 +1902,10 @@ let TransactionsService = class TransactionsService {
                 totalAmount: Math.round(item.totalAmount * 100) / 100,
             }))
                 .sort((a, b) => b.totalAmount - a.totalAmount);
-            const recurringIncome = transactionsForBreakdown.filter((t) => !!t.incomeSourceId);
-            const adhocIncome = transactionsForBreakdown.filter((t) => !t.incomeSourceId);
-            let recurringAmount = recurringIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
-            let adhocAmount = adhocIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
-            if (profileIncomeForBreakdown > 0) {
-                recurringAmount += profileIncomeForBreakdown;
-            }
+            const recurringIncome = transactionsForBreakdown.filter((t) => !!t.incomeSourceId || t.isPrimaryIncome);
+            const adhocIncome = transactionsForBreakdown.filter((t) => !t.incomeSourceId && !t.isPrimaryIncome);
+            const recurringAmount = recurringIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            const adhocAmount = adhocIncome.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
             const incomeBreakdown = {
                 recurring: {
                     amount: Math.round(recurringAmount * 100) / 100,
@@ -1922,6 +1923,7 @@ let TransactionsService = class TransactionsService {
                 },
             };
             const recentIncomeEntries = currentIncomeTransactions
+                .filter((t) => !t.isPrimaryIncome)
                 .slice(0, 10)
                 .map((t) => ({
                 id: t.id,
@@ -1932,7 +1934,7 @@ let TransactionsService = class TransactionsService {
                 isRecurring: Boolean(t.recurrence && t.recurrence !== "none"),
             }));
             const payPeriodInfo = this.calculatePayPeriodInfo(userProfile);
-            const highestEarningPeriod = await this.calculateHighestEarningPeriod(userId, userProfile, proratedPayPeriodIncome);
+            const highestEarningPeriod = await this.calculateHighestEarningPeriod(userId, userProfile);
             const insights = this.generateIncomeInsights(currentIncomeTransactions, monthChangePercentage, incomeBySource, incomeBreakdown, projectedMonthlyIncome > 0);
             return {
                 totalIncomeThisMonth: Math.round(totalIncomeThisMonth * 100) / 100,
@@ -2027,7 +2029,7 @@ let TransactionsService = class TransactionsService {
             currentPeriodEnd: periodBoundaries.end.toISOString(),
         };
     }
-    async calculateHighestEarningPeriod(userId, userProfile, proratedPayPeriodIncome) {
+    async calculateHighestEarningPeriod(userId, userProfile) {
         if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
             return null;
         }
@@ -2060,6 +2062,7 @@ let TransactionsService = class TransactionsService {
             type: client_2.TransactionType.INCOME,
             limit: 10000,
             offset: 0,
+            includePrimaryIncome: true,
         });
         const periodTotals = periodBoundaries.map((period) => {
             const txTotal = allTransactions
@@ -2071,7 +2074,7 @@ let TransactionsService = class TransactionsService {
             return {
                 start: period.start,
                 end: period.end,
-                total: txTotal + proratedPayPeriodIncome,
+                total: txTotal,
             };
         });
         const highest = periodTotals.reduce((max, p) => (p.total > max.total ? p : max), periodTotals[0]);
@@ -2091,14 +2094,6 @@ let TransactionsService = class TransactionsService {
             })).map((s) => [s.id, s.name])
             : []);
         const breakdownMap = new Map();
-        if (proratedPayPeriodIncome > 0) {
-            breakdownMap.set('primary_income', {
-                name: 'Primary Income',
-                amount: proratedPayPeriodIncome,
-                color: this.generateCategoryColor('Primary Income'),
-                transactions: [],
-            });
-        }
         let adhocAmount = 0;
         const adhocTransactions = [];
         highestPeriodTransactions.forEach((t) => {
@@ -2111,7 +2106,22 @@ let TransactionsService = class TransactionsService {
                 amount: Math.round(amount * 100) / 100,
                 date: new Date(t.date).toISOString(),
             };
-            if (sourceName) {
+            if (t.isPrimaryIncome) {
+                if (breakdownMap.has('primary_income')) {
+                    const existing = breakdownMap.get('primary_income');
+                    existing.amount += amount;
+                    existing.transactions.push(lineItem);
+                }
+                else {
+                    breakdownMap.set('primary_income', {
+                        name: 'Primary Income',
+                        amount,
+                        color: this.generateCategoryColor('Primary Income'),
+                        transactions: [lineItem],
+                    });
+                }
+            }
+            else if (sourceName) {
                 if (breakdownMap.has(t.incomeSourceId)) {
                     const existing = breakdownMap.get(t.incomeSourceId);
                     existing.amount += amount;

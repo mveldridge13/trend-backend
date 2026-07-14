@@ -2514,7 +2514,11 @@ export class TransactionsService {
       const prevMonthStart = new Date(currentYear, currentMonth - 1, 1);
       const prevMonthEnd = new Date(currentYear, currentMonth, 0);
 
-      // Fetch current month income transactions
+      // Fetch current month income transactions. includePrimaryIncome so
+      // real, materialized salary paydays count here too - this whole method
+      // is a record of actual income, not a forecast (see isPrimaryIncome
+      // guards elsewhere for where it's deliberately excluded to avoid
+      // double-counting a still-additive projection - there is none here).
       const currentIncomeTransactions =
         await this.transactionsRepository.findMany(userId, {
           startDate: startDate.toISOString(),
@@ -2524,6 +2528,7 @@ export class TransactionsService {
           offset: 0,
           sortBy: "date",
           sortOrder: "desc",
+          includePrimaryIncome: true,
         } as TransactionFilterDto);
 
       // Fetch previous month income for comparison
@@ -2534,6 +2539,7 @@ export class TransactionsService {
           type: TransactionType.INCOME,
           limit: 10000,
           offset: 0,
+          includePrimaryIncome: true,
         } as TransactionFilterDto);
 
       // Calculate total income metrics from transactions
@@ -2553,7 +2559,10 @@ export class TransactionsService {
         0,
       );
 
-      // Calculate projected income from user profile
+      // hasProfileData flag only (not added to any total below) - Income
+      // Analytics is a record of actual income, not a forecast, so a
+      // configured salary no longer inflates totals until it's really paid
+      // (as a materialized isPrimaryIncome transaction).
       let projectedMonthlyIncome = 0;
       if (userProfile.income && userProfile.incomeFrequency) {
         const profileIncome = Number(userProfile.income);
@@ -2570,12 +2579,9 @@ export class TransactionsService {
         }
       }
 
-      // ✅ FIX: Always include both profile and transaction income (additive)
-      const totalIncomeThisMonth =
-        transactionIncomeThisMonth + projectedMonthlyIncome;
+      const totalIncomeThisMonth = transactionIncomeThisMonth;
 
-      const previousMonthIncome =
-        transactionIncomePreviousMonth + projectedMonthlyIncome;
+      const previousMonthIncome = transactionIncomePreviousMonth;
 
       // Calculate month change percentage
       const monthChangePercentage =
@@ -2590,7 +2596,6 @@ export class TransactionsService {
       let totalIncomePreviousPayPeriod = 0;
       let payPeriodChangePercentage = 0;
       let totalIncomeThisWeek = 0;
-      let proratedPayPeriodIncome = 0;
       let payPeriodTransactions: typeof currentIncomeTransactions = [];
       // Distinct from `payPeriodTransactions.length > 0`: a user can have a
       // pay period configured but genuinely zero income transactions in it
@@ -2606,14 +2611,6 @@ export class TransactionsService {
         hasPayPeriodConfigured = true;
         const nextPayDate = new Date(userProfile.nextPayDate);
         const userTimezone = this.dateService.getValidTimezone(userProfile.timezone);
-
-        // Calculate prorated profile income for pay period
-        if (projectedMonthlyIncome > 0) {
-          proratedPayPeriodIncome = this.dateService.prorateMonthlyAmount(
-            projectedMonthlyIncome,
-            userProfile.incomeFrequency
-          );
-        }
 
         // Current pay period boundaries
         const periodBoundaries = this.dateService.calculatePayPeriodBoundaries(
@@ -2638,6 +2635,7 @@ export class TransactionsService {
           offset: 0,
           sortBy: "date",
           sortOrder: "desc",
+          includePrimaryIncome: true,
         } as TransactionFilterDto);
 
         // Filter for current pay period (store in outer scope variable)
@@ -2668,9 +2666,8 @@ export class TransactionsService {
           return sum + (isNaN(amount) ? 0 : Math.abs(amount));
         }, 0);
 
-        // Include prorated profile income in totals
-        totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod + proratedPayPeriodIncome;
-        totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod + proratedPayPeriodIncome;
+        totalIncomeThisPayPeriod = transactionIncomeThisPayPeriod;
+        totalIncomePreviousPayPeriod = transactionIncomePreviousPayPeriod;
 
         // Calculate pay period change percentage
         payPeriodChangePercentage =
@@ -2809,11 +2806,6 @@ export class TransactionsService {
         ? payPeriodTransactions
         : currentIncomeTransactions;
 
-      // Use prorated income for pay period if available, otherwise monthly
-      const profileIncomeForBreakdown = proratedPayPeriodIncome > 0
-        ? proratedPayPeriodIncome
-        : projectedMonthlyIncome;
-
       // Resolve names for whichever income sources actually appear in this
       // set of transactions (avoids fetching the user's whole source list).
       const incomeSourceIds = Array.from(
@@ -2840,6 +2832,28 @@ export class TransactionsService {
 
       transactionsForBreakdown.forEach((t) => {
         const amount = Math.abs(Number(t.amount)) || 0;
+
+        // Real materialized salary payday - its own row, same as any other
+        // source, rather than the old synthetic prorated "Primary Income"
+        // row added after this loop.
+        if (t.isPrimaryIncome) {
+          if (incomeBySourceMap.has("profile_income")) {
+            const existing = incomeBySourceMap.get("profile_income");
+            existing.totalAmount += amount;
+            existing.transactionCount += 1;
+          } else {
+            incomeBySourceMap.set("profile_income", {
+              categoryId: "profile_income",
+              categoryName: "Primary Income",
+              totalAmount: amount,
+              percentage: 0,
+              color: this.generateCategoryColor("Primary Income"),
+              transactionCount: 1,
+            });
+          }
+          return;
+        }
+
         const sourceName = t.incomeSourceId
           ? incomeSourceNameById.get(t.incomeSourceId)
           : undefined;
@@ -2878,18 +2892,6 @@ export class TransactionsService {
           });
         }
       });
-
-      // Add profile income as "Primary Income" (prorated for pay period)
-      if (profileIncomeForBreakdown > 0) {
-        incomeBySourceMap.set("profile_income", {
-          categoryId: "profile_income",
-          categoryName: "Primary Income",
-          totalAmount: profileIncomeForBreakdown,
-          percentage: 0,
-          color: this.generateCategoryColor("Primary Income"),
-          transactionCount: 0,
-        });
-      }
 
       // Roll ad-hoc up into one row, keeping its category breakdown for the
       // "Ad-hoc" modal on the frontend.
@@ -2934,27 +2936,23 @@ export class TransactionsService {
       // Detect recurring vs ad-hoc income - same "attributed to an income
       // source" split as the Ad-hoc row above, not a recurrence flag: income
       // sources are inherently recurring/scheduled, so being attributed to
-      // one IS what makes income "recurring" here.
+      // one IS what makes income "recurring" here. Primary income (real
+      // salary paydays) counts as recurring too, same as any income source.
       const recurringIncome = transactionsForBreakdown.filter(
-        (t) => !!t.incomeSourceId,
+        (t) => !!t.incomeSourceId || t.isPrimaryIncome,
       );
       const adhocIncome = transactionsForBreakdown.filter(
-        (t) => !t.incomeSourceId,
+        (t) => !t.incomeSourceId && !t.isPrimaryIncome,
       );
 
-      let recurringAmount = recurringIncome.reduce(
+      const recurringAmount = recurringIncome.reduce(
         (sum, t) => sum + Math.abs(Number(t.amount)),
         0,
       );
-      let adhocAmount = adhocIncome.reduce(
+      const adhocAmount = adhocIncome.reduce(
         (sum, t) => sum + Math.abs(Number(t.amount)),
         0,
       );
-
-      // Add prorated profile income to recurring amount
-      if (profileIncomeForBreakdown > 0) {
-        recurringAmount += profileIncomeForBreakdown;
-      }
 
       const incomeBreakdown = {
         recurring: {
@@ -2975,8 +2973,10 @@ export class TransactionsService {
         },
       };
 
-      // Recent income entries (last 10)
+      // Recent income entries (last 10) - excludes isPrimaryIncome: it's a
+      // real total now, but still not a card in any transaction-style list.
       const recentIncomeEntries = currentIncomeTransactions
+        .filter((t) => !t.isPrimaryIncome)
         .slice(0, 10)
         .map((t) => ({
           id: t.id,
@@ -2995,7 +2995,6 @@ export class TransactionsService {
       const highestEarningPeriod = await this.calculateHighestEarningPeriod(
         userId,
         userProfile,
-        proratedPayPeriodIncome,
       );
 
       // Generate insights (enhanced with profile data awareness)
@@ -3127,18 +3126,16 @@ export class TransactionsService {
    * the "Highest Earning Period" insight card.
    *
    * Walks back through real pay periods (capped to ~1 year: 52 weekly / 26
-   * fortnightly / 12 monthly, and never before the account existed), sums
-   * each period's actual income transactions, and adds the user's current
-   * prorated salary to every period uniformly - past salary values aren't
-   * tracked, so this is the same "salary + whatever arrived that period"
-   * formula already used for the current period's own total, kept
-   * apples-to-apples rather than comparing raw transaction sums alone
-   * (which would understate periods before any ad-hoc income arrived).
+   * fortnightly / 12 monthly, and never before the account existed) and sums
+   * each period's actual income transactions - including materialized
+   * isPrimaryIncome salary paydays. This is a record of reality, not a
+   * forecast: the current, still-in-progress period is included too, and
+   * simply totals whatever has actually posted so far (its salary line will
+   * read $0 until that period's payday actually materializes).
    */
   private async calculateHighestEarningPeriod(
     userId: string,
     userProfile: any,
-    proratedPayPeriodIncome: number,
   ): Promise<{
     start: string;
     end: string;
@@ -3203,6 +3200,7 @@ export class TransactionsService {
       type: TransactionType.INCOME,
       limit: 10000,
       offset: 0,
+      includePrimaryIncome: true,
     } as TransactionFilterDto);
 
     const periodTotals = periodBoundaries.map((period) => {
@@ -3215,7 +3213,7 @@ export class TransactionsService {
       return {
         start: period.start,
         end: period.end,
-        total: txTotal + proratedPayPeriodIncome,
+        total: txTotal,
       };
     });
 
@@ -3264,15 +3262,6 @@ export class TransactionsService {
         transactions: BreakdownLineItem[];
       }
     >();
-    if (proratedPayPeriodIncome > 0) {
-      // Not a real transaction - salary has nothing to drill into.
-      breakdownMap.set('primary_income', {
-        name: 'Primary Income',
-        amount: proratedPayPeriodIncome,
-        color: this.generateCategoryColor('Primary Income'),
-        transactions: [],
-      });
-    }
     let adhocAmount = 0;
     const adhocTransactions: BreakdownLineItem[] = [];
     highestPeriodTransactions.forEach((t) => {
@@ -3285,7 +3274,20 @@ export class TransactionsService {
         amount: Math.round(amount * 100) / 100,
         date: new Date(t.date).toISOString(),
       };
-      if (sourceName) {
+      if (t.isPrimaryIncome) {
+        if (breakdownMap.has('primary_income')) {
+          const existing = breakdownMap.get('primary_income');
+          existing.amount += amount;
+          existing.transactions.push(lineItem);
+        } else {
+          breakdownMap.set('primary_income', {
+            name: 'Primary Income',
+            amount,
+            color: this.generateCategoryColor('Primary Income'),
+            transactions: [lineItem],
+          });
+        }
+      } else if (sourceName) {
         if (breakdownMap.has(t.incomeSourceId)) {
           const existing = breakdownMap.get(t.incomeSourceId);
           existing.amount += amount;
