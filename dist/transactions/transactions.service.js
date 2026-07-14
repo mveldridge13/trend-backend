@@ -2055,11 +2055,65 @@ let TransactionsService = class TransactionsService {
         const highest = periodTotals.reduce((max, p) => (p.total > max.total ? p : max), periodTotals[0]);
         const average = periodTotals.reduce((sum, p) => sum + p.total, 0) / periodTotals.length;
         const percentAboveAverage = average > 0 ? ((highest.total - average) / average) * 100 : 0;
+        const highestPeriodTransactions = allTransactions.filter((t) => {
+            const d = new Date(t.date);
+            return d >= highest.start && d <= highest.end;
+        });
+        const incomeSourceIds = Array.from(new Set(highestPeriodTransactions
+            .map((t) => t.incomeSourceId)
+            .filter((id) => !!id)));
+        const incomeSourceNameById = new Map(incomeSourceIds.length > 0
+            ? (await this.prisma.incomeSource.findMany({
+                where: { id: { in: incomeSourceIds }, userId },
+                select: { id: true, name: true },
+            })).map((s) => [s.id, s.name])
+            : []);
+        const breakdownMap = new Map();
+        if (proratedPayPeriodIncome > 0) {
+            breakdownMap.set('primary_income', {
+                name: 'Primary Income',
+                amount: proratedPayPeriodIncome,
+                color: this.generateCategoryColor('Primary Income'),
+            });
+        }
+        let adhocAmount = 0;
+        highestPeriodTransactions.forEach((t) => {
+            const amount = Math.abs(Number(t.amount)) || 0;
+            const sourceName = t.incomeSourceId
+                ? incomeSourceNameById.get(t.incomeSourceId)
+                : undefined;
+            if (sourceName) {
+                if (breakdownMap.has(t.incomeSourceId)) {
+                    breakdownMap.get(t.incomeSourceId).amount += amount;
+                }
+                else {
+                    breakdownMap.set(t.incomeSourceId, {
+                        name: sourceName,
+                        amount,
+                        color: this.generateCategoryColor(sourceName),
+                    });
+                }
+            }
+            else {
+                adhocAmount += amount;
+            }
+        });
+        if (adhocAmount > 0) {
+            breakdownMap.set('adhoc', {
+                name: 'Ad-hoc',
+                amount: adhocAmount,
+                color: this.generateCategoryColor('Ad-hoc'),
+            });
+        }
+        const breakdown = Array.from(breakdownMap.values())
+            .map((item) => ({ ...item, amount: Math.round(item.amount * 100) / 100 }))
+            .sort((a, b) => b.amount - a.amount);
         return {
             start: highest.start.toISOString(),
             end: highest.end.toISOString(),
             totalAmount: Math.round(highest.total * 100) / 100,
             percentAboveAverage: Math.round(percentAboveAverage * 10) / 10,
+            breakdown,
         };
     }
     generateIncomeInsights(transactions, changePercentage, incomeBySource, incomeBreakdown, hasProfileData = false) {
