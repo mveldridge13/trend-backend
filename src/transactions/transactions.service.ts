@@ -3106,7 +3106,12 @@ export class TransactionsService {
     end: string;
     totalAmount: number;
     percentAboveAverage: number;
-    breakdown: {name: string; amount: number; color: string}[];
+    breakdown: {
+      name: string;
+      amount: number;
+      color: string;
+      transactions: {description: string; amount: number; date: string}[];
+    }[];
   } | null> {
     if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
       return null;
@@ -3205,35 +3210,53 @@ export class TransactionsService {
         : [],
     );
 
+    type BreakdownLineItem = {description: string; amount: number; date: string};
     const breakdownMap = new Map<
       string,
-      {name: string; amount: number; color: string}
+      {
+        name: string;
+        amount: number;
+        color: string;
+        transactions: BreakdownLineItem[];
+      }
     >();
     if (proratedPayPeriodIncome > 0) {
+      // Not a real transaction - salary has nothing to drill into.
       breakdownMap.set('primary_income', {
         name: 'Primary Income',
         amount: proratedPayPeriodIncome,
         color: this.generateCategoryColor('Primary Income'),
+        transactions: [],
       });
     }
     let adhocAmount = 0;
+    const adhocTransactions: BreakdownLineItem[] = [];
     highestPeriodTransactions.forEach((t) => {
       const amount = Math.abs(Number(t.amount)) || 0;
       const sourceName = t.incomeSourceId
         ? incomeSourceNameById.get(t.incomeSourceId)
         : undefined;
+      const lineItem: BreakdownLineItem = {
+        description: t.description || sourceName || 'Income',
+        amount: Math.round(amount * 100) / 100,
+        date: new Date(t.date).toISOString(),
+      };
       if (sourceName) {
         if (breakdownMap.has(t.incomeSourceId)) {
-          breakdownMap.get(t.incomeSourceId).amount += amount;
+          const existing = breakdownMap.get(t.incomeSourceId);
+          existing.amount += amount;
+          existing.transactions.push(lineItem);
         } else {
           breakdownMap.set(t.incomeSourceId, {
             name: sourceName,
             amount,
             color: this.generateCategoryColor(sourceName),
+            transactions: [lineItem],
           });
         }
       } else {
         adhocAmount += amount;
+        adhocTransactions.push(lineItem);
       }
     });
     if (adhocAmount > 0) {
@@ -3241,11 +3264,16 @@ export class TransactionsService {
         name: 'Ad-hoc',
         amount: adhocAmount,
         color: this.generateCategoryColor('Ad-hoc'),
+        transactions: adhocTransactions,
       });
     }
 
     const breakdown = Array.from(breakdownMap.values())
-      .map((item) => ({...item, amount: Math.round(item.amount * 100) / 100}))
+      .map((item) => ({
+        ...item,
+        amount: Math.round(item.amount * 100) / 100,
+        transactions: item.transactions.sort((a, b) => b.amount - a.amount),
+      }))
       .sort((a, b) => b.amount - a.amount);
 
     return {
