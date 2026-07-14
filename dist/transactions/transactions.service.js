@@ -1782,15 +1782,24 @@ let TransactionsService = class TransactionsService {
                     return sum + (isNaN(amount) ? 0 : Math.abs(amount));
                 }, 0);
             }
-            const monthsElapsed = daysIntoCurrentPeriod / 30;
-            const proratedYTDProfileIncome = projectedMonthlyIncome * monthsElapsed;
-            const totalIncomeYTD = transactionIncomeYTD + proratedYTDProfileIncome;
+            const totalIncomeYTD = transactionIncomeYTD;
             const totalIncomeLastYearYTD = hasFullYearData
-                ? transactionIncomeLastYearYTD + proratedYTDProfileIncome
+                ? transactionIncomeLastYearYTD
                 : 0;
             const ytdChangePercentage = hasFullYearData && totalIncomeLastYearYTD > 0
                 ? ((totalIncomeYTD - totalIncomeLastYearYTD) / totalIncomeLastYearYTD) * 100
                 : 0;
+            const lifetimeIncomeTransactions = await this.transactionsRepository.findMany(userId, {
+                startDate: new Date(userProfile.createdAt).toISOString(),
+                endDate: now.toISOString(),
+                type: client_2.TransactionType.INCOME,
+                limit: 10000,
+                offset: 0,
+            });
+            const lifetimeTotalIncome = lifetimeIncomeTransactions.reduce((sum, t) => {
+                const amount = Number(t.amount);
+                return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+            }, 0);
             const incomeBySourceMap = new Map();
             const transactionsForBreakdown = hasPayPeriodConfigured
                 ? payPeriodTransactions
@@ -1944,6 +1953,7 @@ let TransactionsService = class TransactionsService {
                 averagePeriodIncome: highestEarningPeriod?.averagePeriodIncome ?? 0,
                 totalIncomeAcrossPeriods: highestEarningPeriod?.totalIncomeAcrossPeriods ?? 0,
                 periodsConsidered: highestEarningPeriod?.periodsConsidered ?? 0,
+                lifetimeTotalIncome: Math.round(lifetimeTotalIncome * 100) / 100,
                 insights,
                 dataSource: transactionIncomeThisMonth > 0 && projectedMonthlyIncome > 0
                     ? "hybrid"
@@ -1986,6 +1996,7 @@ let TransactionsService = class TransactionsService {
                 averagePeriodIncome: 0,
                 totalIncomeAcrossPeriods: 0,
                 periodsConsidered: 0,
+                lifetimeTotalIncome: 0,
                 insights: {
                     consistencyScore: 0,
                     growthTrend: "stable",

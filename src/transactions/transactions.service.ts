@@ -2759,19 +2759,36 @@ export class TransactionsService {
         }, 0);
       }
 
-      // Calculate months elapsed since anniversary for prorated profile income
-      const monthsElapsed = daysIntoCurrentPeriod / 30;
-      const proratedYTDProfileIncome = projectedMonthlyIncome * monthsElapsed;
-
-      const totalIncomeYTD = transactionIncomeYTD + proratedYTDProfileIncome;
+      // YTD is an actual figure - real recorded transactions only, no
+      // prorated/projected salary added, so it reflects money actually
+      // received since the anniversary (not an estimate).
+      const totalIncomeYTD = transactionIncomeYTD;
       const totalIncomeLastYearYTD = hasFullYearData
-        ? transactionIncomeLastYearYTD + proratedYTDProfileIncome
+        ? transactionIncomeLastYearYTD
         : 0;
 
       const ytdChangePercentage =
         hasFullYearData && totalIncomeLastYearYTD > 0
           ? ((totalIncomeYTD - totalIncomeLastYearYTD) / totalIncomeLastYearYTD) * 100
           : 0;
+
+      // Lifetime total income: actual recorded income transactions since
+      // account creation, never resets (unlike YTD). Also no prorated
+      // estimate - this is meant to be a real, literal total.
+      const lifetimeIncomeTransactions = await this.transactionsRepository.findMany(
+        userId,
+        {
+          startDate: new Date(userProfile.createdAt).toISOString(),
+          endDate: now.toISOString(),
+          type: TransactionType.INCOME,
+          limit: 10000,
+          offset: 0,
+        } as TransactionFilterDto,
+      );
+      const lifetimeTotalIncome = lifetimeIncomeTransactions.reduce((sum, t) => {
+        const amount = Number(t.amount);
+        return sum + (isNaN(amount) ? 0 : Math.abs(amount));
+      }, 0);
 
       // Group income by source: Primary Income (salary), one row per
       // attributed income source, and one aggregated "Ad-hoc" row (with its
@@ -3012,6 +3029,9 @@ export class TransactionsService {
         totalIncomeAcrossPeriods:
           highestEarningPeriod?.totalIncomeAcrossPeriods ?? 0,
         periodsConsidered: highestEarningPeriod?.periodsConsidered ?? 0,
+        // Real recorded income only, all-time, never resets (distinct from
+        // totalIncomeAcrossPeriods which is an estimate over a rolling window).
+        lifetimeTotalIncome: Math.round(lifetimeTotalIncome * 100) / 100,
         insights,
         // Enhanced: Indicate data source (updated for hybrid approach)
         dataSource:
@@ -3059,6 +3079,7 @@ export class TransactionsService {
         averagePeriodIncome: 0,
         totalIncomeAcrossPeriods: 0,
         periodsConsidered: 0,
+        lifetimeTotalIncome: 0,
         insights: {
           consistencyScore: 0,
           growthTrend: "stable",
