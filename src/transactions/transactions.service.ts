@@ -3005,6 +3005,13 @@ export class TransactionsService {
         recentIncomeEntries,
         payPeriodInfo,
         highestEarningPeriod,
+        // Same lookback window as highestEarningPeriod, exposed as their own
+        // KPI tiles rather than nested under it (they're about the whole
+        // window, not specifically "the best period").
+        averagePeriodIncome: highestEarningPeriod?.averagePeriodIncome ?? 0,
+        totalIncomeAcrossPeriods:
+          highestEarningPeriod?.totalIncomeAcrossPeriods ?? 0,
+        periodsConsidered: highestEarningPeriod?.periodsConsidered ?? 0,
         insights,
         // Enhanced: Indicate data source (updated for hybrid approach)
         dataSource:
@@ -3049,6 +3056,9 @@ export class TransactionsService {
         recentIncomeEntries: [],
         payPeriodInfo: null,
         highestEarningPeriod: null,
+        averagePeriodIncome: 0,
+        totalIncomeAcrossPeriods: 0,
+        periodsConsidered: 0,
         insights: {
           consistencyScore: 0,
           growthTrend: "stable",
@@ -3112,6 +3122,12 @@ export class TransactionsService {
       color: string;
       transactions: {description: string; amount: number; date: string}[];
     }[];
+    // Across the same lookback window used to find the highest period (not
+    // returned nested under highestEarningPeriod on the response - these
+    // feed separate KPI tiles, see getIncomeAnalytics).
+    averagePeriodIncome: number;
+    totalIncomeAcrossPeriods: number;
+    periodsConsidered: number;
   } | null> {
     if (!userProfile.nextPayDate || !userProfile.incomeFrequency) {
       return null;
@@ -3276,12 +3292,20 @@ export class TransactionsService {
       }))
       .sort((a, b) => b.amount - a.amount);
 
+    const totalAmountAcrossPeriods = periodTotals.reduce(
+      (sum, p) => sum + p.total,
+      0,
+    );
+
     return {
       start: highest.start.toISOString(),
       end: highest.end.toISOString(),
       totalAmount: Math.round(highest.total * 100) / 100,
       percentAboveAverage: Math.round(percentAboveAverage * 10) / 10,
       breakdown,
+      averagePeriodIncome: Math.round(average * 100) / 100,
+      totalIncomeAcrossPeriods: Math.round(totalAmountAcrossPeriods * 100) / 100,
+      periodsConsidered: periodTotals.length,
     };
   }
 

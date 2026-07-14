@@ -1941,6 +1941,9 @@ let TransactionsService = class TransactionsService {
                 recentIncomeEntries,
                 payPeriodInfo,
                 highestEarningPeriod,
+                averagePeriodIncome: highestEarningPeriod?.averagePeriodIncome ?? 0,
+                totalIncomeAcrossPeriods: highestEarningPeriod?.totalIncomeAcrossPeriods ?? 0,
+                periodsConsidered: highestEarningPeriod?.periodsConsidered ?? 0,
                 insights,
                 dataSource: transactionIncomeThisMonth > 0 && projectedMonthlyIncome > 0
                     ? "hybrid"
@@ -1980,6 +1983,9 @@ let TransactionsService = class TransactionsService {
                 recentIncomeEntries: [],
                 payPeriodInfo: null,
                 highestEarningPeriod: null,
+                averagePeriodIncome: 0,
+                totalIncomeAcrossPeriods: 0,
+                periodsConsidered: 0,
                 insights: {
                     consistencyScore: 0,
                     growthTrend: "stable",
@@ -2124,12 +2130,16 @@ let TransactionsService = class TransactionsService {
             transactions: item.transactions.sort((a, b) => b.amount - a.amount),
         }))
             .sort((a, b) => b.amount - a.amount);
+        const totalAmountAcrossPeriods = periodTotals.reduce((sum, p) => sum + p.total, 0);
         return {
             start: highest.start.toISOString(),
             end: highest.end.toISOString(),
             totalAmount: Math.round(highest.total * 100) / 100,
             percentAboveAverage: Math.round(percentAboveAverage * 10) / 10,
             breakdown,
+            averagePeriodIncome: Math.round(average * 100) / 100,
+            totalIncomeAcrossPeriods: Math.round(totalAmountAcrossPeriods * 100) / 100,
+            periodsConsidered: periodTotals.length,
         };
     }
     generateIncomeInsights(transactions, changePercentage, incomeBySource, incomeBreakdown, hasProfileData = false) {
