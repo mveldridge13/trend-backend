@@ -23,7 +23,8 @@
     "db:studio": "npx prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
     "db:reset": "npx prisma migrate reset --force",
-    "seed:categories": "npx ts-node scripts/seed-system-categories.ts"
+    "seed:categories": "npx ts-node scripts/seed-system-categories.ts",
+    "backfill:primary-income": "npx ts-node scripts/backfill-primary-income.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

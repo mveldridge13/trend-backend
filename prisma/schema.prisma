@@ -166,6 +166,7 @@ model Transaction {
   status            PaymentStatus?
   linkedGoalId      String? // Links recurring debt payments to their goal
   incomeSourceId    String? // Attributes income (and goal-payment transfers) to an IncomeSource
+  isPrimaryIncome   Boolean            @default(false) // Auto-materialized primary-salary payday; real for actual-income totals, hidden from transaction lists/breakdowns
   goalContributions GoalContribution[]
   budget            Budget?            @relation(fields: [budgetId], references: [id])
   category          Category?          @relation(fields: [categoryId], references: [id])

@@ -14,4 +14,5 @@ export declare class TransactionFilterDto {
     offset?: number;
     sortBy?: string;
     sortOrder?: "asc" | "desc";
+    includePrimaryIncome?: boolean;
 }

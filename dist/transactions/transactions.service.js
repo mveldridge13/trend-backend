@@ -1763,6 +1763,7 @@ let TransactionsService = class TransactionsService {
                 type: client_2.TransactionType.INCOME,
                 limit: 10000,
                 offset: 0,
+                includePrimaryIncome: true,
             });
             const transactionIncomeYTD = ytdTransactions.reduce((sum, t) => {
                 const amount = Number(t.amount);
@@ -1776,6 +1777,7 @@ let TransactionsService = class TransactionsService {
                     type: client_2.TransactionType.INCOME,
                     limit: 10000,
                     offset: 0,
+                    includePrimaryIncome: true,
                 });
                 transactionIncomeLastYearYTD = lastYearYtdTransactions.reduce((sum, t) => {
                     const amount = Number(t.amount);
@@ -1795,6 +1797,7 @@ let TransactionsService = class TransactionsService {
                 type: client_2.TransactionType.INCOME,
                 limit: 10000,
                 offset: 0,
+                includePrimaryIncome: true,
             });
             const lifetimeTotalIncome = lifetimeIncomeTransactions.reduce((sum, t) => {
                 const amount = Number(t.amount);

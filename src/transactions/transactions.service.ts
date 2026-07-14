@@ -2728,13 +2728,16 @@ export class TransactionsService {
       );
       const hasFullYearData = daysSinceSignup >= 365;
 
-      // Fetch current anniversary period transactions
+      // Fetch current anniversary period transactions. includePrimaryIncome
+      // opts into seeing auto-materialized salary paydays - this is an
+      // "actual" total, unlike the other transaction fetches in this method.
       const ytdTransactions = await this.transactionsRepository.findMany(userId, {
         startDate: currentAnniversaryStart.toISOString(),
         endDate: now.toISOString(),
         type: TransactionType.INCOME,
         limit: 10000,
         offset: 0,
+        includePrimaryIncome: true,
       } as TransactionFilterDto);
 
       const transactionIncomeYTD = ytdTransactions.reduce((sum, t) => {
@@ -2751,6 +2754,7 @@ export class TransactionsService {
           type: TransactionType.INCOME,
           limit: 10000,
           offset: 0,
+          includePrimaryIncome: true,
         } as TransactionFilterDto);
 
         transactionIncomeLastYearYTD = lastYearYtdTransactions.reduce((sum, t) => {
@@ -2783,6 +2787,7 @@ export class TransactionsService {
           type: TransactionType.INCOME,
           limit: 10000,
           offset: 0,
+          includePrimaryIncome: true,
         } as TransactionFilterDto,
       );
       const lifetimeTotalIncome = lifetimeIncomeTransactions.reduce((sum, t) => {

@@ -19,6 +19,7 @@ export declare class HomeService {
     private calculateTotals;
     private getEmptySummary;
     private processPayPeriodTransition;
+    private materializePrimaryIncomeTransaction;
     private calculateAdditionalIncome;
     private calculatePreviousPeriodExpenses;
     private getRolloverNotification;

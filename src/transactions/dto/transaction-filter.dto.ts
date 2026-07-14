@@ -71,4 +71,10 @@ export class TransactionFilterDto {
   @IsOptional()
   @IsEnum(["asc", "desc"])
   sortOrder?: "asc" | "desc" = "desc";
+
+  // Internal-only: no validator decorator, so ValidationPipe's whitelist
+  // strips/rejects it from real HTTP requests - only set by server-side
+  // callers constructing this object directly (e.g. actual-income totals
+  // that need to see auto-materialized primary-income transactions).
+  includePrimaryIncome?: boolean;
 }

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { DateService, PayPeriodBoundaries } from '../common/services/date.service';
 import { IncomeSourcesService } from '../income-sources/income-sources.service';
-import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType, RolloverType } from '@prisma/client';
+import { IncomeFrequency, TransactionType, PaymentStatus, GoalType, ContributionType, RolloverType, Prisma } from '@prisma/client';
 import { format } from 'date-fns';
 import {
   HomeSummaryResponse,
@@ -163,11 +163,15 @@ export class HomeService {
     // Base income from user profile
     const baseIncome = user.income ? Number(user.income) : 0;
 
-    // Additional income from transactions in this period
+    // Additional income from transactions in this period. Excludes
+    // isPrimaryIncome rows - those are the auto-materialized salary payday
+    // and would double-count against baseIncome above, which is already
+    // added to totalInflow below.
     const additionalIncomeResult = await this.prisma.transaction.aggregate({
       where: {
         userId: user.id,
         type: TransactionType.INCOME,
+        isPrimaryIncome: false,
         date: {
           gte: period.start,
           lte: period.end,
@@ -266,6 +270,9 @@ export class HomeService {
           where: {
             userId,
             type: TransactionType.INCOME,
+            // Auto-materialized salary payday - already folded into
+            // baseIncome below, exclude to avoid double-counting.
+            isPrimaryIncome: false,
             date: { gte: period.start, lte: period.end },
           },
           _sum: { amount: true },
@@ -810,14 +817,26 @@ export class HomeService {
       this.logger.log(`New user detected - skipping rollover calculation, just advancing pay period`);
 
       const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
+      const baseIncome = user.income ? Number(user.income) : 0;
 
-      const updatedUser = await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          nextPayDate: newNextPayDate,
-          lastRolloverDate: new Date(), // Mark that we've handled initial setup
-          rolloverAmount: 0, // Ensure rollover starts at 0 for new users
-        },
+      const updatedUser = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: user.id },
+          data: {
+            nextPayDate: newNextPayDate,
+            lastRolloverDate: new Date(), // Mark that we've handled initial setup
+            rolloverAmount: 0, // Ensure rollover starts at 0 for new users
+          },
+        });
+
+        await this.materializePrimaryIncomeTransaction(
+          tx,
+          user.id,
+          baseIncome,
+          nextPayDate,
+        );
+
+        return updated;
       });
 
       this.logger.log(`New user pay period initialized. nextPayDate: ${format(newNextPayDate, 'yyyy-MM-dd')}`);
@@ -906,6 +925,13 @@ export class HomeService {
         this.logger.log(`Created rollover entry: $${amountRolledOver} from previous period`);
       }
 
+      await this.materializePrimaryIncomeTransaction(
+        tx,
+        user.id,
+        baseIncome,
+        nextPayDate,
+      );
+
       return updated;
     });
 
@@ -915,16 +941,52 @@ export class HomeService {
   }
 
   /**
+   * Creates the real (but hidden) INCOME transaction backing a completed pay
+   * period's salary, so actual-income totals (YTD/lifetime) reflect money
+   * genuinely paid rather than a projection. isPrimaryIncome keeps it out of
+   * the transaction list and every other total that already adds baseIncome
+   * separately (see the isPrimaryIncome guards throughout this file and in
+   * transactions.service.ts).
+   */
+  private async materializePrimaryIncomeTransaction(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    baseIncome: number,
+    payDate: Date,
+  ): Promise<void> {
+    if (baseIncome <= 0) {
+      return;
+    }
+
+    await tx.transaction.create({
+      data: {
+        userId,
+        description: 'Primary Income',
+        amount: baseIncome,
+        date: payDate,
+        type: TransactionType.INCOME,
+        recurrence: 'none',
+        isPrimaryIncome: true,
+        notes: 'Auto-created from primary income (pay period transition)',
+      },
+    });
+  }
+
+  /**
    * Calculate additional income (beyond base salary) for a period
    */
   private async calculateAdditionalIncome(
     userId: string,
     periodBoundaries: PayPeriodBoundaries
   ): Promise<number> {
+    // Excludes isPrimaryIncome - callers of this method add baseIncome
+    // separately, so counting the materialized salary transaction too
+    // would double it in the rollover/"available" total.
     const additionalIncomeResult = await this.prisma.transaction.aggregate({
       where: {
         userId,
         type: TransactionType.INCOME,
+        isPrimaryIncome: false,
         date: {
           gte: periodBoundaries.start,
           lte: periodBoundaries.end,

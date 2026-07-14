@@ -105,6 +105,9 @@ let TransactionsRepository = class TransactionsRepository {
         if (filters.linkedGoalId) {
             where.linkedGoalId = filters.linkedGoalId;
         }
+        if (!filters.includePrimaryIncome) {
+            where.isPrimaryIncome = false;
+        }
         return this.prisma.transaction.findMany({
             where,
             include: {
@@ -238,6 +241,9 @@ let TransactionsRepository = class TransactionsRepository {
         }
         if (filters.linkedGoalId) {
             where.linkedGoalId = filters.linkedGoalId;
+        }
+        if (!filters.includePrimaryIncome) {
+            where.isPrimaryIncome = false;
         }
         return this.prisma.transaction.count({ where });
     }

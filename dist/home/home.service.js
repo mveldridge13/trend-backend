@@ -109,6 +109,7 @@ let HomeService = HomeService_1 = class HomeService {
             where: {
                 userId: user.id,
                 type: client_1.TransactionType.INCOME,
+                isPrimaryIncome: false,
                 date: {
                     gte: period.start,
                     lte: period.end,
@@ -171,6 +172,7 @@ let HomeService = HomeService_1 = class HomeService {
                 where: {
                     userId,
                     type: client_1.TransactionType.INCOME,
+                    isPrimaryIncome: false,
                     date: { gte: period.start, lte: period.end },
                 },
                 _sum: { amount: true },
@@ -573,13 +575,18 @@ let HomeService = HomeService_1 = class HomeService {
         if (isNewUser) {
             this.logger.log(`New user detected - skipping rollover calculation, just advancing pay period`);
             const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
-            const updatedUser = await this.prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    nextPayDate: newNextPayDate,
-                    lastRolloverDate: new Date(),
-                    rolloverAmount: 0,
-                },
+            const baseIncome = user.income ? Number(user.income) : 0;
+            const updatedUser = await this.prisma.$transaction(async (tx) => {
+                const updated = await tx.user.update({
+                    where: { id: user.id },
+                    data: {
+                        nextPayDate: newNextPayDate,
+                        lastRolloverDate: new Date(),
+                        rolloverAmount: 0,
+                    },
+                });
+                await this.materializePrimaryIncomeTransaction(tx, user.id, baseIncome, nextPayDate);
+                return updated;
             });
             this.logger.log(`New user pay period initialized. nextPayDate: ${(0, date_fns_1.format)(newNextPayDate, 'yyyy-MM-dd')}`);
             return updatedUser;
@@ -631,16 +638,35 @@ let HomeService = HomeService_1 = class HomeService {
                 });
                 this.logger.log(`Created rollover entry: $${amountRolledOver} from previous period`);
             }
+            await this.materializePrimaryIncomeTransaction(tx, user.id, baseIncome, nextPayDate);
             return updated;
         });
         this.logger.log(`Pay period transition complete. New nextPayDate: ${(0, date_fns_1.format)(newNextPayDate, 'yyyy-MM-dd')}`);
         return updatedUser;
+    }
+    async materializePrimaryIncomeTransaction(tx, userId, baseIncome, payDate) {
+        if (baseIncome <= 0) {
+            return;
+        }
+        await tx.transaction.create({
+            data: {
+                userId,
+                description: 'Primary Income',
+                amount: baseIncome,
+                date: payDate,
+                type: client_1.TransactionType.INCOME,
+                recurrence: 'none',
+                isPrimaryIncome: true,
+                notes: 'Auto-created from primary income (pay period transition)',
+            },
+        });
     }
     async calculateAdditionalIncome(userId, periodBoundaries) {
         const additionalIncomeResult = await this.prisma.transaction.aggregate({
             where: {
                 userId,
                 type: client_1.TransactionType.INCOME,
+                isPrimaryIncome: false,
                 date: {
                     gte: periodBoundaries.start,
                     lte: periodBoundaries.end,

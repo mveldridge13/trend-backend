@@ -134,6 +134,13 @@ export class TransactionsRepository {
       where.linkedGoalId = filters.linkedGoalId;
     }
 
+    // Auto-materialized primary-income transactions exist only to back
+    // actual-income totals - hidden from every list/breakdown unless a
+    // caller explicitly opts in (see TransactionFilterDto.includePrimaryIncome).
+    if (!filters.includePrimaryIncome) {
+      where.isPrimaryIncome = false;
+    }
+
     return this.prisma.transaction.findMany({
       where,
       include: {
@@ -298,6 +305,11 @@ export class TransactionsRepository {
     // Support for linkedGoalId filter in count
     if (filters.linkedGoalId) {
       where.linkedGoalId = filters.linkedGoalId;
+    }
+
+    // See findMany - hidden unless explicitly opted in.
+    if (!filters.includePrimaryIncome) {
+      where.isPrimaryIncome = false;
     }
 
     return this.prisma.transaction.count({ where });
