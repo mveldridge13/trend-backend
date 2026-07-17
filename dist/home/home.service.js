@@ -110,6 +110,7 @@ let HomeService = HomeService_1 = class HomeService {
                 userId: user.id,
                 type: client_1.TransactionType.INCOME,
                 isPrimaryIncome: false,
+                incomeSourceId: null,
                 date: {
                     gte: period.start,
                     lte: period.end,
@@ -324,6 +325,7 @@ let HomeService = HomeService_1 = class HomeService {
             where: {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
+                incomeSourceId: null,
                 AND: [
                     {
                         OR: [
@@ -415,6 +417,7 @@ let HomeService = HomeService_1 = class HomeService {
             where: {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
+                incomeSourceId: null,
                 date: {
                     gte: period.start,
                     lte: period.end,
@@ -464,6 +467,7 @@ let HomeService = HomeService_1 = class HomeService {
                         type: {
                             in: [client_1.ContributionType.MANUAL, client_1.ContributionType.AUTOMATIC, client_1.ContributionType.TRANSACTION],
                         },
+                        incomeSourceId: null,
                     },
                 },
             },
@@ -667,6 +671,7 @@ let HomeService = HomeService_1 = class HomeService {
                 userId,
                 type: client_1.TransactionType.INCOME,
                 isPrimaryIncome: false,
+                incomeSourceId: null,
                 date: {
                     gte: periodBoundaries.start,
                     lte: periodBoundaries.end,
@@ -685,6 +690,7 @@ let HomeService = HomeService_1 = class HomeService {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
                 status: client_1.PaymentStatus.PAID,
+                incomeSourceId: null,
                 date: {
                     gte: periodBoundaries.start,
                     lte: periodBoundaries.end,
@@ -703,6 +709,7 @@ let HomeService = HomeService_1 = class HomeService {
             where: {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
+                incomeSourceId: null,
                 date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
                 dueDate: null,
                 AND: [
@@ -731,6 +738,7 @@ let HomeService = HomeService_1 = class HomeService {
                 goal: { userId },
                 date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
                 type: { in: [client_1.ContributionType.MANUAL, client_1.ContributionType.AUTOMATIC, client_1.ContributionType.TRANSACTION] },
+                incomeSourceId: null,
             },
             _sum: { amount: true },
         });

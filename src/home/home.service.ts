@@ -166,12 +166,15 @@ export class HomeService {
     // Additional income from transactions in this period. Excludes
     // isPrimaryIncome rows - those are the auto-materialized salary payday
     // and would double-count against baseIncome above, which is already
-    // added to totalInflow below.
+    // added to totalInflow below. Also excludes income attributed to a named
+    // income source - that money lives entirely in its own ledger entry/card
+    // (see calculateIncomeLedger), so it must not inflate the main total too.
     const additionalIncomeResult = await this.prisma.transaction.aggregate({
       where: {
         userId: user.id,
         type: TransactionType.INCOME,
         isPrimaryIncome: false,
+        incomeSourceId: null,
         date: {
           gte: period.start,
           lte: period.end,
@@ -459,6 +462,10 @@ export class HomeService {
       where: {
         userId,
         type: TransactionType.EXPENSE,
+        // Spending attributed to a named income source is tracked in that
+        // source's own ledger entry/card (see calculateIncomeLedger), not
+        // against the main total.
+        incomeSourceId: null,
         AND: [
           // Condition 1: Is a committed transaction (recurring OR has a due date)
           // Note: status alone doesn't make something committed - PAID one-off expenses are discretionary
@@ -584,6 +591,9 @@ export class HomeService {
       where: {
         userId,
         type: TransactionType.EXPENSE,
+        // Spending attributed to a named income source is tracked in that
+        // source's own ledger entry/card, not against the main total.
+        incomeSourceId: null,
         date: {
           gte: period.start,
           lte: period.end,
@@ -647,6 +657,9 @@ export class HomeService {
             type: {
               in: [ContributionType.MANUAL, ContributionType.AUTOMATIC, ContributionType.TRANSACTION],
             },
+            // Contributions funded by a named income source are tracked in
+            // that source's own ledger entry/card, not against the main total.
+            incomeSourceId: null,
           },
         },
       },
@@ -981,12 +994,15 @@ export class HomeService {
   ): Promise<number> {
     // Excludes isPrimaryIncome - callers of this method add baseIncome
     // separately, so counting the materialized salary transaction too
-    // would double it in the rollover/"available" total.
+    // would double it in the rollover/"available" total. Also excludes
+    // income attributed to a named income source - that money isn't part
+    // of the main rollover pool (see calculateIncome).
     const additionalIncomeResult = await this.prisma.transaction.aggregate({
       where: {
         userId,
         type: TransactionType.INCOME,
         isPrimaryIncome: false,
+        incomeSourceId: null,
         date: {
           gte: periodBoundaries.start,
           lte: periodBoundaries.end,
@@ -1018,6 +1034,9 @@ export class HomeService {
         userId,
         type: TransactionType.EXPENSE,
         status: PaymentStatus.PAID,
+        // Spending attributed to a named income source isn't part of the
+        // main rollover pool (see calculateIncome).
+        incomeSourceId: null,
         date: {
           gte: periodBoundaries.start,
           lte: periodBoundaries.end,
@@ -1040,6 +1059,9 @@ export class HomeService {
       where: {
         userId,
         type: TransactionType.EXPENSE,
+        // Spending attributed to a named income source isn't part of the
+        // main rollover pool (see calculateIncome).
+        incomeSourceId: null,
         date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
         dueDate: null,
         AND: [
@@ -1070,6 +1092,9 @@ export class HomeService {
         goal: { userId },
         date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
         type: { in: [ContributionType.MANUAL, ContributionType.AUTOMATIC, ContributionType.TRANSACTION] },
+        // Contributions funded by a named income source aren't part of the
+        // main rollover pool (see calculateIncome).
+        incomeSourceId: null,
       },
       _sum: { amount: true },
     });
