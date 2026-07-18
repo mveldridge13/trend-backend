@@ -62,4 +62,16 @@ export class IncomeSourcesController {
   async remove(@Request() req: any, @Param("id") id: string) {
     await this.incomeSourcesService.remove(this.extractUserId(req), id);
   }
+
+  @Post(":id/dismiss-rollover-notification")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async dismissRolloverNotification(
+    @Request() req: any,
+    @Param("id") id: string,
+  ) {
+    await this.incomeSourcesService.dismissRolloverNotification(
+      this.extractUserId(req),
+      id,
+    );
+  }
 }

@@ -23,6 +23,7 @@ export declare class IncomeSourcesService {
     create(userId: string, dto: CreateIncomeSourceDto): Promise<IncomeSourceResponse>;
     update(userId: string, id: string, dto: UpdateIncomeSourceDto): Promise<IncomeSourceResponse>;
     remove(userId: string, id: string): Promise<void>;
+    dismissRolloverNotification(userId: string, id: string): Promise<void>;
     findOwned(userId: string, id: string): Promise<IncomeSource>;
     materializeDueTransactions(userId: string, userTimezone: string): Promise<number>;
     private toResponse;

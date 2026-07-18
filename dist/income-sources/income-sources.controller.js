@@ -41,6 +41,9 @@ let IncomeSourcesController = class IncomeSourcesController {
     async remove(req, id) {
         await this.incomeSourcesService.remove(this.extractUserId(req), id);
     }
+    async dismissRolloverNotification(req, id) {
+        await this.incomeSourcesService.dismissRolloverNotification(this.extractUserId(req), id);
+    }
 };
 exports.IncomeSourcesController = IncomeSourcesController;
 __decorate([
@@ -77,6 +80,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], IncomeSourcesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(":id/dismiss-rollover-notification"),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], IncomeSourcesController.prototype, "dismissRolloverNotification", null);
 exports.IncomeSourcesController = IncomeSourcesController = __decorate([
     (0, common_1.Controller)("income-sources"),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

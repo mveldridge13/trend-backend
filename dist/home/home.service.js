@@ -167,6 +167,7 @@ let HomeService = HomeService_1 = class HomeService {
         if (sources.length === 0) {
             return [];
         }
+        const sourceNotifications = new Map(await Promise.all(sources.map(async (source) => [source.id, await this.getSourceRolloverNotification(source.id)])));
         const [inflows, discretionaryRows, goalRows, committedTx] = await Promise.all([
             this.prisma.transaction.groupBy({
                 by: ['incomeSourceId'],
@@ -297,7 +298,8 @@ let HomeService = HomeService_1 = class HomeService {
             },
         ];
         for (const source of sources) {
-            const received = sumRow(inflows, source.id);
+            const sourceRollover = Number(source.rolloverAmount);
+            const received = sumRow(inflows, source.id) + sourceRollover;
             const b = breakdownFor(source.id);
             if (!source.isActive && received === 0 && b.spent === 0) {
                 continue;
@@ -316,6 +318,7 @@ let HomeService = HomeService_1 = class HomeService {
                 nextPaymentDate: source.isActive
                     ? source.nextPaymentDate.toISOString()
                     : null,
+                rolloverNotification: sourceNotifications.get(source.id) ?? null,
             });
         }
         return incomeLedger;
@@ -598,7 +601,7 @@ let HomeService = HomeService_1 = class HomeService {
         const previousPeriodBoundaries = this.dateService.calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone);
         this.logger.log(`Processing transition for period: ${(0, date_fns_1.format)(previousPeriodBoundaries.start, 'yyyy-MM-dd')} to ${(0, date_fns_1.format)(previousPeriodBoundaries.end, 'yyyy-MM-dd')}`);
         const currentRollover = user.rolloverAmount ? Number(user.rolloverAmount) : 0;
-        const previousPeriodExpenses = await this.calculatePreviousPeriodExpenses(user, previousPeriodBoundaries);
+        const previousPeriodExpenses = await this.calculatePreviousPeriodExpenses(user.id, previousPeriodBoundaries);
         const baseIncome = user.income ? Number(user.income) : 0;
         const additionalIncome = await this.calculateAdditionalIncome(user.id, previousPeriodBoundaries);
         const totalAvailable = baseIncome + additionalIncome + currentRollover;
@@ -606,6 +609,19 @@ let HomeService = HomeService_1 = class HomeService {
         const amountRolledOver = Math.max(0, newRolloverAmount);
         const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
         this.logger.log(`Rollover calculation: available=${totalAvailable} (income=${baseIncome + additionalIncome}, rollover=${currentRollover}), spent=${previousPeriodExpenses}, newRollover=${newRolloverAmount}`);
+        const sources = await this.prisma.incomeSource.findMany({
+            where: { userId: user.id },
+        });
+        const sourceRollovers = await Promise.all(sources.map(async (source) => {
+            const currentSourceRollover = Number(source.rolloverAmount);
+            const [sourceIncome, sourceExpenses] = await Promise.all([
+                this.calculateAdditionalIncome(user.id, previousPeriodBoundaries, source.id),
+                this.calculatePreviousPeriodExpenses(user.id, previousPeriodBoundaries, source.id),
+            ]);
+            const totalSourceAvailable = sourceIncome + currentSourceRollover;
+            const newSourceRollover = Math.max(0, totalSourceAvailable - sourceExpenses);
+            return { source, newSourceRollover };
+        }));
         const updatedUser = await this.prisma.$transaction(async (tx) => {
             const updated = await tx.user.update({
                 where: { id: user.id },
@@ -643,6 +659,32 @@ let HomeService = HomeService_1 = class HomeService {
                 this.logger.log(`Created rollover entry: $${amountRolledOver} from previous period`);
             }
             await this.materializePrimaryIncomeTransaction(tx, user.id, baseIncome, nextPayDate);
+            for (const { source, newSourceRollover } of sourceRollovers) {
+                await tx.incomeSource.update({
+                    where: { id: source.id },
+                    data: {
+                        rolloverAmount: newSourceRollover,
+                        lastRolloverDate: new Date(),
+                    },
+                });
+                if (newSourceRollover > 0) {
+                    await tx.incomeSourceRolloverNotification.upsert({
+                        where: { incomeSourceId: source.id },
+                        create: {
+                            incomeSourceId: source.id,
+                            userId: user.id,
+                            amount: newSourceRollover,
+                            fromPeriod: `${(0, date_fns_1.format)(previousPeriodBoundaries.start, 'MMM d')} - ${(0, date_fns_1.format)(previousPeriodBoundaries.end, 'MMM d')}`,
+                        },
+                        update: {
+                            amount: newSourceRollover,
+                            fromPeriod: `${(0, date_fns_1.format)(previousPeriodBoundaries.start, 'MMM d')} - ${(0, date_fns_1.format)(previousPeriodBoundaries.end, 'MMM d')}`,
+                            createdAt: new Date(),
+                            dismissedAt: null,
+                        },
+                    });
+                }
+            }
             return updated;
         });
         this.logger.log(`Pay period transition complete. New nextPayDate: ${(0, date_fns_1.format)(newNextPayDate, 'yyyy-MM-dd')}`);
@@ -665,13 +707,13 @@ let HomeService = HomeService_1 = class HomeService {
             },
         });
     }
-    async calculateAdditionalIncome(userId, periodBoundaries) {
+    async calculateAdditionalIncome(userId, periodBoundaries, incomeSourceId = null) {
         const additionalIncomeResult = await this.prisma.transaction.aggregate({
             where: {
                 userId,
                 type: client_1.TransactionType.INCOME,
                 isPrimaryIncome: false,
-                incomeSourceId: null,
+                incomeSourceId,
                 date: {
                     gte: periodBoundaries.start,
                     lte: periodBoundaries.end,
@@ -683,14 +725,13 @@ let HomeService = HomeService_1 = class HomeService {
             ? Number(additionalIncomeResult._sum.amount)
             : 0;
     }
-    async calculatePreviousPeriodExpenses(user, periodBoundaries) {
-        const userId = user.id;
+    async calculatePreviousPeriodExpenses(userId, periodBoundaries, incomeSourceId = null) {
         const committedResult = await this.prisma.transaction.aggregate({
             where: {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
                 status: client_1.PaymentStatus.PAID,
-                incomeSourceId: null,
+                incomeSourceId,
                 date: {
                     gte: periodBoundaries.start,
                     lte: periodBoundaries.end,
@@ -709,7 +750,7 @@ let HomeService = HomeService_1 = class HomeService {
             where: {
                 userId,
                 type: client_1.TransactionType.EXPENSE,
-                incomeSourceId: null,
+                incomeSourceId,
                 date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
                 dueDate: null,
                 AND: [
@@ -738,7 +779,7 @@ let HomeService = HomeService_1 = class HomeService {
                 goal: { userId },
                 date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
                 type: { in: [client_1.ContributionType.MANUAL, client_1.ContributionType.AUTOMATIC, client_1.ContributionType.TRANSACTION] },
-                incomeSourceId: null,
+                incomeSourceId,
             },
             _sum: { amount: true },
         });
@@ -746,7 +787,7 @@ let HomeService = HomeService_1 = class HomeService {
             ? Number(goalContributions._sum.amount)
             : 0;
         const totalExpenses = committedTotal + discretionaryTotal + goalsTotal;
-        this.logger.log(`Previous period expenses (PAID only): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
+        this.logger.log(`Previous period expenses (PAID only, source=${incomeSourceId ?? 'salary'}): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
         return Math.round(totalExpenses * 100) / 100;
     }
     async getRolloverNotification(userId) {
@@ -767,6 +808,32 @@ let HomeService = HomeService_1 = class HomeService {
                 data: { dismissedAt: new Date() },
             });
             this.logger.log(`Rollover notification auto-dismissed after 3 days. Amount ${notification.amount} stays in spendable pool.`);
+            return null;
+        }
+        return {
+            amount: Number(notification.amount),
+            fromPeriod: notification.fromPeriod,
+            createdAt: notification.createdAt.toISOString(),
+        };
+    }
+    async getSourceRolloverNotification(incomeSourceId) {
+        const notification = await this.prisma.incomeSourceRolloverNotification.findFirst({
+            where: {
+                incomeSourceId,
+                dismissedAt: null,
+            },
+        });
+        if (!notification) {
+            return null;
+        }
+        const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+        const notificationAge = Date.now() - notification.createdAt.getTime();
+        if (notificationAge > THREE_DAYS_MS) {
+            await this.prisma.incomeSourceRolloverNotification.update({
+                where: { id: notification.id },
+                data: { dismissedAt: new Date() },
+            });
+            this.logger.log(`Income source rollover notification auto-dismissed after 3 days. Amount ${notification.amount} stays in spendable pool.`);
             return null;
         }
         return {

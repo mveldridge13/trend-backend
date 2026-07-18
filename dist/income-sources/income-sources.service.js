@@ -61,6 +61,13 @@ let IncomeSourcesService = IncomeSourcesService_1 = class IncomeSourcesService {
         await this.findOwned(userId, id);
         await this.prisma.incomeSource.delete({ where: { id } });
     }
+    async dismissRolloverNotification(userId, id) {
+        await this.findOwned(userId, id);
+        await this.prisma.incomeSourceRolloverNotification.updateMany({
+            where: { incomeSourceId: id, dismissedAt: null },
+            data: { dismissedAt: new Date() },
+        });
+    }
     async findOwned(userId, id) {
         const source = await this.prisma.incomeSource.findFirst({
             where: { id, userId },

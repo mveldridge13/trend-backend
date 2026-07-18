@@ -263,6 +263,15 @@ export class HomeService {
       return [];
     }
 
+    const sourceNotifications = new Map(
+      await Promise.all(
+        sources.map(
+          async (source) =>
+            [source.id, await this.getSourceRolloverNotification(source.id)] as const,
+        ),
+      ),
+    );
+
     // Inflows (income) + discretionary + goal contributions per source in one
     // pass; committed needs the same date/dueDate reconciliation the main card
     // does, so it's fetched raw and bucketed below.
@@ -418,7 +427,10 @@ export class HomeService {
     ];
 
     for (const source of sources) {
-      const received = sumRow(inflows, source.id);
+      const sourceRollover = Number(source.rolloverAmount);
+      // This source's own carried-forward surplus in, same as salary folds
+      // in user.rolloverAmount - see IncomeSource.rolloverAmount.
+      const received = sumRow(inflows, source.id) + sourceRollover;
       const b = breakdownFor(source.id);
       // Skip paused sources with no money movement this period
       if (!source.isActive && received === 0 && b.spent === 0) {
@@ -438,6 +450,7 @@ export class HomeService {
         nextPaymentDate: source.isActive
           ? source.nextPaymentDate.toISOString()
           : null,
+        rolloverNotification: sourceNotifications.get(source.id) ?? null,
       });
     }
 
@@ -870,7 +883,7 @@ export class HomeService {
 
     // Calculate what was spent vs what was available in the previous period
     const previousPeriodExpenses = await this.calculatePreviousPeriodExpenses(
-      user,
+      user.id,
       previousPeriodBoundaries
     );
 
@@ -893,6 +906,27 @@ export class HomeService {
     const newNextPayDate = this.dateService.calculateNextPayDateFromCurrent(nextPayDate, frequency);
 
     this.logger.log(`Rollover calculation: available=${totalAvailable} (income=${baseIncome + additionalIncome}, rollover=${currentRollover}), spent=${previousPeriodExpenses}, newRollover=${newRolloverAmount}`);
+
+    // Per-source rollover: each income source carries its own surplus
+    // forward, independent of the main salary pool above (money attributed
+    // to a source never touches user.rolloverAmount - see calculateIncome).
+    // Same clamp-to-zero rule as the main pool: a source that overspent its
+    // period just starts the next one at 0, no carried debt.
+    const sources = await this.prisma.incomeSource.findMany({
+      where: { userId: user.id },
+    });
+    const sourceRollovers = await Promise.all(
+      sources.map(async (source) => {
+        const currentSourceRollover = Number(source.rolloverAmount);
+        const [sourceIncome, sourceExpenses] = await Promise.all([
+          this.calculateAdditionalIncome(user.id, previousPeriodBoundaries, source.id),
+          this.calculatePreviousPeriodExpenses(user.id, previousPeriodBoundaries, source.id),
+        ]);
+        const totalSourceAvailable = sourceIncome + currentSourceRollover;
+        const newSourceRollover = Math.max(0, totalSourceAvailable - sourceExpenses);
+        return { source, newSourceRollover };
+      }),
+    );
 
     // Perform atomic update - all or nothing
     const updatedUser = await this.prisma.$transaction(async (tx) => {
@@ -945,6 +979,35 @@ export class HomeService {
         nextPayDate,
       );
 
+      // Persist each income source's rollover, mirroring the main pool above.
+      for (const { source, newSourceRollover } of sourceRollovers) {
+        await tx.incomeSource.update({
+          where: { id: source.id },
+          data: {
+            rolloverAmount: newSourceRollover,
+            lastRolloverDate: new Date(),
+          },
+        });
+
+        if (newSourceRollover > 0) {
+          await tx.incomeSourceRolloverNotification.upsert({
+            where: { incomeSourceId: source.id },
+            create: {
+              incomeSourceId: source.id,
+              userId: user.id,
+              amount: newSourceRollover,
+              fromPeriod: `${format(previousPeriodBoundaries.start, 'MMM d')} - ${format(previousPeriodBoundaries.end, 'MMM d')}`,
+            },
+            update: {
+              amount: newSourceRollover,
+              fromPeriod: `${format(previousPeriodBoundaries.start, 'MMM d')} - ${format(previousPeriodBoundaries.end, 'MMM d')}`,
+              createdAt: new Date(),
+              dismissedAt: null,
+            },
+          });
+        }
+      }
+
       return updated;
     });
 
@@ -986,23 +1049,27 @@ export class HomeService {
   }
 
   /**
-   * Calculate additional income (beyond base salary) for a period
+   * Calculate additional income (beyond base salary) for a period.
+   *
+   * `incomeSourceId` scopes this to one income stream: null (default) means
+   * unattributed income only (the main salary pool); passing a source id
+   * scopes it to that source's own attributed income instead, for
+   * per-source rollover. isPrimaryIncome is always excluded - callers add
+   * baseIncome separately, so counting the materialized salary transaction
+   * too would double it in the rollover/"available" total (source-scoped
+   * calls never touch primary-income rows anyway).
    */
   private async calculateAdditionalIncome(
     userId: string,
-    periodBoundaries: PayPeriodBoundaries
+    periodBoundaries: PayPeriodBoundaries,
+    incomeSourceId: string | null = null,
   ): Promise<number> {
-    // Excludes isPrimaryIncome - callers of this method add baseIncome
-    // separately, so counting the materialized salary transaction too
-    // would double it in the rollover/"available" total. Also excludes
-    // income attributed to a named income source - that money isn't part
-    // of the main rollover pool (see calculateIncome).
     const additionalIncomeResult = await this.prisma.transaction.aggregate({
       where: {
         userId,
         type: TransactionType.INCOME,
         isPrimaryIncome: false,
-        incomeSourceId: null,
+        incomeSourceId,
         date: {
           gte: periodBoundaries.start,
           lte: periodBoundaries.end,
@@ -1020,13 +1087,17 @@ export class HomeService {
    * Calculate total expenses (committed + discretionary + goals) for a period
    * For rollover purposes, only count ACTUAL money spent (PAID transactions),
    * not planned/upcoming expenses that haven't been paid yet.
+   *
+   * `incomeSourceId` scopes this to one income stream: null (default) means
+   * the main salary pool (unattributed spending only); passing a source id
+   * scopes it to that source's own attributed spending instead, for
+   * per-source rollover.
    */
   private async calculatePreviousPeriodExpenses(
-    user: any,
-    periodBoundaries: PayPeriodBoundaries
+    userId: string,
+    periodBoundaries: PayPeriodBoundaries,
+    incomeSourceId: string | null = null,
   ): Promise<number> {
-    const userId = user.id;
-
     // Calculate committed expenses - ONLY PAID transactions
     // For rollover, we only count actual money spent, not upcoming/overdue bills
     const committedResult = await this.prisma.transaction.aggregate({
@@ -1034,9 +1105,7 @@ export class HomeService {
         userId,
         type: TransactionType.EXPENSE,
         status: PaymentStatus.PAID,
-        // Spending attributed to a named income source isn't part of the
-        // main rollover pool (see calculateIncome).
-        incomeSourceId: null,
+        incomeSourceId,
         date: {
           gte: periodBoundaries.start,
           lte: periodBoundaries.end,
@@ -1059,9 +1128,7 @@ export class HomeService {
       where: {
         userId,
         type: TransactionType.EXPENSE,
-        // Spending attributed to a named income source isn't part of the
-        // main rollover pool (see calculateIncome).
-        incomeSourceId: null,
+        incomeSourceId,
         date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
         dueDate: null,
         AND: [
@@ -1092,9 +1159,7 @@ export class HomeService {
         goal: { userId },
         date: { gte: periodBoundaries.start, lte: periodBoundaries.end },
         type: { in: [ContributionType.MANUAL, ContributionType.AUTOMATIC, ContributionType.TRANSACTION] },
-        // Contributions funded by a named income source aren't part of the
-        // main rollover pool (see calculateIncome).
-        incomeSourceId: null,
+        incomeSourceId,
       },
       _sum: { amount: true },
     });
@@ -1104,7 +1169,7 @@ export class HomeService {
 
     const totalExpenses = committedTotal + discretionaryTotal + goalsTotal;
 
-    this.logger.log(`Previous period expenses (PAID only): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
+    this.logger.log(`Previous period expenses (PAID only, source=${incomeSourceId ?? 'salary'}): committed=${committedTotal}, discretionary=${discretionaryTotal}, goals=${goalsTotal}, total=${totalExpenses}`);
 
     return Math.round(totalExpenses * 100) / 100;
   }
@@ -1141,6 +1206,47 @@ export class HomeService {
 
       this.logger.log(
         `Rollover notification auto-dismissed after 3 days. Amount ${notification.amount} stays in spendable pool.`,
+      );
+
+      return null;
+    }
+
+    return {
+      amount: Number(notification.amount),
+      fromPeriod: notification.fromPeriod,
+      createdAt: notification.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Same as getRolloverNotification, scoped to a single income source's
+   * rollover banner instead of the main salary one.
+   */
+  private async getSourceRolloverNotification(
+    incomeSourceId: string,
+  ): Promise<RolloverNotificationInfo | null> {
+    const notification = await this.prisma.incomeSourceRolloverNotification.findFirst({
+      where: {
+        incomeSourceId,
+        dismissedAt: null,
+      },
+    });
+
+    if (!notification) {
+      return null;
+    }
+
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+    const notificationAge = Date.now() - notification.createdAt.getTime();
+
+    if (notificationAge > THREE_DAYS_MS) {
+      await this.prisma.incomeSourceRolloverNotification.update({
+        where: { id: notification.id },
+        data: { dismissedAt: new Date() },
+      });
+
+      this.logger.log(
+        `Income source rollover notification auto-dismissed after 3 days. Amount ${notification.amount} stays in spendable pool.`,
       );
 
       return null;

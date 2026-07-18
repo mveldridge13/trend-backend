@@ -87,6 +87,18 @@ export class IncomeSourcesService {
   }
 
   /**
+   * Dismiss this source's rollover banner (mirrors
+   * UsersService.dismissRolloverNotification, scoped to one source).
+   */
+  async dismissRolloverNotification(userId: string, id: string): Promise<void> {
+    await this.findOwned(userId, id);
+    await this.prisma.incomeSourceRolloverNotification.updateMany({
+      where: { incomeSourceId: id, dismissedAt: null },
+      data: { dismissedAt: new Date() },
+    });
+  }
+
+  /**
    * Verify a source exists and belongs to the user. Used by other modules
    * (goals, transactions) to validate incomeSourceId attribution.
    */

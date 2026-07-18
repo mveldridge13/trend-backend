@@ -9,4 +9,5 @@ export declare class IncomeSourcesController {
     create(req: any, dto: CreateIncomeSourceDto): Promise<import("./income-sources.service").IncomeSourceResponse>;
     update(req: any, id: string, dto: UpdateIncomeSourceDto): Promise<import("./income-sources.service").IncomeSourceResponse>;
     remove(req: any, id: string): Promise<void>;
+    dismissRolloverNotification(req: any, id: string): Promise<void>;
 }

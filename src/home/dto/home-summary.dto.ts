@@ -123,6 +123,10 @@ export interface IncomeLedgerInfo {
   left: number; // received - spent; may be negative (over-spent)
   frequency: IncomeFrequency | null;
   nextPaymentDate: string | null;
+  // Present when this income source just rolled a surplus into `received`
+  // and it hasn't been dismissed yet. Always null for the salary entry -
+  // that one uses the top-level rolloverNotification field instead.
+  rolloverNotification?: RolloverNotificationInfo | null;
 }
 
 /**

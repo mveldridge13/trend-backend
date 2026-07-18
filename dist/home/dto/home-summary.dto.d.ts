@@ -70,6 +70,7 @@ export interface IncomeLedgerInfo {
     left: number;
     frequency: IncomeFrequency | null;
     nextPaymentDate: string | null;
+    rolloverNotification?: RolloverNotificationInfo | null;
 }
 export interface RolloverNotificationInfo {
     amount: number;

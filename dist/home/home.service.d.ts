@@ -23,4 +23,5 @@ export declare class HomeService {
     private calculateAdditionalIncome;
     private calculatePreviousPeriodExpenses;
     private getRolloverNotification;
+    private getSourceRolloverNotification;
 }
