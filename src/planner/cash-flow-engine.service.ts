@@ -13,6 +13,7 @@ import {
   DailyBalance,
   FinancialEvent,
   ForecastResult,
+  PlanInsight,
 } from "./interfaces/financial-event.interface";
 
 /**
@@ -152,7 +153,239 @@ export class CashFlowEngineService {
         ? baselineDailyBalances.filter((d) => d.balance < safetyBuffer)
         : [];
 
-    return { events, dailyBalances, breaches, baselineDailyBalances, baselineBreaches };
+    // Next pay period's boundaries, for "does this overload your next
+    // period's committed bills" insights. Only computable if the user has
+    // pay-period info configured at all (same guard as primary income).
+    let nextPeriodStart: Date | null = null;
+    let nextPeriodEnd: Date | null = null;
+    if (user.nextPayDate && user.incomeFrequency) {
+      const nextPeriodPayDate = this.dateService.calculateNextPayDateFromCurrent(
+        new Date(user.nextPayDate),
+        user.incomeFrequency,
+      );
+      const nextPeriodBoundaries = this.dateService.calculatePayPeriodBoundaries(
+        nextPeriodPayDate,
+        user.incomeFrequency,
+        timezone,
+      );
+      nextPeriodStart = nextPeriodBoundaries.start;
+      nextPeriodEnd = nextPeriodBoundaries.end;
+    }
+
+    const insights = this.buildInsights(
+      plans,
+      billsById,
+      events,
+      baselineEvents,
+      dailyBalances,
+      baselineDailyBalances,
+      today,
+      currentPeriodStart,
+      currentPeriodEnd,
+      summary.outflows.committed.plannedTotal,
+      nextPeriodStart,
+      nextPeriodEnd,
+      user.currency || "USD",
+    );
+
+    return { events, dailyBalances, breaches, baselineDailyBalances, baselineBreaches, insights };
+  }
+
+  /**
+   * Schedule-level observations about each active plan's consequences -
+   * clustering, income timing, pay-period shift, cash availability, risk.
+   * Deliberately not just a balance delta: "your lowest balance goes from X
+   * to Y" doesn't explain WHY, and reads as arbitrary (or worse, like free
+   * money) even when the underlying math is correct. See memory/conversation
+   * history - this was built after a real user complaint that a mathematically
+   * correct balance swing looked like a bug because nothing explained it.
+   */
+  private buildInsights(
+    plans: Plan[],
+    billsById: Map<string, Transaction>,
+    events: FinancialEvent[],
+    baselineEvents: FinancialEvent[],
+    dailyBalances: DailyBalance[],
+    baselineDailyBalances: DailyBalance[],
+    today: Date,
+    currentPeriodStart: Date,
+    currentPeriodEnd: Date,
+    currentPeriodCommittedBaseline: number,
+    nextPeriodStart: Date | null,
+    nextPeriodEnd: Date | null,
+    currency: string,
+  ): PlanInsight[] {
+    const insights: PlanInsight[] = [];
+    const money = new Intl.NumberFormat("en-US", { style: "currency", currency });
+    const dateLabel = (d: Date) => format(d, "d MMM");
+    const nextIncomeDate = this.findNextIncomeDate(events, today);
+
+    for (const plan of plans) {
+      const newDate = plan.plannedDate;
+      const linkedBill =
+        plan.type === "BILL_CHANGE" && plan.linkedEntityId
+          ? billsById.get(plan.linkedEntityId)
+          : undefined;
+      // Clamped to today for display/comparison purposes (an overdue bill is
+      // effectively "due now"). Insight #6 below needs the REAL unclamped
+      // date instead, since it compares against currentPeriodCommittedBaseline
+      // which is computed from real due dates, not clamped ones - using the
+      // clamped date there would wrongly treat an overdue-from-a-prior-period
+      // bill as "in this period" and produce a nonsensical negative total.
+      const realOriginalDate = linkedBill?.dueDate ? new Date(linkedBill.dueDate) : undefined;
+      const originalDate = realOriginalDate && (realOriginalDate < today ? today : realOriginalDate);
+
+      // 1. Cash availability - only meaningful when we know what date this
+      // plan is replacing (BILL_CHANGE).
+      if (originalDate && !isSameDay(originalDate, newDate)) {
+        const amountStr = money.format(Number(plan.amount));
+        if (newDate > originalDate) {
+          insights.push({
+            planId: plan.id,
+            severity: "positive",
+            message: `You'll have ${amountStr} more available until ${dateLabel(newDate)} (this bill is delayed).`,
+          });
+        } else {
+          insights.push({
+            planId: plan.id,
+            severity: "warning",
+            message: `You'll have ${amountStr} less available until ${dateLabel(originalDate)} (this bill is now due sooner).`,
+          });
+        }
+      }
+
+      // 2. Bill clustering - does the new date now have multiple payments?
+      const newDateKey = format(newDate, "yyyy-MM-dd");
+      const sameDayOutflows = events.filter(
+        (e) => e.date === newDateKey && e.direction === "OUTFLOW" && e.sourceId !== plan.id,
+      );
+      if (sameDayOutflows.length > 0) {
+        const names = [plan.description || plan.type, ...sameDayOutflows.map((e) => e.description)];
+        const nameList =
+          names.length === 2
+            ? names.join(" and ")
+            : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+        insights.push({
+          planId: plan.id,
+          severity: "warning",
+          message: `${names.length} payments now fall on ${dateLabel(newDate)}: ${nameList}.`,
+        });
+      }
+
+      // 3. Income timing - does this outflow move to the other side of your
+      // next payday?
+      if (plan.direction === "OUTFLOW" && nextIncomeDate && originalDate) {
+        const wasBeforeIncome = originalDate < nextIncomeDate;
+        const isBeforeIncome = newDate < nextIncomeDate;
+        if (wasBeforeIncome && !isBeforeIncome) {
+          insights.push({
+            planId: plan.id,
+            severity: "positive",
+            message: "This payment now occurs after your next income, instead of before it.",
+          });
+        } else if (!wasBeforeIncome && isBeforeIncome) {
+          insights.push({
+            planId: plan.id,
+            severity: "warning",
+            message: "This payment now occurs before your next income, instead of after it.",
+          });
+        }
+      }
+
+      // 5. Pay-period shift
+      if (originalDate) {
+        const wasInCurrentPeriod = originalDate <= currentPeriodEnd;
+        const isInCurrentPeriod = newDate <= currentPeriodEnd;
+        if (wasInCurrentPeriod && !isInCurrentPeriod) {
+          insights.push({
+            planId: plan.id,
+            severity: "neutral",
+            message: "This expense moves into your next pay period.",
+          });
+        } else if (!wasInCurrentPeriod && isInCurrentPeriod) {
+          insights.push({
+            planId: plan.id,
+            severity: "neutral",
+            message: "This expense moves into your current pay period.",
+          });
+        }
+      }
+
+      // 6. Pay-period bill totals - does this overload the current or next
+      // period's other committed bills, or relieve them? Computed in
+      // isolation for this one plan (not the combined multi-plan events
+      // list), so effects from other active plans don't get misattributed
+      // to this one's message.
+      if (nextPeriodStart && nextPeriodEnd && realOriginalDate) {
+        const planAmount = Number(plan.amount);
+        const wasInCurrentPeriod =
+          realOriginalDate >= currentPeriodStart && realOriginalDate <= currentPeriodEnd;
+        const isInCurrentPeriod = newDate >= currentPeriodStart && newDate <= currentPeriodEnd;
+        const currentPeriodDelta =
+          (isInCurrentPeriod ? planAmount : 0) - (wasInCurrentPeriod ? planAmount : 0);
+
+        const wasInNextPeriod =
+          realOriginalDate >= nextPeriodStart && realOriginalDate <= nextPeriodEnd;
+        const isInNextPeriod = newDate >= nextPeriodStart && newDate <= nextPeriodEnd;
+        const nextPeriodBaseline = baselineEvents
+          .filter(
+            (e) =>
+              e.sourceType === "RECURRING_BILL" &&
+              new Date(e.date) >= nextPeriodStart &&
+              new Date(e.date) <= nextPeriodEnd,
+          )
+          .reduce((sum, e) => sum + e.amount, 0);
+        const nextPeriodDelta =
+          (isInNextPeriod ? planAmount : 0) - (wasInNextPeriod ? planAmount : 0);
+
+        if (currentPeriodDelta !== 0) {
+          insights.push({
+            planId: plan.id,
+            severity: currentPeriodDelta < 0 ? "positive" : "warning",
+            message: `Current pay period's committed bills: ${money.format(currentPeriodCommittedBaseline)} → ${money.format(currentPeriodCommittedBaseline + currentPeriodDelta)}.`,
+          });
+        }
+        if (nextPeriodDelta !== 0) {
+          insights.push({
+            planId: plan.id,
+            severity: nextPeriodDelta > 0 ? "warning" : "positive",
+            message: `Next pay period's committed bills: ${money.format(nextPeriodBaseline)} → ${money.format(nextPeriodBaseline + nextPeriodDelta)}.`,
+          });
+        }
+      }
+    }
+
+    // 4. Risk - scenario-level, not attributable to one plan when several
+    // are active, so it's computed once rather than per-plan.
+    if (plans.length > 0) {
+      const newNegative = dailyBalances.filter((d) => d.balance < 0);
+      const baselineNegative = baselineDailyBalances.filter((d) => d.balance < 0);
+      if (newNegative.length > 0 && baselineNegative.length === 0) {
+        insights.push({
+          planId: "",
+          severity: "warning",
+          message: `This creates a negative balance starting ${dateLabel(new Date(newNegative[0].date))}.`,
+        });
+      } else if (newNegative.length === 0) {
+        insights.push({
+          planId: "",
+          severity: "positive",
+          message: "Your balance remains positive throughout this forecast.",
+        });
+      }
+    }
+
+    return insights;
+  }
+
+  /** Earliest income event on or after `from`, used as the "next payday" reference for income-timing insights. */
+  private findNextIncomeDate(events: FinancialEvent[], from: Date): Date | null {
+    const incomeDates = events
+      .filter((e) => e.direction === "INFLOW" && e.sourceType !== "PLAN")
+      .map((e) => new Date(e.date))
+      .filter((d) => d >= from)
+      .sort((a, b) => a.getTime() - b.getTime());
+    return incomeDates[0] ?? null;
   }
 
   private buildPrimaryIncomeEvents(

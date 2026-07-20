@@ -26,6 +26,20 @@ export interface DailyBalance {
   balance: number;
 }
 
+export type InsightSeverity = "positive" | "warning" | "neutral";
+
+/**
+ * A single schedule-level observation about one active plan's consequences -
+ * "what changed" in terms a user actually cares about (clustering, income
+ * timing, period shift, risk), not a bare balance delta. See
+ * CashFlowEngineService.buildInsights.
+ */
+export interface PlanInsight {
+  planId: string;
+  severity: InsightSeverity;
+  message: string;
+}
+
 export interface ForecastResult {
   events: FinancialEvent[];
   dailyBalances: DailyBalance[];
@@ -36,4 +50,5 @@ export interface ForecastResult {
   // the absolute forecast.
   baselineDailyBalances: DailyBalance[];
   baselineBreaches: DailyBalance[];
+  insights: PlanInsight[];
 }
