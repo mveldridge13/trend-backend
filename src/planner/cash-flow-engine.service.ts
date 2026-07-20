@@ -1,5 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { addDays, endOfDay, format, isSameDay, startOfDay } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  endOfDay,
+  format,
+  isSameDay,
+  parseISO,
+  startOfDay,
+} from "date-fns";
 import { IncomeFrequency, Plan, Transaction } from "@prisma/client";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { TransactionsService } from "../transactions/transactions.service";
@@ -232,7 +240,18 @@ export class CashFlowEngineService {
       // which is computed from real due dates, not clamped ones - using the
       // clamped date there would wrongly treat an overdue-from-a-prior-period
       // bill as "in this period" and produce a nonsensical negative total.
-      const realOriginalDate = linkedBill?.dueDate ? new Date(linkedBill.dueDate) : undefined;
+      //
+      // For BILL_CHANGE, "original" is the real bill's current due date. For
+      // every other plan type there's no linked real-world date to diff
+      // against - previousPlannedDate (set by PlansService.update whenever
+      // plannedDate actually changes) is the only available "before" state,
+      // so a plain PURCHASE/INCOME/GOAL_CHANGE/DEBT_PAYMENT plan only gets
+      // these insights once it's been moved at least once (a brand new plan
+      // has no "before" to compare to, which is correct - it just IS at its
+      // date).
+      const realOriginalDate = linkedBill?.dueDate
+        ? new Date(linkedBill.dueDate)
+        : (plan.previousPlannedDate ?? undefined);
       const originalDate = realOriginalDate && (realOriginalDate < today ? today : realOriginalDate);
 
       // 1. Cash availability - only meaningful when we know what date this
@@ -254,13 +273,22 @@ export class CashFlowEngineService {
         }
       }
 
-      // 2. Bill clustering - does the new date now have multiple payments?
+      // 2. Bill clustering - does the new date now land on, or near, other
+      // payments? A 3-day window (not just the exact same day) catches "this
+      // bunches up spending in the same week" even when nothing lands on the
+      // literal same date.
       const newDateKey = format(newDate, "yyyy-MM-dd");
-      const sameDayOutflows = events.filter(
-        (e) => e.date === newDateKey && e.direction === "OUTFLOW" && e.sourceId !== plan.id,
+      const CLUSTER_WINDOW_DAYS = 3;
+      const nearbyOutflows = events.filter(
+        (e) =>
+          e.direction === "OUTFLOW" &&
+          e.sourceId !== plan.id &&
+          Math.abs(differenceInCalendarDays(parseISO(e.date), parseISO(newDateKey))) <=
+            CLUSTER_WINDOW_DAYS,
       );
-      if (sameDayOutflows.length > 0) {
-        const names = [plan.description || plan.type, ...sameDayOutflows.map((e) => e.description)];
+      if (nearbyOutflows.length > 0) {
+        const allSameDay = nearbyOutflows.every((e) => e.date === newDateKey);
+        const names = [plan.description || plan.type, ...nearbyOutflows.map((e) => e.description)];
         const nameList =
           names.length === 2
             ? names.join(" and ")
@@ -268,7 +296,9 @@ export class CashFlowEngineService {
         insights.push({
           planId: plan.id,
           severity: "warning",
-          message: `${names.length} payments now fall on ${dateLabel(newDate)}: ${nameList}.`,
+          message: allSameDay
+            ? `${names.length} payments now fall on ${dateLabel(newDate)}: ${nameList}.`
+            : `${names.length} payments now fall in the same week: ${nameList}.`,
         });
       }
 
@@ -296,17 +326,17 @@ export class CashFlowEngineService {
       if (originalDate) {
         const wasInCurrentPeriod = originalDate <= currentPeriodEnd;
         const isInCurrentPeriod = newDate <= currentPeriodEnd;
-        if (wasInCurrentPeriod && !isInCurrentPeriod) {
+        if (wasInCurrentPeriod && !isInCurrentPeriod && nextPeriodStart && nextPeriodEnd) {
           insights.push({
             planId: plan.id,
             severity: "neutral",
-            message: "This expense moves into your next pay period.",
+            message: `This now falls in the pay period of ${dateLabel(nextPeriodStart)} - ${dateLabel(nextPeriodEnd)}.`,
           });
         } else if (!wasInCurrentPeriod && isInCurrentPeriod) {
           insights.push({
             planId: plan.id,
             severity: "neutral",
-            message: "This expense moves into your current pay period.",
+            message: `This now falls in the pay period of ${dateLabel(currentPeriodStart)} - ${dateLabel(currentPeriodEnd)}.`,
           });
         }
       }

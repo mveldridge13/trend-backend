@@ -60,7 +60,19 @@ export class PlansService {
         `Cannot edit a plan with status ${plan.status}`,
       );
     }
-    return this.plansRepository.update(id, userId, dto);
+    // Snapshot the date this plan is moving FROM, so CashFlowEngineService
+    // can tell "moved from X to Y" for plan types with no linked real-world
+    // date to diff against (see buildInsights). Only stamped when the date
+    // is genuinely changing, not on every unrelated edit.
+    const dateChanged =
+      dto.plannedDate !== undefined &&
+      new Date(dto.plannedDate).getTime() !== plan.plannedDate.getTime();
+    return this.plansRepository.update(
+      id,
+      userId,
+      dto,
+      dateChanged ? { previousPlannedDate: plan.plannedDate } : undefined,
+    );
   }
 
   async setStatus(

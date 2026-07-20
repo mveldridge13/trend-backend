@@ -42,7 +42,12 @@ export class PlansRepository {
     return this.prisma.plan.findFirst({ where: { id, userId } });
   }
 
-  async update(id: string, userId: string, data: UpdatePlanDto): Promise<Plan> {
+  async update(
+    id: string,
+    userId: string,
+    data: UpdatePlanDto,
+    extra?: Partial<Pick<Plan, "previousPlannedDate">>,
+  ): Promise<Plan> {
     return this.prisma.plan.update({
       where: { id },
       data: {
@@ -63,6 +68,7 @@ export class PlansRepository {
         ...(data.linkedEntityId !== undefined && {
           linkedEntityId: data.linkedEntityId,
         }),
+        ...extra,
       },
     });
   }
