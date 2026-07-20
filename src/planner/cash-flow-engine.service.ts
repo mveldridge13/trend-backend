@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { addDays, endOfDay, format, startOfDay } from "date-fns";
-import { IncomeFrequency } from "@prisma/client";
+import { addDays, endOfDay, format, isSameDay, startOfDay } from "date-fns";
+import { IncomeFrequency, Plan, Transaction } from "@prisma/client";
 import { UsersRepository } from "../users/repositories/users.repository";
 import { TransactionsService } from "../transactions/transactions.service";
 import { IncomeSourcesService } from "../income-sources/income-sources.service";
@@ -57,19 +57,52 @@ export class CashFlowEngineService {
     // double-subtracted: once via today's starting balance, once via the event.
     const currentPeriodEnd = new Date(summary.period.end);
 
-    const todaysBalance =
+    const plans = await this.plansService.findActive(userId);
+    const bills = await this.transactionsService.getRecurringBillSeeds(userId);
+
+    // A BILL_CHANGE plan represents moving one specific occurrence of a real
+    // recurring bill to a new date. Without this adjustment, that occurrence
+    // would be counted twice: once via the real bill (baked into
+    // leftToSpendSafe if due this period, or as its own forecast event if
+    // later) and again via the plan's own event on the new date.
+    const billChangePlans = plans.filter(
+      (p) => p.type === "BILL_CHANGE" && p.linkedEntityId,
+    );
+    const billsById = new Map(bills.map((b) => [b.id, b]));
+    let billChangeAdjustment = 0;
+    for (const plan of billChangePlans) {
+      const bill = billsById.get(plan.linkedEntityId!);
+      if (bill?.dueDate && new Date(bill.dueDate) <= currentPeriodEnd) {
+        // Already subtracted from leftToSpendSafe as this period's committed
+        // spend - add it back since the plan is moving it to a later event.
+        billChangeAdjustment += Number(bill.amount);
+      }
+    }
+
+    const baseTodaysBalance =
       summary.totals.leftToSpendSafe +
       summary.incomeLedger
         .filter((entry) => !entry.isSalary)
         .reduce((sum, entry) => sum + entry.left, 0);
+    const todaysBalance = baseTodaysBalance + billChangeAdjustment;
 
-    const events: FinancialEvent[] = [
+    const realEvents: FinancialEvent[] = [
       ...this.buildPrimaryIncomeEvents(user, horizonEnd),
       ...(await this.buildIncomeSourceEvents(userId, horizonEnd)),
-      ...(await this.buildRecurringBillEvents(userId, horizonEnd, currentPeriodEnd)),
-      ...(await this.buildPlanEvents(userId, today, horizonEnd)),
     ];
-    events.sort((a, b) => a.date.localeCompare(b.date));
+    // Baseline = real bills only, no plan-driven suppression - "if nothing
+    // changes." The with-plans view suppresses/adjusts for active BILL_CHANGE
+    // plans (see buildRecurringBillEvents).
+    const baselineBillEvents = this.buildRecurringBillEvents(bills, horizonEnd, currentPeriodEnd, []);
+    const adjustedBillEvents = this.buildRecurringBillEvents(bills, horizonEnd, currentPeriodEnd, billChangePlans);
+    const planEvents = this.buildPlanEvents(plans, today, horizonEnd);
+
+    const baselineEvents = [...realEvents, ...baselineBillEvents].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+    const events = [...realEvents, ...adjustedBillEvents, ...planEvents].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
     const settings = await this.prisma.plannerSettings.findUnique({
       where: { userId },
@@ -79,9 +112,10 @@ export class CashFlowEngineService {
         ? Number(settings.safetyBufferAmount)
         : null;
 
-    const dailyBalances = this.buildDailyBalances(
-      events,
-      todaysBalance,
+    const dailyBalances = this.buildDailyBalances(events, todaysBalance, today, days);
+    const baselineDailyBalances = this.buildDailyBalances(
+      baselineEvents,
+      baseTodaysBalance,
       today,
       days,
     );
@@ -89,8 +123,12 @@ export class CashFlowEngineService {
       safetyBuffer !== null
         ? dailyBalances.filter((d) => d.balance < safetyBuffer)
         : [];
+    const baselineBreaches: DailyBalance[] =
+      safetyBuffer !== null
+        ? baselineDailyBalances.filter((d) => d.balance < safetyBuffer)
+        : [];
 
-    return { events, dailyBalances, breaches };
+    return { events, dailyBalances, breaches, baselineDailyBalances, baselineBreaches };
   }
 
   private buildPrimaryIncomeEvents(
@@ -148,13 +186,14 @@ export class CashFlowEngineService {
     return events;
   }
 
-  private async buildRecurringBillEvents(
-    userId: string,
+  private buildRecurringBillEvents(
+    bills: Transaction[],
     horizonEnd: Date,
     currentPeriodEnd: Date,
-  ): Promise<FinancialEvent[]> {
-    const bills = await this.transactionsService.getRecurringBillSeeds(userId);
+    billChangePlans: Plan[],
+  ): FinancialEvent[] {
     const events: FinancialEvent[] = [];
+    const movedBillIds = new Set(billChangePlans.map((p) => p.linkedEntityId));
 
     for (const bill of bills) {
       if (!bill.dueDate || !bill.recurrence) continue;
@@ -166,7 +205,11 @@ export class CashFlowEngineService {
         // an income-source-attributed bill due later in that source's own
         // period could in theory still be excluded incorrectly. Acceptable
         // for now — the common case (unattributed bills) is exact.
-        .filter((date) => date > currentPeriodEnd);
+        .filter((date) => date > currentPeriodEnd)
+        // Skip the specific occurrence an active BILL_CHANGE plan is moving -
+        // it's represented by the plan's own event on the new date instead,
+        // so counting both would double the outflow.
+        .filter((date) => !(movedBillIds.has(bill.id) && isSameDay(date, bill.dueDate!)));
       for (const date of dates) {
         events.push({
           date: format(date, "yyyy-MM-dd"),
@@ -183,13 +226,11 @@ export class CashFlowEngineService {
     return events;
   }
 
-  private async buildPlanEvents(
-    userId: string,
+  private buildPlanEvents(
+    plans: Plan[],
     today: Date,
     horizonEnd: Date,
-  ): Promise<FinancialEvent[]> {
-    const plans = await this.plansService.findActive(userId);
-
+  ): FinancialEvent[] {
     return plans
       .filter((plan) => plan.plannedDate >= today && plan.plannedDate <= horizonEnd)
       .map((plan) => ({

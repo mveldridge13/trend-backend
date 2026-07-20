@@ -30,4 +30,10 @@ export interface ForecastResult {
   events: FinancialEvent[];
   dailyBalances: DailyBalance[];
   breaches: DailyBalance[];
+  // Same projection with all active (Draft/Planned) Plans excluded - "if I
+  // change nothing." Lets the frontend show the consequence of a what-if
+  // (lowest balance, buffer breaches) relative to doing nothing, not just
+  // the absolute forecast.
+  baselineDailyBalances: DailyBalance[];
+  baselineBreaches: DailyBalance[];
 }
