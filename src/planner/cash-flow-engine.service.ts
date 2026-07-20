@@ -51,10 +51,13 @@ export class CashFlowEngineService {
     const timezone = user.timezone || "UTC";
     const today = startOfDay(this.dateService.getNowInUserTimezone(timezone));
     const horizonEnd = endOfDay(addDays(today, days));
-    // Bills already due within the remainder of the current pay period are
-    // already subtracted from leftToSpendSafe (see HomeService.calculateCommitted).
-    // Project bill occurrences only from the NEXT period onward, or they'd be
-    // double-subtracted: once via today's starting balance, once via the event.
+    // Bills due within the current pay period are already subtracted from
+    // leftToSpendSafe (see HomeService.calculateCommitted, which scopes to
+    // dueDate BETWEEN period.start AND period.end - both bounds matter here,
+    // not just the end). Project bill occurrences only from the next period
+    // onward, or they'd be double-subtracted: once via today's starting
+    // balance, once via the event.
+    const currentPeriodStart = new Date(summary.period.start);
     const currentPeriodEnd = new Date(summary.period.end);
 
     const plans = await this.plansService.findActive(userId);
@@ -72,9 +75,16 @@ export class CashFlowEngineService {
     let billChangeAdjustment = 0;
     for (const plan of billChangePlans) {
       const bill = billsById.get(plan.linkedEntityId!);
-      if (bill?.dueDate && new Date(bill.dueDate) <= currentPeriodEnd) {
+      if (
+        bill?.dueDate &&
+        new Date(bill.dueDate) >= currentPeriodStart &&
+        new Date(bill.dueDate) <= currentPeriodEnd
+      ) {
         // Already subtracted from leftToSpendSafe as this period's committed
         // spend - add it back since the plan is moving it to a later event.
+        // A bill due BEFORE this period started (a carried-over overdue bill)
+        // was never subtracted here in the first place - adding it back
+        // would invent money that was never taken out.
         billChangeAdjustment += Number(bill.amount);
       }
     }
@@ -93,8 +103,22 @@ export class CashFlowEngineService {
     // Baseline = real bills only, no plan-driven suppression - "if nothing
     // changes." The with-plans view suppresses/adjusts for active BILL_CHANGE
     // plans (see buildRecurringBillEvents).
-    const baselineBillEvents = this.buildRecurringBillEvents(bills, horizonEnd, currentPeriodEnd, []);
-    const adjustedBillEvents = this.buildRecurringBillEvents(bills, horizonEnd, currentPeriodEnd, billChangePlans);
+    const baselineBillEvents = this.buildRecurringBillEvents(
+      bills,
+      today,
+      horizonEnd,
+      currentPeriodStart,
+      currentPeriodEnd,
+      [],
+    );
+    const adjustedBillEvents = this.buildRecurringBillEvents(
+      bills,
+      today,
+      horizonEnd,
+      currentPeriodStart,
+      currentPeriodEnd,
+      billChangePlans,
+    );
     const planEvents = this.buildPlanEvents(plans, today, horizonEnd);
 
     const baselineEvents = [...realEvents, ...baselineBillEvents].sort((a, b) =>
@@ -188,7 +212,9 @@ export class CashFlowEngineService {
 
   private buildRecurringBillEvents(
     bills: Transaction[],
+    today: Date,
     horizonEnd: Date,
+    currentPeriodStart: Date,
     currentPeriodEnd: Date,
     billChangePlans: Plan[],
   ): FinancialEvent[] {
@@ -199,20 +225,27 @@ export class CashFlowEngineService {
       if (!bill.dueDate || !bill.recurrence) continue;
       const dates = expandBillRecurrence(bill.dueDate, bill.recurrence, horizonEnd)
         // Skip occurrences already reflected in today's starting balance (see
-        // the double-counting note in getForecast). This is a simplification:
-        // it uses the main pay period's boundary for every bill, even ones
-        // attributed to a named income source with its own period cycle, so
-        // an income-source-attributed bill due later in that source's own
-        // period could in theory still be excluded incorrectly. Acceptable
-        // for now — the common case (unattributed bills) is exact.
-        .filter((date) => date > currentPeriodEnd)
+        // the double-counting note in getForecast and calculateCommitted's
+        // exact [period.start, period.end] bound). Occurrences BEFORE
+        // period.start (a carried-over overdue bill) are NOT already
+        // reflected there - those still need an event, just clamped to
+        // today below rather than shown on a date in the past. This is a
+        // simplification: it uses the main pay period's boundary for every
+        // bill, even ones attributed to a named income source with its own
+        // period cycle. Acceptable for now — the common case (unattributed
+        // bills) is exact.
+        .filter((date) => date < currentPeriodStart || date > currentPeriodEnd)
         // Skip the specific occurrence an active BILL_CHANGE plan is moving -
         // it's represented by the plan's own event on the new date instead,
         // so counting both would double the outflow.
         .filter((date) => !(movedBillIds.has(bill.id) && isSameDay(date, bill.dueDate!)));
       for (const date of dates) {
+        // An overdue occurrence (before today) has already happened as far
+        // as the forecast is concerned - show it landing today rather than
+        // on a past date the chart/timeline can't represent.
+        const eventDate = date < today ? today : date;
         events.push({
-          date: format(date, "yyyy-MM-dd"),
+          date: format(eventDate, "yyyy-MM-dd"),
           amount: Number(bill.amount),
           direction: "OUTFLOW",
           sourceType: "RECURRING_BILL",
