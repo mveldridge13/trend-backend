@@ -38,6 +38,7 @@ export declare class DateService {
     getValidTimezone(userTimezone?: string): string;
     calculatePreviousPayDate(nextPayDate: Date, frequency: IncomeFrequency): Date;
     calculateNextPayDateFromCurrent(currentPayDate: Date, frequency: IncomeFrequency): Date;
+    expandPayDates(seedDate: Date, frequency: IncomeFrequency, horizonEnd: Date, maxOccurrences?: number): Date[];
     calculatePayPeriodBoundaries(nextPayDate: Date, frequency: IncomeFrequency, userTimezone?: string): PayPeriodBoundaries;
     isWithinPayPeriod(date: Date, periodStart: Date, periodEnd: Date): boolean;
     shouldTransitionPayPeriod(nextPayDate: Date, userTimezone?: string): boolean;

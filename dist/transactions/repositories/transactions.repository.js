@@ -131,6 +131,16 @@ let TransactionsRepository = class TransactionsRepository {
             skip: filters.offset,
         });
     }
+    async findRecurringUpcoming(userId) {
+        return this.prisma.transaction.findMany({
+            where: {
+                userId,
+                status: "UPCOMING",
+                dueDate: { not: null },
+                recurrence: { not: null, notIn: ["none"] },
+            },
+        });
+    }
     async findById(id, userId) {
         return this.prisma.transaction.findFirst({
             where: { id, userId },

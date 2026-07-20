@@ -162,6 +162,17 @@ let DateService = class DateService {
                 return (0, date_fns_1.addMonths)(currentPayDate, 1);
         }
     }
+    expandPayDates(seedDate, frequency, horizonEnd, maxOccurrences = 60) {
+        const occurrences = [];
+        let current = new Date(seedDate);
+        let count = 0;
+        while (current <= horizonEnd && count < maxOccurrences) {
+            occurrences.push(new Date(current));
+            current = this.calculateNextPayDateFromCurrent(current, frequency);
+            count++;
+        }
+        return occurrences;
+    }
     calculatePayPeriodBoundaries(nextPayDate, frequency, userTimezone = 'UTC') {
         const nextPayDateInUserTz = new tz_1.TZDate(nextPayDate, userTimezone);
         const nowInUserTz = this.getNowInUserTimezone(userTimezone);

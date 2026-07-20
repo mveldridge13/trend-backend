@@ -22,6 +22,7 @@ import { AuditModule } from "./audit/audit.module";
 import { EmailModule } from "./email/email.module";
 import { HomeModule } from "./home/home.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
+import { PlannerModule } from "./planner/planner.module";
 // import { AssistantModule } from "./assistant/assistant.module"; // Disabled - uncomment when ready to enable AI assistant
 
 @Module({
@@ -52,6 +53,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
     IncomeSourcesModule,
     HomeModule,
     WebhooksModule,
+    PlannerModule,
     // AssistantModule, // Disabled - uncomment when ready to enable AI assistant
   ],
   controllers: [AppController],

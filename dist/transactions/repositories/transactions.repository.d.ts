@@ -8,6 +8,7 @@ export declare class TransactionsRepository {
     constructor(prisma: PrismaService);
     create(userId: string, data: CreateTransactionDto): Promise<Transaction>;
     findMany(userId: string, filters: TransactionFilterDto): Promise<Transaction[]>;
+    findRecurringUpcoming(userId: string): Promise<Transaction[]>;
     findById(id: string, userId: string): Promise<Transaction | null>;
     update(id: string, userId: string, data: UpdateTransactionDto): Promise<Transaction>;
     delete(id: string, userId: string): Promise<Transaction>;

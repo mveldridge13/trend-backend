@@ -293,6 +293,31 @@ export class DateService {
   }
 
   /**
+   * Expands an income schedule forward from `seedDate` up to `horizonEnd`,
+   * returning every pay date in range (seedDate included if within the
+   * horizon). Capped by maxOccurrences as a safety bound. Purely analytical —
+   * does not read or write any IncomeSource/Transaction rows.
+   */
+  expandPayDates(
+    seedDate: Date,
+    frequency: IncomeFrequency,
+    horizonEnd: Date,
+    maxOccurrences: number = 60
+  ): Date[] {
+    const occurrences: Date[] = [];
+    let current = new Date(seedDate);
+    let count = 0;
+
+    while (current <= horizonEnd && count < maxOccurrences) {
+      occurrences.push(new Date(current));
+      current = this.calculateNextPayDateFromCurrent(current, frequency);
+      count++;
+    }
+
+    return occurrences;
+  }
+
+  /**
    * Calculate pay period boundaries (start and end dates)
    * The period runs from previous pay date (inclusive) to day before next pay date (inclusive)
    * All calculations are done in the user's timezone to ensure correct date boundaries

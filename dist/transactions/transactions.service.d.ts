@@ -7,6 +7,7 @@ import { TransactionDto } from "./dto/transaction.dto";
 import { TransactionFilterDto } from "./dto/transaction-filter.dto";
 import { TransactionAnalyticsDto } from "./dto/transaction-analytics.dto";
 import { DayTimePatternsResponseDto } from "./dto/day-time-patterns.dto";
+import { Transaction } from "@prisma/client";
 import { DateService } from "../common/services/date.service";
 import { CurrencyService } from "../common/services/currency.service";
 import { PrismaService } from "../database/prisma.service";
@@ -118,6 +119,7 @@ export declare class TransactionsService {
     private createGoalContributionFromPayment;
     private createNextRecurringTransaction;
     private calculateNextDueDate;
+    getRecurringBillSeeds(userId: string): Promise<Transaction[]>;
     remove(id: string, userId: string): Promise<void>;
     getAnalytics(userId: string, filters?: Partial<TransactionFilterDto>): Promise<TransactionAnalyticsDto>;
     getDiscretionaryBreakdown(userId: string, filters?: Partial<TransactionFilterDto>): Promise<DiscretionaryBreakdownDto>;

@@ -35,6 +35,7 @@ import { Transaction, TransactionType, IncomeFrequency, PaymentStatus } from "@p
 import { DateService } from "../common/services/date.service";
 import { CurrencyService } from "../common/services/currency.service";
 import { PrismaService } from "../database/prisma.service";
+import { advanceByBillRecurrence } from "../common/utils/recurrence.util";
 
 // ✅ Inline interface definition for discretionary breakdown
 interface DiscretionaryBreakdownDto {
@@ -383,33 +384,15 @@ export class TransactionsService {
    * Calculates the next due date based on the recurrence pattern.
    */
   private calculateNextDueDate(currentDueDate: Date, recurrence: string): Date {
-    const nextDate = new Date(currentDueDate);
+    return advanceByBillRecurrence(currentDueDate, recurrence);
+  }
 
-    switch (recurrence) {
-      case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7);
-        break;
-      case 'fortnightly':
-        nextDate.setDate(nextDate.getDate() + 14);
-        break;
-      case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      case 'quarterly':
-        nextDate.setMonth(nextDate.getMonth() + 3);
-        break;
-      case 'sixmonths':
-        nextDate.setMonth(nextDate.getMonth() + 6);
-        break;
-      case 'yearly':
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-        break;
-      default:
-        // If unknown recurrence, default to monthly
-        nextDate.setMonth(nextDate.getMonth() + 1);
-    }
-
-    return nextDate;
+  /**
+   * Recurring bill "seeds" for forecasting — one row per active recurring
+   * bill series, to be expanded forward via expandBillRecurrence.
+   */
+  async getRecurringBillSeeds(userId: string): Promise<Transaction[]> {
+    return this.transactionsRepository.findRecurringUpcoming(userId);
   }
 
   async remove(id: string, userId: string): Promise<void> {

@@ -30,6 +30,7 @@ const audit_module_1 = require("./audit/audit.module");
 const email_module_1 = require("./email/email.module");
 const home_module_1 = require("./home/home.module");
 const webhooks_module_1 = require("./webhooks/webhooks.module");
+const planner_module_1 = require("./planner/planner.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -62,6 +63,7 @@ exports.AppModule = AppModule = __decorate([
             income_sources_module_1.IncomeSourcesModule,
             home_module_1.HomeModule,
             webhooks_module_1.WebhooksModule,
+            planner_module_1.PlannerModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

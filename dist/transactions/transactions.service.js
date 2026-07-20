@@ -23,6 +23,7 @@ const client_2 = require("@prisma/client");
 const date_service_1 = require("../common/services/date.service");
 const currency_service_1 = require("../common/services/currency.service");
 const prisma_service_1 = require("../database/prisma.service");
+const recurrence_util_1 = require("../common/utils/recurrence.util");
 let TransactionsService = class TransactionsService {
     constructor(transactionsRepository, usersRepository, dateService, currencyService, prisma, goalsService) {
         this.transactionsRepository = transactionsRepository;
@@ -171,30 +172,10 @@ let TransactionsService = class TransactionsService {
         });
     }
     calculateNextDueDate(currentDueDate, recurrence) {
-        const nextDate = new Date(currentDueDate);
-        switch (recurrence) {
-            case 'weekly':
-                nextDate.setDate(nextDate.getDate() + 7);
-                break;
-            case 'fortnightly':
-                nextDate.setDate(nextDate.getDate() + 14);
-                break;
-            case 'monthly':
-                nextDate.setMonth(nextDate.getMonth() + 1);
-                break;
-            case 'quarterly':
-                nextDate.setMonth(nextDate.getMonth() + 3);
-                break;
-            case 'sixmonths':
-                nextDate.setMonth(nextDate.getMonth() + 6);
-                break;
-            case 'yearly':
-                nextDate.setFullYear(nextDate.getFullYear() + 1);
-                break;
-            default:
-                nextDate.setMonth(nextDate.getMonth() + 1);
-        }
-        return nextDate;
+        return (0, recurrence_util_1.advanceByBillRecurrence)(currentDueDate, recurrence);
+    }
+    async getRecurringBillSeeds(userId) {
+        return this.transactionsRepository.findRecurringUpcoming(userId);
     }
     async remove(id, userId) {
         const transaction = await this.transactionsRepository.findById(id, userId);

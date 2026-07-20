@@ -165,6 +165,23 @@ export class TransactionsRepository {
     });
   }
 
+  /**
+   * Recurring bill "seeds" — one row per active recurring bill series.
+   * processPayment creates exactly one new UPCOMING row per paid recurring
+   * bill (no seriesId), so the current UPCOMING row per series already is
+   * the single seed a forecast needs to expand forward from.
+   */
+  async findRecurringUpcoming(userId: string): Promise<Transaction[]> {
+    return this.prisma.transaction.findMany({
+      where: {
+        userId,
+        status: "UPCOMING",
+        dueDate: { not: null },
+        recurrence: { not: null, notIn: ["none"] },
+      },
+    });
+  }
+
   async findById(id: string, userId: string): Promise<Transaction | null> {
     return this.prisma.transaction.findFirst({
       where: { id, userId },
