@@ -185,7 +185,6 @@ export class CashFlowEngineService {
       plans,
       billsById,
       events,
-      baselineEvents,
       dailyBalances,
       baselineDailyBalances,
       today,
@@ -212,7 +211,6 @@ export class CashFlowEngineService {
     plans: Plan[],
     billsById: Map<string, Transaction>,
     events: FinancialEvent[],
-    baselineEvents: FinancialEvent[],
     dailyBalances: DailyBalance[],
     baselineDailyBalances: DailyBalance[],
     today: Date,
@@ -233,12 +231,7 @@ export class CashFlowEngineService {
           ? billsById.get(plan.linkedEntityId)
           : undefined;
       // Clamped to today for display/comparison purposes (an overdue bill is
-      // effectively "due now"). Insight #6 below needs the REAL unclamped
-      // date instead, since it compares against the next pay period's real
-      // committed-bill baseline (computed from real due dates, not clamped
-      // ones) - using the clamped date there would wrongly treat an
-      // overdue-from-a-prior-period bill as "in this period" and produce a
-      // nonsensical negative total.
+      // effectively "due now").
       //
       // For BILL_CHANGE, "original" is the real bill's current due date. For
       // every other plan type there's no linked real-world date to diff
@@ -335,39 +328,6 @@ export class CashFlowEngineService {
         }
       }
 
-      // 6. Pay-period bill totals - does this overload the next period's
-      // other committed bills, or relieve them? Computed in isolation for
-      // this one plan (not the combined multi-plan events list), so effects
-      // from other active plans don't get misattributed to this one's
-      // message. (Current-period equivalent removed - it was redundant with
-      // the current balance/forecast already reflecting that period.)
-      if (nextPeriodStart && nextPeriodEnd && realOriginalDate) {
-        const planAmount = Number(plan.amount);
-
-        const wasInNextPeriod =
-          realOriginalDate >= nextPeriodStart && realOriginalDate <= nextPeriodEnd;
-        const isInNextPeriod = newDate >= nextPeriodStart && newDate <= nextPeriodEnd;
-        const nextPeriodBaseline = baselineEvents
-          .filter(
-            (e) =>
-              e.sourceType === "RECURRING_BILL" &&
-              new Date(e.date) >= nextPeriodStart &&
-              new Date(e.date) <= nextPeriodEnd,
-          )
-          .reduce((sum, e) => sum + e.amount, 0);
-        const nextPeriodDelta =
-          (isInNextPeriod ? planAmount : 0) - (wasInNextPeriod ? planAmount : 0);
-
-        if (nextPeriodDelta !== 0) {
-          const verb = nextPeriodDelta > 0 ? "adds" : "removes";
-          const preposition = nextPeriodDelta > 0 ? "to" : "from";
-          insights.push({
-            planId: plan.id,
-            severity: nextPeriodDelta > 0 ? "warning" : "positive",
-            message: `This ${verb} ${money.format(Math.abs(nextPeriodDelta))} ${preposition} your next pay period's committed bills, now ${money.format(nextPeriodBaseline + nextPeriodDelta)}.`,
-          });
-        }
-      }
     }
 
     // 4. Risk - scenario-level, not attributable to one plan when several
