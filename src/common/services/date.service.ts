@@ -355,6 +355,37 @@ export class DateService {
   }
 
   /**
+   * Find the pay period boundaries containing an arbitrary target date - not
+   * just "now"'s period like calculatePayPeriodBoundaries. Walks the
+   * nextPayDate anchor forward or backward one cycle at a time until target
+   * falls inside the resulting period. Used e.g. to tell whether a Plan's
+   * date crossed a pay-period boundary, regardless of which two periods are
+   * involved (not just current vs. next).
+   */
+  findPayPeriodContaining(
+    targetDate: Date,
+    nextPayDate: Date,
+    frequency: IncomeFrequency,
+    userTimezone: string = 'UTC'
+  ): PayPeriodBoundaries {
+    const target = new TZDate(targetDate, userTimezone);
+    let anchor: Date = nextPayDate;
+    let boundaries = this.calculatePayPeriodBoundaries(anchor, frequency, userTimezone);
+    let guard = 0;
+
+    while (isAfter(target, boundaries.end) && guard++ < 500) {
+      anchor = this.calculateNextPayDateFromCurrent(anchor, frequency);
+      boundaries = this.calculatePayPeriodBoundaries(anchor, frequency, userTimezone);
+    }
+    while (isBefore(target, boundaries.start) && guard++ < 500) {
+      anchor = this.calculatePreviousPayDate(anchor, frequency);
+      boundaries = this.calculatePayPeriodBoundaries(anchor, frequency, userTimezone);
+    }
+
+    return boundaries;
+  }
+
+  /**
    * Check if a date falls within a pay period
    */
   isWithinPayPeriod(date: Date, periodStart: Date, periodEnd: Date): boolean {

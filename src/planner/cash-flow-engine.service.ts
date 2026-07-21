@@ -162,25 +162,6 @@ export class CashFlowEngineService {
         ? baselineDailyBalances.filter((d) => d.balance < safetyBuffer)
         : [];
 
-    // Next pay period's boundaries, for "does this overload your next
-    // period's committed bills" insights. Only computable if the user has
-    // pay-period info configured at all (same guard as primary income).
-    let nextPeriodStart: Date | null = null;
-    let nextPeriodEnd: Date | null = null;
-    if (user.nextPayDate && user.incomeFrequency) {
-      const nextPeriodPayDate = this.dateService.calculateNextPayDateFromCurrent(
-        new Date(user.nextPayDate),
-        user.incomeFrequency,
-      );
-      const nextPeriodBoundaries = this.dateService.calculatePayPeriodBoundaries(
-        nextPeriodPayDate,
-        user.incomeFrequency,
-        timezone,
-      );
-      nextPeriodStart = nextPeriodBoundaries.start;
-      nextPeriodEnd = nextPeriodBoundaries.end;
-    }
-
     const insights = this.buildInsights(
       plans,
       billsById,
@@ -188,10 +169,9 @@ export class CashFlowEngineService {
       dailyBalances,
       baselineDailyBalances,
       today,
-      currentPeriodStart,
-      currentPeriodEnd,
-      nextPeriodStart,
-      nextPeriodEnd,
+      user.nextPayDate ? new Date(user.nextPayDate) : null,
+      user.incomeFrequency,
+      timezone,
       user.currency || "USD",
     );
 
@@ -214,10 +194,9 @@ export class CashFlowEngineService {
     dailyBalances: DailyBalance[],
     baselineDailyBalances: DailyBalance[],
     today: Date,
-    currentPeriodStart: Date,
-    currentPeriodEnd: Date,
-    nextPeriodStart: Date | null,
-    nextPeriodEnd: Date | null,
+    nextPayDate: Date | null,
+    incomeFrequency: IncomeFrequency | null,
+    timezone: string,
     currency: string,
   ): PlanInsight[] {
     const insights: PlanInsight[] = [];
@@ -290,21 +269,30 @@ export class CashFlowEngineService {
         });
       }
 
-      // 5. Pay-period shift
-      if (originalDate) {
-        const wasInCurrentPeriod = originalDate <= currentPeriodEnd;
-        const isInCurrentPeriod = newDate <= currentPeriodEnd;
-        if (wasInCurrentPeriod && !isInCurrentPeriod && nextPeriodStart && nextPeriodEnd) {
+      // 5. Pay-period shift - does this land in a different pay period than
+      // it used to? Compares the actual period containing each date via
+      // findPayPeriodContaining, so it correctly detects a move between any
+      // two periods (not just current vs. next - a plan dragged from one
+      // future period to a different future period, neither of them the
+      // current one, still needs to be caught here).
+      if (originalDate && nextPayDate && incomeFrequency) {
+        const wasPeriod = this.dateService.findPayPeriodContaining(
+          originalDate,
+          nextPayDate,
+          incomeFrequency,
+          timezone,
+        );
+        const isPeriod = this.dateService.findPayPeriodContaining(
+          newDate,
+          nextPayDate,
+          incomeFrequency,
+          timezone,
+        );
+        if (wasPeriod.start.getTime() !== isPeriod.start.getTime()) {
           insights.push({
             planId: plan.id,
             severity: "neutral",
-            message: `This now falls in the pay period of ${dateLabel(nextPeriodStart)} - ${dateLabel(nextPeriodEnd)}.`,
-          });
-        } else if (!wasInCurrentPeriod && isInCurrentPeriod) {
-          insights.push({
-            planId: plan.id,
-            severity: "neutral",
-            message: `This now falls in the pay period of ${dateLabel(currentPeriodStart)} - ${dateLabel(currentPeriodEnd)}.`,
+            message: `This now falls in the pay period of ${dateLabel(isPeriod.start)} - ${dateLabel(isPeriod.end)}.`,
           });
         }
       }
