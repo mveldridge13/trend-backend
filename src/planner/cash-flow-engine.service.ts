@@ -190,7 +190,6 @@ export class CashFlowEngineService {
       today,
       currentPeriodStart,
       currentPeriodEnd,
-      summary.outflows.committed.plannedTotal,
       nextPeriodStart,
       nextPeriodEnd,
       user.currency || "USD",
@@ -218,7 +217,6 @@ export class CashFlowEngineService {
     today: Date,
     currentPeriodStart: Date,
     currentPeriodEnd: Date,
-    currentPeriodCommittedBaseline: number,
     nextPeriodStart: Date | null,
     nextPeriodEnd: Date | null,
     currency: string,
@@ -226,7 +224,6 @@ export class CashFlowEngineService {
     const insights: PlanInsight[] = [];
     const money = new Intl.NumberFormat("en-US", { style: "currency", currency });
     const dateLabel = (d: Date) => format(d, "d MMM");
-    const nextIncomeDate = this.findNextIncomeDate(events, today);
 
     for (const plan of plans) {
       const newDate = plan.plannedDate;
@@ -236,10 +233,11 @@ export class CashFlowEngineService {
           : undefined;
       // Clamped to today for display/comparison purposes (an overdue bill is
       // effectively "due now"). Insight #6 below needs the REAL unclamped
-      // date instead, since it compares against currentPeriodCommittedBaseline
-      // which is computed from real due dates, not clamped ones - using the
-      // clamped date there would wrongly treat an overdue-from-a-prior-period
-      // bill as "in this period" and produce a nonsensical negative total.
+      // date instead, since it compares against the next pay period's real
+      // committed-bill baseline (computed from real due dates, not clamped
+      // ones) - using the clamped date there would wrongly treat an
+      // overdue-from-a-prior-period bill as "in this period" and produce a
+      // nonsensical negative total.
       //
       // For BILL_CHANGE, "original" is the real bill's current due date. For
       // every other plan type there's no linked real-world date to diff
@@ -302,26 +300,6 @@ export class CashFlowEngineService {
         });
       }
 
-      // 3. Income timing - does this outflow move to the other side of your
-      // next payday?
-      if (plan.direction === "OUTFLOW" && nextIncomeDate && originalDate) {
-        const wasBeforeIncome = originalDate < nextIncomeDate;
-        const isBeforeIncome = newDate < nextIncomeDate;
-        if (wasBeforeIncome && !isBeforeIncome) {
-          insights.push({
-            planId: plan.id,
-            severity: "positive",
-            message: "This payment now occurs after your next income, instead of before it.",
-          });
-        } else if (!wasBeforeIncome && isBeforeIncome) {
-          insights.push({
-            planId: plan.id,
-            severity: "warning",
-            message: "This payment now occurs before your next income, instead of after it.",
-          });
-        }
-      }
-
       // 5. Pay-period shift
       if (originalDate) {
         const wasInCurrentPeriod = originalDate <= currentPeriodEnd;
@@ -341,18 +319,14 @@ export class CashFlowEngineService {
         }
       }
 
-      // 6. Pay-period bill totals - does this overload the current or next
-      // period's other committed bills, or relieve them? Computed in
-      // isolation for this one plan (not the combined multi-plan events
-      // list), so effects from other active plans don't get misattributed
-      // to this one's message.
+      // 6. Pay-period bill totals - does this overload the next period's
+      // other committed bills, or relieve them? Computed in isolation for
+      // this one plan (not the combined multi-plan events list), so effects
+      // from other active plans don't get misattributed to this one's
+      // message. (Current-period equivalent removed - it was redundant with
+      // the current balance/forecast already reflecting that period.)
       if (nextPeriodStart && nextPeriodEnd && realOriginalDate) {
         const planAmount = Number(plan.amount);
-        const wasInCurrentPeriod =
-          realOriginalDate >= currentPeriodStart && realOriginalDate <= currentPeriodEnd;
-        const isInCurrentPeriod = newDate >= currentPeriodStart && newDate <= currentPeriodEnd;
-        const currentPeriodDelta =
-          (isInCurrentPeriod ? planAmount : 0) - (wasInCurrentPeriod ? planAmount : 0);
 
         const wasInNextPeriod =
           realOriginalDate >= nextPeriodStart && realOriginalDate <= nextPeriodEnd;
@@ -368,18 +342,13 @@ export class CashFlowEngineService {
         const nextPeriodDelta =
           (isInNextPeriod ? planAmount : 0) - (wasInNextPeriod ? planAmount : 0);
 
-        if (currentPeriodDelta !== 0) {
-          insights.push({
-            planId: plan.id,
-            severity: currentPeriodDelta < 0 ? "positive" : "warning",
-            message: `Current pay period's committed bills: ${money.format(currentPeriodCommittedBaseline)} → ${money.format(currentPeriodCommittedBaseline + currentPeriodDelta)}.`,
-          });
-        }
         if (nextPeriodDelta !== 0) {
+          const verb = nextPeriodDelta > 0 ? "adds" : "removes";
+          const preposition = nextPeriodDelta > 0 ? "to" : "from";
           insights.push({
             planId: plan.id,
             severity: nextPeriodDelta > 0 ? "warning" : "positive",
-            message: `Next pay period's committed bills: ${money.format(nextPeriodBaseline)} → ${money.format(nextPeriodBaseline + nextPeriodDelta)}.`,
+            message: `This ${verb} ${money.format(Math.abs(nextPeriodDelta))} ${preposition} your next pay period's committed bills, now ${money.format(nextPeriodBaseline + nextPeriodDelta)}.`,
           });
         }
       }
@@ -406,16 +375,6 @@ export class CashFlowEngineService {
     }
 
     return insights;
-  }
-
-  /** Earliest income event on or after `from`, used as the "next payday" reference for income-timing insights. */
-  private findNextIncomeDate(events: FinancialEvent[], from: Date): Date | null {
-    const incomeDates = events
-      .filter((e) => e.direction === "INFLOW" && e.sourceType !== "PLAN")
-      .map((e) => new Date(e.date))
-      .filter((d) => d >= from)
-      .sort((a, b) => a.getTime() - b.getTime());
-    return incomeDates[0] ?? null;
   }
 
   private buildPrimaryIncomeEvents(
