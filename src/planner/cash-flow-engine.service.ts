@@ -22,6 +22,7 @@ import {
   FinancialEvent,
   ForecastResult,
   PlanInsight,
+  PlanInsightBreakdownItem,
 } from "./interfaces/financial-event.interface";
 
 /**
@@ -274,7 +275,10 @@ export class CashFlowEngineService {
       // 2. Bill clustering - does the new date now land on, or near, other
       // payments? A 3-day window (not just the exact same day) catches "this
       // bunches up spending in the same week" even when nothing lands on the
-      // literal same date.
+      // literal same date. Message is deliberately just the headline count -
+      // the breakdown carries the detail (which payments, committed vs
+      // discretionary) for the frontend to drill into on click, rather than
+      // cramming a name list into the message itself.
       const newDateKey = format(newDate, "yyyy-MM-dd");
       const CLUSTER_WINDOW_DAYS = 3;
       const nearbyOutflows = events.filter(
@@ -285,18 +289,30 @@ export class CashFlowEngineService {
             CLUSTER_WINDOW_DAYS,
       );
       if (nearbyOutflows.length > 0) {
-        const allSameDay = nearbyOutflows.every((e) => e.date === newDateKey);
-        const names = [plan.description || plan.type, ...nearbyOutflows.map((e) => e.description)];
-        const nameList =
-          names.length === 2
-            ? names.join(" and ")
-            : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+        // isRequired mirrors "committed" (a real, already-scheduled bill) vs
+        // "discretionary" (a Draft/Planned Plan - hypothetical regardless of
+        // its type, a PURCHASE plan is discretionary spend, not committed).
+        const breakdown: PlanInsightBreakdownItem[] = [
+          {
+            id: plan.id,
+            name: plan.description || plan.type,
+            amount: Number(plan.amount),
+            date: newDateKey,
+            kind: "discretionary",
+          },
+          ...nearbyOutflows.map((e) => ({
+            id: `${e.sourceId}-${e.date}`,
+            name: e.description,
+            amount: e.amount,
+            date: e.date,
+            kind: (e.isRequired ? "committed" : "discretionary") as "committed" | "discretionary",
+          })),
+        ];
         insights.push({
           planId: plan.id,
           severity: "warning",
-          message: allSameDay
-            ? `${names.length} payments now fall on ${dateLabel(newDate)}: ${nameList}.`
-            : `${names.length} payments now fall in the same week: ${nameList}.`,
+          message: `${breakdown.length} payments now fall in the same week.`,
+          breakdown,
         });
       }
 

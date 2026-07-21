@@ -29,6 +29,22 @@ export interface DailyBalance {
 export type InsightSeverity = "positive" | "warning" | "neutral";
 
 /**
+ * One line item behind an insight's headline number (e.g. one of the "N
+ * payments" in a bill-clustering warning) - lets the frontend render a
+ * breakdown without re-deriving it from raw events. "committed" mirrors
+ * FinancialEvent.isRequired (a real, already-scheduled bill); "discretionary"
+ * is a Draft/Planned Plan - hypothetical, not yet real, regardless of the
+ * plan's type (a PURCHASE plan is discretionary spend, not a committed one).
+ */
+export interface PlanInsightBreakdownItem {
+  id: string;
+  name: string;
+  amount: number;
+  date: string; // ISO date (yyyy-MM-dd)
+  kind: "committed" | "discretionary";
+}
+
+/**
  * A single schedule-level observation about one active plan's consequences -
  * "what changed" in terms a user actually cares about (clustering, income
  * timing, period shift, risk), not a bare balance delta. See
@@ -38,6 +54,9 @@ export interface PlanInsight {
   planId: string;
   severity: InsightSeverity;
   message: string;
+  // Present only for insights with a drill-down breakdown (currently just
+  // bill clustering).
+  breakdown?: PlanInsightBreakdownItem[];
 }
 
 export interface ForecastResult {
