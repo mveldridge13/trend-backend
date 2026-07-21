@@ -246,25 +246,6 @@ export class CashFlowEngineService {
         : (plan.previousPlannedDate ?? undefined);
       const originalDate = realOriginalDate && (realOriginalDate < today ? today : realOriginalDate);
 
-      // 1. Cash availability - only meaningful when we know what date this
-      // plan is replacing (BILL_CHANGE).
-      if (originalDate && !isSameDay(originalDate, newDate)) {
-        const amountStr = money.format(Number(plan.amount));
-        if (newDate > originalDate) {
-          insights.push({
-            planId: plan.id,
-            severity: "positive",
-            message: `You'll have ${amountStr} more available until ${dateLabel(newDate)} (this bill is delayed).`,
-          });
-        } else {
-          insights.push({
-            planId: plan.id,
-            severity: "warning",
-            message: `You'll have ${amountStr} less available until ${dateLabel(originalDate)} (this bill is now due sooner).`,
-          });
-        }
-      }
-
       // 2. Bill clustering - does the new date now land on, or near, other
       // payments? A 3-day window (not just the exact same day) catches "this
       // bunches up spending in the same week" even when nothing lands on the
@@ -327,7 +308,6 @@ export class CashFlowEngineService {
           });
         }
       }
-
     }
 
     // 4. Risk - scenario-level, not attributable to one plan when several
