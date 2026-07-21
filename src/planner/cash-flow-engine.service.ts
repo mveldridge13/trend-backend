@@ -226,12 +226,15 @@ export class CashFlowEngineService {
       const originalDate = realOriginalDate && (realOriginalDate < today ? today : realOriginalDate);
 
       // 2. Bill clustering - does the new date now land on, or near, other
-      // payments? A 3-day window (not just the exact same day) catches "this
-      // bunches up spending in the same week" even when nothing lands on the
-      // literal same date. Message is deliberately just the headline count -
-      // the breakdown carries the detail (which payments, committed vs
-      // discretionary) for the frontend to drill into on click, rather than
-      // cramming a name list into the message itself.
+      // REAL commitments? A 3-day window (not just the exact same day)
+      // catches "this bunches up spending in the same week" even when
+      // nothing lands on the literal same date. Only counts/triggers on
+      // isRequired (committed, e.g. a real recurring bill) events - a
+      // discretionary Draft/Planned plan (this one, or another one nearby)
+      // isn't a "commitment" and doesn't belong in that headline number,
+      // even though it's still shown in the breakdown for context. Message
+      // is deliberately just the headline count - the breakdown carries the
+      // detail for the frontend to drill into on click.
       const newDateKey = format(newDate, "yyyy-MM-dd");
       const CLUSTER_WINDOW_DAYS = 3;
       const nearbyOutflows = events.filter(
@@ -241,10 +244,8 @@ export class CashFlowEngineService {
           Math.abs(differenceInCalendarDays(parseISO(e.date), parseISO(newDateKey))) <=
             CLUSTER_WINDOW_DAYS,
       );
-      if (nearbyOutflows.length > 0) {
-        // isRequired mirrors "committed" (a real, already-scheduled bill) vs
-        // "discretionary" (a Draft/Planned Plan - hypothetical regardless of
-        // its type, a PURCHASE plan is discretionary spend, not committed).
+      const nearbyCommittedCount = nearbyOutflows.filter((e) => e.isRequired).length;
+      if (nearbyCommittedCount > 0) {
         const breakdown: PlanInsightBreakdownItem[] = [
           {
             id: plan.id,
@@ -264,7 +265,7 @@ export class CashFlowEngineService {
         insights.push({
           planId: plan.id,
           severity: "warning",
-          message: `${breakdown.length} payments now fall in the same week.`,
+          message: `You now have ${nearbyCommittedCount} upcoming commitment${nearbyCommittedCount === 1 ? "" : "s"} in the same week.`,
           breakdown,
         });
       }
