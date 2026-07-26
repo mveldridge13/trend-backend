@@ -210,14 +210,15 @@ export class TransactionsService {
     limit: number;
     totalPages: number;
   }> {
-    const [transactions, total] = await Promise.all([
-      this.transactionsRepository.findMany(userId, filters),
-      this.transactionsRepository.count(userId, filters),
-    ]);
-
-    // Get user timezone for date conversion
+    // Get user timezone first so date-range filters resolve to the user's
+    // local day boundaries, not the server's.
     const user = await this.usersRepository.findById(userId);
     const userTimezone = this.dateService.getValidTimezone(user?.timezone);
+
+    const [transactions, total] = await Promise.all([
+      this.transactionsRepository.findMany(userId, filters, userTimezone),
+      this.transactionsRepository.count(userId, filters, userTimezone),
+    ]);
 
     const page = Math.floor(filters.offset / filters.limit) + 1;
     const totalPages = Math.ceil(total / filters.limit);

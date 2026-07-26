@@ -5,10 +5,42 @@ import { CreateTransactionDto } from "../dto/create-transaction.dto";
 import { UpdateTransactionDto } from "../dto/update-transaction.dto";
 import { TransactionFilterDto } from "../dto/transaction-filter.dto";
 import { startOfDay, endOfDay } from "date-fns";
+import { DateService } from "../../common/services/date.service";
 
 @Injectable()
 export class TransactionsRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private dateService: DateService,
+  ) {}
+
+  /**
+   * Resolve a startDate/endDate pair to UTC instants using the user's
+   * timezone, so "today" for the caller matches "today" on the server.
+   * Falls back to naive UTC parsing when no timezone is supplied, so
+   * existing callers that don't pass one keep their prior behavior.
+   */
+  private resolvePeriodBoundaries(
+    startDate?: string,
+    endDate?: string,
+    userTimezone?: string,
+  ): { periodStart?: Date; periodEnd?: Date } {
+    if (!userTimezone || userTimezone === "UTC") {
+      return {
+        periodStart: startDate ? startOfDay(new Date(startDate)) : undefined,
+        periodEnd: endDate ? endOfDay(new Date(endDate)) : undefined,
+      };
+    }
+
+    return {
+      periodStart: startDate
+        ? this.dateService.getDayBoundariesInUserTimezone(startDate, userTimezone).start
+        : undefined,
+      periodEnd: endDate
+        ? this.dateService.getDayBoundariesInUserTimezone(endDate, userTimezone).end
+        : undefined,
+    };
+  }
 
   async create(
     userId: string,
@@ -51,6 +83,7 @@ export class TransactionsRepository {
   async findMany(
     userId: string,
     filters: TransactionFilterDto,
+    userTimezone?: string,
   ): Promise<Transaction[]> {
     const where: Prisma.TransactionWhereInput = {
       userId,
@@ -61,12 +94,11 @@ export class TransactionsRepository {
     // - UPCOMING/OVERDUE: filter by dueDate (when it's due)
     // - No status (discretionary): filter by date
     if (filters.startDate || filters.endDate) {
-      const periodStart = filters.startDate
-        ? startOfDay(new Date(filters.startDate))
-        : undefined;
-      const periodEnd = filters.endDate
-        ? endOfDay(new Date(filters.endDate))
-        : undefined;
+      const { periodStart, periodEnd } = this.resolvePeriodBoundaries(
+        filters.startDate,
+        filters.endDate,
+        userTimezone,
+      );
 
       // Build date range conditions
       const dateInPeriod: Prisma.TransactionWhereInput = {};
@@ -257,6 +289,7 @@ export class TransactionsRepository {
   async count(
     userId: string,
     filters: Partial<TransactionFilterDto> = {},
+    userTimezone?: string,
   ): Promise<number> {
     const where: Prisma.TransactionWhereInput = {
       userId,
@@ -267,12 +300,11 @@ export class TransactionsRepository {
     // - UPCOMING/OVERDUE: filter by dueDate
     // - No status: filter by date
     if (filters.startDate || filters.endDate) {
-      const periodStart = filters.startDate
-        ? startOfDay(new Date(filters.startDate))
-        : undefined;
-      const periodEnd = filters.endDate
-        ? endOfDay(new Date(filters.endDate))
-        : undefined;
+      const { periodStart, periodEnd } = this.resolvePeriodBoundaries(
+        filters.startDate,
+        filters.endDate,
+        userTimezone,
+      );
 
       const dateInPeriod: Prisma.TransactionWhereInput = {};
       const dueDateInPeriod: Prisma.TransactionWhereInput = {};
