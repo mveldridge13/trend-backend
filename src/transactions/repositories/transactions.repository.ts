@@ -5,14 +5,11 @@ import { CreateTransactionDto } from "../dto/create-transaction.dto";
 import { UpdateTransactionDto } from "../dto/update-transaction.dto";
 import { TransactionFilterDto } from "../dto/transaction-filter.dto";
 import { startOfDay, endOfDay } from "date-fns";
-import { DateService } from "../../common/services/date.service";
+import { TZDate } from "@date-fns/tz";
 
 @Injectable()
 export class TransactionsRepository {
-  constructor(
-    private prisma: PrismaService,
-    private dateService: DateService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Resolve a startDate/endDate pair to UTC instants using the user's
@@ -34,12 +31,34 @@ export class TransactionsRepository {
 
     return {
       periodStart: startDate
-        ? this.dateService.getDayBoundariesInUserTimezone(startDate, userTimezone).start
+        ? this.startOfDayInTimezone(startDate, userTimezone)
         : undefined,
       periodEnd: endDate
-        ? this.dateService.getDayBoundariesInUserTimezone(endDate, userTimezone).end
+        ? this.endOfDayInTimezone(endDate, userTimezone)
         : undefined,
     };
+  }
+
+  /**
+   * Local midnight of `dateString` (a "YYYY-MM-DD" calendar date) in
+   * `timeZone`, as a UTC instant. Built from raw Y/M/D components tagged
+   * with the timezone at construction — NOT by parsing to a plain Date and
+   * relabeling afterward. Relabeling an already-built instant only changes
+   * how it displays; it doesn't recompute the instant, so it silently drifts
+   * a day whenever the server's own timezone differs from `timeZone`.
+   */
+  private startOfDayInTimezone(dateString: string, timeZone: string): Date {
+    const [year, month, day] = dateString.slice(0, 10).split("-").map(Number);
+    return new Date(
+      new TZDate(year, month - 1, day, 0, 0, 0, 0, timeZone).getTime(),
+    );
+  }
+
+  private endOfDayInTimezone(dateString: string, timeZone: string): Date {
+    const [year, month, day] = dateString.slice(0, 10).split("-").map(Number);
+    return new Date(
+      new TZDate(year, month - 1, day, 23, 59, 59, 999, timeZone).getTime(),
+    );
   }
 
   async create(
