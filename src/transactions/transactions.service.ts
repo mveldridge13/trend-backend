@@ -278,7 +278,17 @@ export class TransactionsService {
     const userTimezone = this.dateService.getValidTimezone(user.timezone);
 
     if (updateTransactionDto.date !== undefined) {
-      this.dateService.validateTransactionDate(updateTransactionDto.date, userTimezone);
+      // Skip the "not in the future" check for scheduled bills, matching
+      // create(): a future dueDate is expected for UPCOMING/OVERDUE items,
+      // and the client always resends the existing `date` on every edit
+      // (even ones that don't touch it), so this ran unconditionally and
+      // 500'd on any edit to a future-dated recurring bill.
+      const effectiveStatus = updateTransactionDto.status ?? existingTransaction.status;
+      const isScheduledTransaction =
+        effectiveStatus === 'UPCOMING' || effectiveStatus === 'OVERDUE';
+      if (!isScheduledTransaction) {
+        this.dateService.validateTransactionDate(updateTransactionDto.date, userTimezone);
+      }
 
       // Convert date from user timezone to UTC for storage
       const utcDate = this.dateService.toUtc(updateTransactionDto.date, userTimezone);

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { TZDate, tz } from '@date-fns/tz';
 import {
   parseISO,
@@ -182,26 +182,26 @@ export class DateService {
   validateTransactionDate(dateString: string, userTimezone: string): void {
     const transactionDateUtc = parseISO(dateString);
     if (!isValid(transactionDateUtc)) {
-      throw new Error('Invalid transaction date');
+      throw new BadRequestException('Invalid transaction date');
     }
 
     // Get current date/time in user's timezone
     const nowInUserTz = this.getNowInUserTimezone(userTimezone);
     const todayStartInUserTz = startOfDay(nowInUserTz);
-    
+
     // Convert the UTC transaction date to user's timezone for comparison
     const transactionDateInUserTz = this.toUserTimezone(transactionDateUtc, userTimezone);
     const transactionDateStartInUserTz = startOfDay(transactionDateInUserTz);
 
     // Transaction cannot be in the future (based on user's timezone)
     if (transactionDateStartInUserTz > todayStartInUserTz) {
-      throw new Error('Transaction date cannot be in the future');
+      throw new BadRequestException('Transaction date cannot be in the future');
     }
 
     // Transaction cannot be older than 5 years
     const fiveYearsAgo = subDays(todayStartInUserTz, 365 * 5);
     if (transactionDateStartInUserTz < fiveYearsAgo) {
-      throw new Error('Transaction date cannot be older than 5 years');
+      throw new BadRequestException('Transaction date cannot be older than 5 years');
     }
   }
 
