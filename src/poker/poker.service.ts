@@ -480,6 +480,11 @@ export class PokerService {
       (sum: number, event: any) => sum + (parseFloat(event.reBuyAmount) || 0),
       0,
     );
+    const totalAddOnCosts = events.reduce(
+      (sum: number, event: any) =>
+        sum + (event.addOnPurchased ? parseFloat(event.addOnAmount) || 0 : 0),
+      0,
+    );
     const totalWinnings = events.reduce(
       (sum: number, event: any) => sum + parseFloat(event.winnings),
       0,
@@ -488,13 +493,18 @@ export class PokerService {
       parseFloat(tournament.accommodationCost) +
       parseFloat(tournament.foodBudget) +
       parseFloat(tournament.otherExpenses);
-    const totalInvestment = totalSharedCosts + totalBuyIns + totalReBuyCosts;
+    const totalInvestment =
+      totalSharedCosts + totalBuyIns + totalReBuyCosts + totalAddOnCosts;
     const netProfit = totalWinnings - totalInvestment;
-    const eventsWon = events.filter(
-      (event: any) =>
+    const eventsWon = events.filter((event: any) => {
+      const addOnCost = event.addOnPurchased
+        ? parseFloat(event.addOnAmount) || 0
+        : 0;
+      return (
         parseFloat(event.winnings) >
-        parseFloat(event.buyIn) + (parseFloat(event.reBuyAmount) || 0),
-    ).length;
+        parseFloat(event.buyIn) + (parseFloat(event.reBuyAmount) || 0) + addOnCost
+      );
+    }).length;
 
     return {
       id: tournament.id,
@@ -542,6 +552,11 @@ export class PokerService {
         : undefined,
       startingStack: event.startingStack,
       isClosed: event.isClosed,
+      addOnAmount: event.addOnAmount
+        ? parseFloat(event.addOnAmount)
+        : undefined,
+      addOnStack: event.addOnStack,
+      addOnPurchased: event.addOnPurchased,
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     };

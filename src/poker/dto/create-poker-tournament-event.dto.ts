@@ -87,4 +87,22 @@ export class CreatePokerTournamentEventDto {
   @IsOptional()
   @IsBoolean()
   isClosed?: boolean = false;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(99999.99)
+  @Type(() => Number)
+  addOnAmount?: number = 0;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(999999)
+  @Type(() => Number)
+  addOnStack?: number = 0;
+
+  @IsOptional()
+  @IsBoolean()
+  addOnPurchased?: boolean = false;
 }

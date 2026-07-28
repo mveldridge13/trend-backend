@@ -6,6 +6,7 @@ export enum GameType {
   TURBO = "TURBO",
   DEEPSTACK = "DEEPSTACK",
   TEAM_EVENT = "TEAM_EVENT",
+  ADD_ON = "ADD_ON",
 }
 
 export class PokerTournamentDto {
@@ -54,6 +55,9 @@ export class PokerTournamentEventDto {
   reBuyAmount?: number;
   startingStack?: number;
   isClosed: boolean;
+  addOnAmount?: number;
+  addOnStack?: number;
+  addOnPurchased?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
