@@ -652,12 +652,32 @@ export class HomeService {
     period: PayPeriodBoundaries,
     frequency: IncomeFrequency
   ): Promise<GoalsInfo> {
-    // Get all active goals for the user with contributions in this period
+    // Get all active goals for the user with contributions in this period.
+    // A goal completed mid-period (e.g. its final payoff payment lands here)
+    // must still have that payment counted as an outflow, so we don't just
+    // filter out isCompleted goals up front — we keep any goal that either
+    // is still open, or was paid off via a contribution in this period.
     const goals = await this.prisma.goal.findMany({
       where: {
         userId,
         isActive: true,
-        isCompleted: false,
+        OR: [
+          { isCompleted: false },
+          {
+            contributions: {
+              some: {
+                date: {
+                  gte: period.start,
+                  lte: period.end,
+                },
+                type: {
+                  in: [ContributionType.MANUAL, ContributionType.AUTOMATIC, ContributionType.TRANSACTION],
+                },
+                incomeSourceId: null,
+              },
+            },
+          },
+        ],
       },
       include: {
         contributions: {
@@ -686,10 +706,14 @@ export class HomeService {
     let savingsPaidSoFar = 0;
 
     for (const goal of goals) {
-      // Calculate planned amount for this period
+      // Calculate planned amount for this period. A completed goal has
+      // nothing left to plan for — only its in-period contributions (below)
+      // should still count, toward paidSoFar.
       let goalPlanned = 0;
 
-      if (goal.type === GoalType.DEBT_PAYOFF && goal.minimumPayment) {
+      if (goal.isCompleted) {
+        // no planned amount
+      } else if (goal.type === GoalType.DEBT_PAYOFF && goal.minimumPayment) {
         // Debt: use minimum payment, prorated to period
         goalPlanned = this.dateService.prorateMonthlyAmount(
           Number(goal.minimumPayment),
