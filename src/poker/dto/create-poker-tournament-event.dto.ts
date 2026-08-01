@@ -36,7 +36,7 @@ export class CreatePokerTournamentEventDto {
   @Min(0)
   @Max(999999.99)
   @Type(() => Number)
-  winnings?: number = 0;
+  winnings?: number;
 
   @IsDateString()
   eventDate: string;
@@ -68,14 +68,14 @@ export class CreatePokerTournamentEventDto {
   @Min(0)
   @Max(10)
   @Type(() => Number)
-  reBuys?: number = 0;
+  reBuys?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(99999.99)
   @Type(() => Number)
-  reBuyAmount?: number = 0;
+  reBuyAmount?: number;
 
   @IsOptional()
   @IsInt()
@@ -86,23 +86,23 @@ export class CreatePokerTournamentEventDto {
 
   @IsOptional()
   @IsBoolean()
-  isClosed?: boolean = false;
+  isClosed?: boolean;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(99999.99)
   @Type(() => Number)
-  addOnAmount?: number = 0;
+  addOnAmount?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(999999)
   @Type(() => Number)
-  addOnStack?: number = 0;
+  addOnStack?: number;
 
   @IsOptional()
   @IsBoolean()
-  addOnPurchased?: boolean = false;
+  addOnPurchased?: boolean;
 }
