@@ -26,6 +26,9 @@
     "seed:categories": "npx ts-node scripts/seed-system-categories.ts",
     "backfill:primary-income": "npx ts-node scripts/backfill-primary-income.ts"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@aws-sdk/client-secrets-manager": "^3.989.0",
